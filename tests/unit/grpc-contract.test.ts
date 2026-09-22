@@ -11,8 +11,8 @@ describe("pluginprotocol gRPC v1 API", () => {
 
     expect(service).toContain("package liapoldus.plugin.v1;");
     expect(service).toContain("service PluginService");
-    expect(service).toMatch(/rpc Manifest\(ManifestRequest\) returns \(Manifest\)/);
-    expect(service).toMatch(/rpc ConfigSchema\(ConfigSchemaRequest\) returns \(ConfigSchema\)/);
+    expect(service).toMatch(/rpc Manifest\(ManifestRequest\) returns \((?:\.liapoldus\.plugin\.v1\.)?Manifest\)/);
+    expect(service).toMatch(/rpc ConfigSchema\(ConfigSchemaRequest\) returns \((?:\.liapoldus\.plugin\.v1\.)?ConfigSchema\)/);
     expect(service).toMatch(/rpc ConfigApply\(ConfigApplyRequest\) returns \(ConfigApplyResult\)/);
     expect(service).toMatch(/rpc Shutdown\(ShutdownRequest\) returns \(ShutdownResult\)/);
     expect(service).toMatch(/rpc Call\(CallRequest\) returns \(CallResponse\)/);

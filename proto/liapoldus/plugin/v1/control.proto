@@ -4,13 +4,15 @@ package liapoldus.plugin.v1;
 
 option go_package = "github.com/Liapoldus/pluginprotocol/pluginv1;pluginv1";
 
+message ManifestRequest {}
+
 message Manifest {
   string name = 1;
   repeated string capabilities = 2;
   string protocol_version = 3;
 }
 
-message Health { bool ready = 1; }
+message ConfigSchemaRequest {}
 
 message ConfigField {
   string name = 1;
@@ -22,5 +24,7 @@ message ConfigField {
 }
 
 message ConfigSchema { repeated ConfigField fields = 1; }
+message ConfigApplyRequest { bytes config = 1; }
 message ConfigApplyResult { bool applied = 1; }
+message ShutdownRequest {}
 message ShutdownResult { bool closed = 1; }
