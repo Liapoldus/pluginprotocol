@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "id": "liapoldus.identity.v1",
+  "protocolVersion": "v1",
+  "capabilities": [
+    "identity.client.authenticate",
+    "identity.client.callback",
+    "identity.client.logout",
+    "identity.token.validate",
+    "identity.server.authorize",
+    "identity.server.token",
+    "identity.server.userinfo",
+    "identity.server.jwks",
+    "identity.server.revoke",
+    "identity.server.introspect"
+  ],
+  "ownership": {
+    "plugin": ["state", "nonce", "pkce", "sessions", "cookies", "token-lifecycle", "identity-claims"],
+    "gateway": ["listener", "tls", "route-selection", "limits", "process-supervision", "grants"]
+  }
+}

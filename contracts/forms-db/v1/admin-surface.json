@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "plugin": "forms-db",
+  "requiredCapabilities": ["admin.surface.get", "forms.list", "forms.delete"],
+  "pages": [
+    {
+      "id": "submissions",
+      "title": "Form submissions",
+      "capability": "forms.list",
+      "permissions": ["plugins.forms-db.read"],
+      "sections": [
+        {
+          "id": "filters",
+          "kind": "form",
+          "fields": [
+            { "key": "site", "type": "select", "required": true },
+            { "key": "schemaName", "type": "select", "required": true },
+            { "key": "field", "type": "string" },
+            { "key": "equals", "type": "string" }
+          ]
+        },
+        {
+          "id": "records",
+          "kind": "table",
+          "dataCapability": "forms.list",
+          "columns": ["id", "createdAt", "data"],
+          "actions": [
+            { "id": "delete", "title": "Delete submission", "capability": "forms.delete", "confirmation": "Delete this submission permanently?", "dangerous": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "storage",
+      "title": "Storage configuration",
+      "capability": "config.schema",
+      "permissions": ["plugins.forms-db.write"],
+      "sections": [{ "id": "settings", "kind": "form", "fields": ["driver", "dsn", "tablePrefix"] }]
+    }
+  ]
+}

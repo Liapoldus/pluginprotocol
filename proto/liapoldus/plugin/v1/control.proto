@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package liapoldus.plugin.v1;
+
+option go_package = "github.com/Liapoldus/pluginprotocol/pluginv1;pluginv1";
+
+message Manifest {
+  string name = 1;
+  repeated string capabilities = 2;
+  string protocol_version = 3;
+}
+
+message Health { bool ready = 1; }
+
+message ConfigField {
+  string name = 1;
+  string type = 2;
+  bool required = 3;
+  string default_json = 4;
+  repeated string options = 5;
+  string description = 6;
+}
+
+message ConfigSchema { repeated ConfigField fields = 1; }
+message ConfigApplyResult { bool applied = 1; }
+message ShutdownResult { bool closed = 1; }

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "kind": "liapoldus.plugin.admin-ui",
+  "description": "Declarative Constructor surface. It contains no executable payload, URL or public listener declaration.",
+  "requiredManifestCapability": "admin.surface.get",
+  "page": {
+    "required": ["id", "title", "capability", "sections"],
+    "properties": {
+      "id": { "pattern": "^[a-z][a-z0-9-]{0,62}$" },
+      "title": { "type": "string", "maxLength": 120 },
+      "capability": { "type": "string" },
+      "sections": { "type": "array", "maxItems": 32 },
+      "permissions": { "type": "array", "items": { "type": "string" } }
+    }
+  },
+  "section": {
+    "required": ["id", "kind"],
+    "kinds": ["form", "table", "detail", "metrics", "log"],
+    "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "dataCapability": { "type": "string" }, "fields": { "type": "array" }, "columns": { "type": "array" }, "actions": { "type": "array" } }
+  },
+  "fieldTypes": ["string", "number", "boolean", "select", "multiselect", "secret", "file", "directory", "duration", "size", "code", "keyValue", "array", "object"],
+  "action": { "required": ["id", "title", "capability"], "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "capability": { "type": "string" }, "confirmation": { "type": "string" }, "dangerous": { "type": "boolean" } } },
+  "gatewayApi": {
+    "base": "/api/plugins/{instance}/admin",
+    "operations": {
+      "surface": "GET /surface",
+      "query": "POST /pages/{page}/query",
+      "action": "POST /pages/{page}/actions/{action}"
+    },
+    "rules": ["Gateway authorizes instance and capability", "Gateway applies limits/deadline/redaction/audit", "Plugin cannot register another API path", "Constructor renders only known declarative field and section kinds"]
+  }
+}
