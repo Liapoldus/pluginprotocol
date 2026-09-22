@@ -8,9 +8,11 @@ const root = fileURLToPath(new URL("../..", import.meta.url));
 let plugin: ChildProcessWithoutNullStreams;
 let address: string;
 
-function runClient(endpoint: string): Promise<string> {
+function runClient(endpoint: string, mode?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const process = spawn("go", ["run", "./tests/fixtures/grpc-client", endpoint], { cwd: root });
+    const args = ["run", "./tests/fixtures/grpc-client", endpoint];
+    if (mode) args.push(mode);
+    const process = spawn("go", args, { cwd: root });
     let stdout = "";
     let stderr = "";
     process.stdout.on("data", (chunk) => { stdout += String(chunk); });
@@ -33,5 +35,10 @@ describe("public Go transport client", () => {
   it("performs handshake and JSON capability Call using the v1 transport API", async () => {
     const output = await runClient(address);
     expect(JSON.parse(output)).toEqual({ plugin: "fixture", response: { accepted: true } });
+  });
+
+  it("classifies an oversized unary JSON payload as a protocol violation", async () => {
+    const output = await runClient(address, "oversized");
+    expect(JSON.parse(output)).toEqual({ error: "protocol_violation" });
   });
 });
