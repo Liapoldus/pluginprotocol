@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"github.com/Liapoldus/pluginprotocol/transport"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type fixture struct {
@@ -21,7 +24,7 @@ func (f *fixture) Manifest(context.Context, *pluginv1.ManifestRequest) (*pluginv
 	return &pluginv1.Manifest{
 		Name:            "fixture",
 		ProtocolVersion: "liapoldus.plugin.v1",
-		Capabilities:    []string{"forms.submit", "forms.live"},
+		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow"},
 	}, nil
 }
 
@@ -38,7 +41,20 @@ func (f *fixture) Shutdown(context.Context, *pluginv1.ShutdownRequest) (*pluginv
 	return &pluginv1.ShutdownResult{Closed: true}, nil
 }
 
-func (*fixture) Call(_ context.Context, request *pluginv1.CallRequest) (*pluginv1.CallResponse, error) {
+func (*fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*pluginv1.CallResponse, error) {
+	if request.GetCapability() == "forms.slow" {
+		timer := time.NewTimer(5 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+				return nil, status.Error(codes.DeadlineExceeded, "")
+			}
+			return nil, status.FromContextError(ctx.Err()).Err()
+		case <-timer.C:
+			return &pluginv1.CallResponse{Payload: []byte(`{}`)}, nil
+		}
+	}
 	if request.GetCapability() != "forms.submit" {
 		return &pluginv1.CallResponse{Code: "capability_not_found", Message: "unsupported capability"}, nil
 	}

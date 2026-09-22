@@ -46,7 +46,9 @@ has a macOS/Linux matrix.
   are covered.
 - [ ] Handshake order, invalid manifest/capability, config
   apply failure.
-- [ ] Concurrent unary calls, deadlines, cancellation and close-race behavior.
+- [ ] Concurrent unary calls, cancellation and close-race behavior. Deadline
+  expiry of a real child-process unary RPC is covered; transport-client error
+  classification and concurrent/cancel/close-race stress remain.
 - [ ] Bidirectional Stream both directions is covered; event message separation,
   cancellation, bounded backpressure and graceful shutdown still need dedicated
   stress tests.
