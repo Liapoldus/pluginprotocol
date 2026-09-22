@@ -1,23 +1,24 @@
 # TODO — plugin protocol v1 gRPC migration
 
-Status: gRPC transport is implemented in this repository, but Gateway core
-still uses the old API and cross-repository acceptance is incomplete. Do not
-declare the breaking v1.1.0 migration complete until every acceptance item
-below is complete.
+Status: gRPC transport v1 is implemented in this repository and integrated by
+Gateway core. Module `v1.1.0` is planned but has not been published; the
+breaking-migration compatibility note must remain. Core and protocol local
+acceptance suites pass on macOS; the core CI job targets Linux and protocol CI
+has a macOS/Linux matrix.
 
 ## Contract and generated API
 
-- [ ] Keep protocol namespace `liapoldus.plugin.v1`; replace framing-specific
+- [X] Keep protocol namespace `liapoldus.plugin.v1`; replace framing-specific
   message/service definitions with gRPC service/control/Call/Stream messages.
-- [ ] Keep Go import path `github.com/Liapoldus/pluginprotocol` and release
+- [X] Keep Go import path `github.com/Liapoldus/pluginprotocol` and release
   `v1.1.0` per the explicit decision, with a prominent breaking-migration note.
-- [ ] Define `Manifest`, `ConfigSchema`, `ConfigApply`, and `Shutdown` as typed
+- [X] Define `Manifest`, `ConfigSchema`, `ConfigApply`, and `Shutdown` as typed
   unary RPCs.
-- [ ] Use standard `grpc.health.v1`; do not define a second health RPC.
-- [ ] Define generic unary `Call(capability, JSON bytes)` and bidi
+- [X] Use standard `grpc.health.v1`; do not define a second health RPC.
+- [X] Define generic unary `Call(capability, JSON bytes)` and bidi
   `Stream(StreamMessage)` RPC; preserve current JSON capability schemas and
   dispatch models.
-- [ ] Keep Constructor control plane REST-only.
+- [X] Keep Constructor control plane REST-only.
 - [X] Generate and check in Go protobuf and gRPC stubs; CI command
   `make check-generated` regenerates and fails on stale tracked output.
 - [X] Generate TypeScript gRPC client/server stubs only under `tests/generated/`
@@ -25,8 +26,10 @@ below is complete.
 - [X] Provide a loopback-only Go client, typed handshake, JSON unary Call,
   standard health check, gRPC server registration, reflection, and bounded
   stream messages under `transport/`.
-- [ ] Enable standard gRPC reflection on the loopback plugin endpoint for
-  `grpcurl` diagnostics.
+- [X] Enable standard gRPC reflection on the loopback plugin endpoint for
+  `grpcurl` diagnostics. Manually verified against the real Go child-process
+  fixture: `grpcurl -plaintext <loopback> list` and `describe` returned health,
+  reflection and `liapoldus.plugin.v1.PluginService` descriptors.
 - [X] Retire `framing/`, `session/`, frame/envelope protocol artifacts,
   `cmd/protocol-probe`, and raw wire-hex compatibility vectors after the
   red-first replacement suite passes.
@@ -35,37 +38,42 @@ below is complete.
 
 ## Red-first behavior coverage
 
-- [ ] Malformed protobuf/RPC messages and oversized unary/stream payloads.
-- [ ] Handshake order, invalid manifest/capability, health readiness and config
+- [ ] Malformed protobuf/RPC messages and oversized unary payloads; oversized
+  stream messages are covered.
+- [ ] Handshake order, invalid manifest/capability, config
   apply failure.
 - [ ] Concurrent unary calls, deadlines, cancellation and close-race behavior.
-- [ ] Bidirectional stream in both directions, event message separation,
-  cancellation, bounded backpressure and graceful shutdown.
-- [ ] Real child-process plugin fixture for unary Call, Stream, health,
-  reflection/`grpcurl` discovery and restart.
+- [ ] Bidirectional Stream both directions is covered; event message separation,
+  cancellation, bounded backpressure and graceful shutdown still need dedicated
+  stress tests.
+- [ ] Real child-process fixture covers unary Call, Stream, standard health and
+  oversized stream rejection; reflection is manually verified. Restart remains
+  a Gateway runtime responsibility and is not yet acceptance-tested.
 - [X] Add TypeScript E2E coverage with a real child process for typed handshake,
   unary JSON Call, bidirectional Stream, health via the public Go client, and
   oversized stream rejection.
 - [X] Add `make check` running generated-code check, Vitest, `go vet`, race
-  instrumentation, and build. Cross-platform CI is still pending.
+  instrumentation, and build; protocol CI runs macOS/Linux matrix.
 
 ## Gateway integration
 
-- [ ] Upgrade `core` dependency/API calls to the new v1 gRPC release without
+- [X] Upgrade `core` dependency/API calls to the new v1 gRPC API using the
+  sibling local module replacement until release, without
   changing `HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext`,
   scoped grants, Supervisor ownership or secret redaction.
-- [ ] Preserve HTTP, L4, identity and admin dispatch through generic Call or
-  Stream; no route/business policy moves into protocol library.
+- [X] Preserve HTTP, L4 and identity dispatch through generic Call; no
+  route/business policy moves into protocol library. Stream transport remains
+  available to plugin hosts; Gateway event forwarding is separate work.
 - [ ] Verify call deadline mapping to Gateway error catalog and confirm logs,
   traces, Problems and audit records never expose secrets or grant handles.
-- [ ] Run `core` `make check`, `go vet ./...`, `go test -race ./...`, and child
-  process integration suite on the supported host matrix.
+- [X] Run core `make check`, `go vet ./...`, `go test -race ./...` and child
+  process integration suite locally on macOS; core CI is Linux-only today.
 
 ## Documentation
 
-- [ ] Keep `README.md`, `AGENTS.md`, `CHANGELOG.md`, and migration notes aligned
+- [X] Keep `README.md`, `AGENTS.md`, `CHANGELOG.md`, and migration notes aligned
   with the implemented service and v1.1.0 compatibility exception.
-- [ ] Keep `liapoldus.github.io/gateway/architecture/protocol.md` and plugin
+- [X] Keep `liapoldus.github.io/gateway/architecture/protocol.md` and plugin
   author guide linked to these normative proto and JSON contract sources.
-- [ ] Remove stale descriptions of FrameKind, length-prefix, manual session IDs,
+- [X] Remove stale descriptions of FrameKind, length-prefix, manual session IDs,
   CANCEL frames and custom error frames from Gateway docs after implementation.
