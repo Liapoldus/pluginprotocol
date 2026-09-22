@@ -97,7 +97,7 @@ func (c *Client) Handshake(ctx context.Context, config []byte) (Handshake, error
 }
 
 func (c *Client) Call(ctx context.Context, capability string, payload []byte) (*pluginv1.CallResponse, error) {
-	if capability == "" || !json.Valid(payload) {
+	if capability == "" || len(payload) > DefaultMaxMessageBytes || !json.Valid(payload) {
 		return nil, ErrProtocolViolation
 	}
 	response, err := c.service.Call(ctx, &pluginv1.CallRequest{Capability: capability, Payload: payload})

@@ -39,8 +39,11 @@ has a macOS/Linux matrix.
 
 ## Red-first behavior coverage
 
-- [ ] Malformed protobuf/RPC messages and oversized unary payloads; oversized
-  stream messages are covered.
+- [ ] Malformed protobuf/RPC messages and oversized unary payloads. The public
+  Go client now rejects a valid JSON payload over 10 MiB as a protocol
+  violation before transport (TypeScript child-process E2E); direct server-side
+  oversized unary injection remains to be tested. Oversized stream messages
+  are covered.
 - [ ] Handshake order, invalid manifest/capability, config
   apply failure.
 - [ ] Concurrent unary calls, deadlines, cancellation and close-race behavior.
