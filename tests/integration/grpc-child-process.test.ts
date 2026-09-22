@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { credentials } from "@grpc/grpc-js";
+import { credentials, Metadata, status } from "@grpc/grpc-js";
 import { PluginServiceClient } from "../generated/liapoldus/plugin/v1/service.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -69,5 +69,17 @@ describe("gRPC plugin child process", () => {
     });
     stream.write({ capability: "forms.live", payload: new Uint8Array(2 << 20) });
     expect(await status).toBe(8);
+  });
+
+  it("propagates a unary deadline to the plugin process", async () => {
+    const code = await new Promise<number>((resolve) => {
+      client.call(
+        { capability: "forms.slow", payload: new TextEncoder().encode("{}") },
+        new Metadata(),
+        { deadline: new Date(Date.now() + 50) },
+        (error) => resolve(error?.code ?? 0),
+      );
+    });
+    expect(code).toBe(status.DEADLINE_EXCEEDED);
   });
 });
