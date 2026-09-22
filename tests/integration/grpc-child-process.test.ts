@@ -60,4 +60,14 @@ describe("gRPC plugin child process", () => {
     expect(await received).toBe('{"event":"ready"}');
     stream.end();
   });
+
+  it("rejects a stream message larger than the protocol bound", async () => {
+    const stream = client.stream();
+    const status = new Promise<number>((resolve, reject) => {
+      stream.once("error", (error: { code: number }) => resolve(error.code));
+      stream.once("data", () => reject(new Error("oversized stream message was accepted")));
+    });
+    stream.write({ capability: "forms.live", payload: new Uint8Array(2 << 20) });
+    expect(await status).toBe(8);
+  });
 });
