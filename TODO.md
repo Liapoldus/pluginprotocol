@@ -10,8 +10,9 @@ has a macOS/Linux matrix.
 
 - [X] Keep protocol namespace `liapoldus.plugin.v1`; replace framing-specific
   message/service definitions with gRPC service/control/Call/Stream messages.
-- [X] Keep Go import path `github.com/Liapoldus/pluginprotocol` and release
-  `v1.1.0` per the explicit decision, with a prominent breaking-migration note.
+- [X] Keep Go import path `github.com/Liapoldus/pluginprotocol`; preserve the
+  planned `v1.1.0` release and prominent breaking-migration note (the release
+  itself has not been published).
 - [X] Define `Manifest`, `ConfigSchema`, `ConfigApply`, and `Shutdown` as typed
   unary RPCs.
 - [X] Use standard `grpc.health.v1`; do not define a second health RPC.
