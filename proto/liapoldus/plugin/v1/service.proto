@@ -5,7 +5,6 @@ package liapoldus.plugin.v1;
 option go_package = "github.com/Liapoldus/pluginprotocol/pluginv1;pluginv1";
 
 import "liapoldus/plugin/v1/control.proto";
-import "liapoldus/plugin/v1/envelope.proto";
 
 service PluginService {
   rpc Manifest(ManifestRequest) returns (.liapoldus.plugin.v1.Manifest);
@@ -27,10 +26,16 @@ message CallResponse {
   string message = 3;
 }
 
+message PluginEvent {
+  string level = 1;
+  string message = 2;
+  map<string, string> fields = 3;
+}
+
 message StreamMessage {
   string capability = 1;
   oneof body {
     bytes payload = 2;
-    Event event = 3;
+    PluginEvent event = 3;
   }
 }

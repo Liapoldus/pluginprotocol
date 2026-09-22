@@ -17,9 +17,10 @@ transport as implemented until every acceptance item below is complete.
   `Stream(StreamMessage)` RPC; preserve current JSON capability schemas and
   dispatch models.
 - [ ] Keep Constructor control plane REST-only.
-- [ ] Generate and check in Go protobuf and gRPC stubs; CI must regenerate and
-  fail on stale output.
-- [ ] Generate TypeScript stubs only for `tests/`; do not publish an npm SDK.
+- [X] Generate and check in Go protobuf and gRPC stubs; CI command
+  `make check-generated` regenerates and fails on stale tracked output.
+- [X] Generate TypeScript gRPC client/server stubs only under `tests/generated/`
+  with `ts-proto`/`@grpc/grpc-js`; do not publish an npm SDK.
 - [ ] Enable standard gRPC reflection on the loopback plugin endpoint for
   `grpcurl` diagnostics.
 - [ ] Retire `framing/`, `session/`, frame/envelope protocol artifacts and

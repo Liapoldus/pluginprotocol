@@ -133,6 +133,66 @@ func (x *CallResponse) GetMessage() string {
 	return ""
 }
 
+type PluginEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Level         string                 `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Fields        map[string]string      `protobuf:"bytes,3,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PluginEvent) Reset() {
+	*x = PluginEvent{}
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PluginEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PluginEvent) ProtoMessage() {}
+
+func (x *PluginEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PluginEvent.ProtoReflect.Descriptor instead.
+func (*PluginEvent) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PluginEvent) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *PluginEvent) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *PluginEvent) GetFields() map[string]string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
 type StreamMessage struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Capability string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
@@ -147,7 +207,7 @@ type StreamMessage struct {
 
 func (x *StreamMessage) Reset() {
 	*x = StreamMessage{}
-	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[2]
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -159,7 +219,7 @@ func (x *StreamMessage) String() string {
 func (*StreamMessage) ProtoMessage() {}
 
 func (x *StreamMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[2]
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -172,7 +232,7 @@ func (x *StreamMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamMessage.ProtoReflect.Descriptor instead.
 func (*StreamMessage) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{2}
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *StreamMessage) GetCapability() string {
@@ -198,7 +258,7 @@ func (x *StreamMessage) GetPayload() []byte {
 	return nil
 }
 
-func (x *StreamMessage) GetEvent() *Event {
+func (x *StreamMessage) GetEvent() *PluginEvent {
 	if x != nil {
 		if x, ok := x.Body.(*StreamMessage_Event); ok {
 			return x.Event
@@ -216,7 +276,7 @@ type StreamMessage_Payload struct {
 }
 
 type StreamMessage_Event struct {
-	Event *Event `protobuf:"bytes,3,opt,name=event,proto3,oneof"`
+	Event *PluginEvent `protobuf:"bytes,3,opt,name=event,proto3,oneof"`
 }
 
 func (*StreamMessage_Payload) isStreamMessage_Body() {}
@@ -227,7 +287,7 @@ var File_liapoldus_plugin_v1_service_proto protoreflect.FileDescriptor
 
 const file_liapoldus_plugin_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"!liapoldus/plugin/v1/service.proto\x12\x13liapoldus.plugin.v1\x1a!liapoldus/plugin/v1/control.proto\x1a\"liapoldus/plugin/v1/envelope.proto\"G\n" +
+	"!liapoldus/plugin/v1/service.proto\x12\x13liapoldus.plugin.v1\x1a!liapoldus/plugin/v1/control.proto\"G\n" +
 	"\vCallRequest\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +
@@ -236,13 +296,20 @@ const file_liapoldus_plugin_v1_service_proto_rawDesc = "" +
 	"\fCallResponse\x12\x18\n" +
 	"\apayload\x18\x01 \x01(\fR\apayload\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\x87\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xbe\x01\n" +
+	"\vPluginEvent\x12\x14\n" +
+	"\x05level\x18\x01 \x01(\tR\x05level\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12D\n" +
+	"\x06fields\x18\x03 \x03(\v2,.liapoldus.plugin.v1.PluginEvent.FieldsEntryR\x06fields\x1a9\n" +
+	"\vFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8d\x01\n" +
 	"\rStreamMessage\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +
 	"capability\x12\x1a\n" +
-	"\apayload\x18\x02 \x01(\fH\x00R\apayload\x122\n" +
-	"\x05event\x18\x03 \x01(\v2\x1a.liapoldus.plugin.v1.EventH\x00R\x05eventB\x06\n" +
+	"\apayload\x18\x02 \x01(\fH\x00R\apayload\x128\n" +
+	"\x05event\x18\x03 \x01(\v2 .liapoldus.plugin.v1.PluginEventH\x00R\x05eventB\x06\n" +
 	"\x04body2\x97\x04\n" +
 	"\rPluginService\x12O\n" +
 	"\bManifest\x12$.liapoldus.plugin.v1.ManifestRequest\x1a\x1d.liapoldus.plugin.v1.Manifest\x12[\n" +
@@ -264,40 +331,42 @@ func file_liapoldus_plugin_v1_service_proto_rawDescGZIP() []byte {
 	return file_liapoldus_plugin_v1_service_proto_rawDescData
 }
 
-var file_liapoldus_plugin_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_liapoldus_plugin_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_liapoldus_plugin_v1_service_proto_goTypes = []any{
 	(*CallRequest)(nil),         // 0: liapoldus.plugin.v1.CallRequest
 	(*CallResponse)(nil),        // 1: liapoldus.plugin.v1.CallResponse
-	(*StreamMessage)(nil),       // 2: liapoldus.plugin.v1.StreamMessage
-	(*Event)(nil),               // 3: liapoldus.plugin.v1.Event
-	(*ManifestRequest)(nil),     // 4: liapoldus.plugin.v1.ManifestRequest
-	(*ConfigSchemaRequest)(nil), // 5: liapoldus.plugin.v1.ConfigSchemaRequest
-	(*ConfigApplyRequest)(nil),  // 6: liapoldus.plugin.v1.ConfigApplyRequest
-	(*ShutdownRequest)(nil),     // 7: liapoldus.plugin.v1.ShutdownRequest
-	(*Manifest)(nil),            // 8: liapoldus.plugin.v1.Manifest
-	(*ConfigSchema)(nil),        // 9: liapoldus.plugin.v1.ConfigSchema
-	(*ConfigApplyResult)(nil),   // 10: liapoldus.plugin.v1.ConfigApplyResult
-	(*ShutdownResult)(nil),      // 11: liapoldus.plugin.v1.ShutdownResult
+	(*PluginEvent)(nil),         // 2: liapoldus.plugin.v1.PluginEvent
+	(*StreamMessage)(nil),       // 3: liapoldus.plugin.v1.StreamMessage
+	nil,                         // 4: liapoldus.plugin.v1.PluginEvent.FieldsEntry
+	(*ManifestRequest)(nil),     // 5: liapoldus.plugin.v1.ManifestRequest
+	(*ConfigSchemaRequest)(nil), // 6: liapoldus.plugin.v1.ConfigSchemaRequest
+	(*ConfigApplyRequest)(nil),  // 7: liapoldus.plugin.v1.ConfigApplyRequest
+	(*ShutdownRequest)(nil),     // 8: liapoldus.plugin.v1.ShutdownRequest
+	(*Manifest)(nil),            // 9: liapoldus.plugin.v1.Manifest
+	(*ConfigSchema)(nil),        // 10: liapoldus.plugin.v1.ConfigSchema
+	(*ConfigApplyResult)(nil),   // 11: liapoldus.plugin.v1.ConfigApplyResult
+	(*ShutdownResult)(nil),      // 12: liapoldus.plugin.v1.ShutdownResult
 }
 var file_liapoldus_plugin_v1_service_proto_depIdxs = []int32{
-	3,  // 0: liapoldus.plugin.v1.StreamMessage.event:type_name -> liapoldus.plugin.v1.Event
-	4,  // 1: liapoldus.plugin.v1.PluginService.Manifest:input_type -> liapoldus.plugin.v1.ManifestRequest
-	5,  // 2: liapoldus.plugin.v1.PluginService.ConfigSchema:input_type -> liapoldus.plugin.v1.ConfigSchemaRequest
-	6,  // 3: liapoldus.plugin.v1.PluginService.ConfigApply:input_type -> liapoldus.plugin.v1.ConfigApplyRequest
-	7,  // 4: liapoldus.plugin.v1.PluginService.Shutdown:input_type -> liapoldus.plugin.v1.ShutdownRequest
-	0,  // 5: liapoldus.plugin.v1.PluginService.Call:input_type -> liapoldus.plugin.v1.CallRequest
-	2,  // 6: liapoldus.plugin.v1.PluginService.Stream:input_type -> liapoldus.plugin.v1.StreamMessage
-	8,  // 7: liapoldus.plugin.v1.PluginService.Manifest:output_type -> liapoldus.plugin.v1.Manifest
-	9,  // 8: liapoldus.plugin.v1.PluginService.ConfigSchema:output_type -> liapoldus.plugin.v1.ConfigSchema
-	10, // 9: liapoldus.plugin.v1.PluginService.ConfigApply:output_type -> liapoldus.plugin.v1.ConfigApplyResult
-	11, // 10: liapoldus.plugin.v1.PluginService.Shutdown:output_type -> liapoldus.plugin.v1.ShutdownResult
-	1,  // 11: liapoldus.plugin.v1.PluginService.Call:output_type -> liapoldus.plugin.v1.CallResponse
-	2,  // 12: liapoldus.plugin.v1.PluginService.Stream:output_type -> liapoldus.plugin.v1.StreamMessage
-	7,  // [7:13] is the sub-list for method output_type
-	1,  // [1:7] is the sub-list for method input_type
-	1,  // [1:1] is the sub-list for extension type_name
-	1,  // [1:1] is the sub-list for extension extendee
-	0,  // [0:1] is the sub-list for field type_name
+	4,  // 0: liapoldus.plugin.v1.PluginEvent.fields:type_name -> liapoldus.plugin.v1.PluginEvent.FieldsEntry
+	2,  // 1: liapoldus.plugin.v1.StreamMessage.event:type_name -> liapoldus.plugin.v1.PluginEvent
+	5,  // 2: liapoldus.plugin.v1.PluginService.Manifest:input_type -> liapoldus.plugin.v1.ManifestRequest
+	6,  // 3: liapoldus.plugin.v1.PluginService.ConfigSchema:input_type -> liapoldus.plugin.v1.ConfigSchemaRequest
+	7,  // 4: liapoldus.plugin.v1.PluginService.ConfigApply:input_type -> liapoldus.plugin.v1.ConfigApplyRequest
+	8,  // 5: liapoldus.plugin.v1.PluginService.Shutdown:input_type -> liapoldus.plugin.v1.ShutdownRequest
+	0,  // 6: liapoldus.plugin.v1.PluginService.Call:input_type -> liapoldus.plugin.v1.CallRequest
+	3,  // 7: liapoldus.plugin.v1.PluginService.Stream:input_type -> liapoldus.plugin.v1.StreamMessage
+	9,  // 8: liapoldus.plugin.v1.PluginService.Manifest:output_type -> liapoldus.plugin.v1.Manifest
+	10, // 9: liapoldus.plugin.v1.PluginService.ConfigSchema:output_type -> liapoldus.plugin.v1.ConfigSchema
+	11, // 10: liapoldus.plugin.v1.PluginService.ConfigApply:output_type -> liapoldus.plugin.v1.ConfigApplyResult
+	12, // 11: liapoldus.plugin.v1.PluginService.Shutdown:output_type -> liapoldus.plugin.v1.ShutdownResult
+	1,  // 12: liapoldus.plugin.v1.PluginService.Call:output_type -> liapoldus.plugin.v1.CallResponse
+	3,  // 13: liapoldus.plugin.v1.PluginService.Stream:output_type -> liapoldus.plugin.v1.StreamMessage
+	8,  // [8:14] is the sub-list for method output_type
+	2,  // [2:8] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_liapoldus_plugin_v1_service_proto_init() }
@@ -306,8 +375,7 @@ func file_liapoldus_plugin_v1_service_proto_init() {
 		return
 	}
 	file_liapoldus_plugin_v1_control_proto_init()
-	file_liapoldus_plugin_v1_envelope_proto_init()
-	file_liapoldus_plugin_v1_service_proto_msgTypes[2].OneofWrappers = []any{
+	file_liapoldus_plugin_v1_service_proto_msgTypes[3].OneofWrappers = []any{
 		(*StreamMessage_Payload)(nil),
 		(*StreamMessage_Event)(nil),
 	}
@@ -317,7 +385,7 @@ func file_liapoldus_plugin_v1_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_liapoldus_plugin_v1_service_proto_rawDesc), len(file_liapoldus_plugin_v1_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
