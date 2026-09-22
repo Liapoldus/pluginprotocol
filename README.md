@@ -59,8 +59,11 @@ npm test --prefix tests
 только адрес с IP-loopback, `Handshake` выполняет typed control RPCs и
 standard health check, `Call` передаёт JSON capability payload, а `NewServer`
 регистрирует plugin service, health и reflection с лимитами сообщений. Плагин
-реализует сгенерированный `pluginv1.PluginServiceServer`; Gateway policy,
-grants и process supervision не переносятся в transport library.
+получает адрес от Supervisor через launch contract
+[`contracts/protocol/v1/launch.json`](contracts/protocol/v1/launch.json) и может
+открыть его через `transport.ListenLoopback`. Плагин реализует сгенерированный
+`pluginv1.PluginServiceServer`; Gateway policy, grants и process supervision не
+переносятся в transport library.
 
 Protocol tests red-first и TypeScript/Vitest-only. Реализованные проверки
 покрывают proto service contract, generated stubs, JSON payload vectors,

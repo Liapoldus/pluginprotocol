@@ -1,0 +1,10 @@
+{
+  "protocolVersion": "liapoldus.plugin.v1",
+  "endpointEnvironment": "LIAPOLDUS_PLUGIN_ENDPOINT",
+  "endpoint": {
+    "transport": "tcp",
+    "host": "127.0.0.1",
+    "port": "gateway-assigned-ephemeral-port"
+  },
+  "rule": "The plugin must bind only the supplied IPv4 loopback address."
+}

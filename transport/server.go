@@ -1,6 +1,9 @@
 package transport
 
 import (
+	"net"
+	"os"
+
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -12,6 +15,8 @@ import (
 )
 
 const MaxStreamMessageBytes = 1 << 20
+
+const EndpointEnvironment = "LIAPOLDUS_PLUGIN_ENDPOINT"
 
 type ServerOptions struct {
 	MaxMessageBytes       int
@@ -41,6 +46,15 @@ func NewServer(service pluginv1.PluginServiceServer, options ServerOptions) *grp
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
 	reflection.Register(server)
 	return server
+}
+
+// ListenLoopback opens only the endpoint supplied by Gateway at process start.
+func ListenLoopback() (net.Listener, error) {
+	endpoint := os.Getenv(EndpointEnvironment)
+	if !isLoopbackEndpoint(endpoint) {
+		return nil, ErrInvalidEndpoint
+	}
+	return net.Listen("tcp", endpoint)
 }
 
 type boundedServerStream struct {
