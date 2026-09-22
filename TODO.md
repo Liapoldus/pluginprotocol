@@ -47,9 +47,9 @@ has a macOS/Linux matrix.
 - [ ] Bidirectional Stream both directions is covered; event message separation,
   cancellation, bounded backpressure and graceful shutdown still need dedicated
   stress tests.
-- [ ] Real child-process fixture covers unary Call, Stream, standard health and
-  oversized stream rejection; reflection is manually verified. Restart remains
-  a Gateway runtime responsibility and is not yet acceptance-tested.
+- [X] Real protocol child-process fixture covers unary Call, Stream, standard
+  health and oversized stream rejection; reflection is manually verified.
+  Gateway core child-process E2E also verifies restart after unexpected exit.
 - [X] Add TypeScript E2E coverage with a real child process for typed handshake,
   unary JSON Call, bidirectional Stream, health via the public Go client, and
   oversized stream rejection.
