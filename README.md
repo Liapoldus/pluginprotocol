@@ -15,8 +15,8 @@ Control RPC — `Manifest`, `ConfigSchema`, `ConfigApply`, `Shutdown`; health �
 стандартный `grpc.health.v1`. Бизнес-вызовы используют единый unary `Call` с
 capability name и versioned UTF-8 JSON payload. Двунаправленный `Stream`
 переносит L4 traffic и отдельно типизированные event messages. gRPC обеспечивает
-framing, multiplexing, cancellation и flow control; custom frame, length-prefix
-и самописный session multiplexer удаляются.
+framing, multiplexing, cancellation и flow control; старые custom frame,
+length-prefix и самописный session multiplexer удалены.
 
 JSON contracts manifest/settings/HTTP-actions/admin-surface/admin-UI и типы
 `HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext` сохраняются.
@@ -62,9 +62,9 @@ standard health check, `Call` передаёт JSON capability payload, а `NewS
 реализует сгенерированный `pluginv1.PluginServiceServer`; Gateway policy,
 grants и process supervision не переносятся в transport library.
 
-Protocol tests red-first и TypeScript/Vitest-only. Они покрывают protobuf
-descriptor conformance, JSON-schema examples, malformed/oversized messages,
-deadlines, cancellation, concurrent calls, обе стороны bidirectional stream,
-bounded backpressure, close-race, restart и build macOS/Linux. Старые golden
-векторы raw wire hex относятся только к удалённому framing v1.0.0 и не являются
-частью нового gRPC conformance наборa.
+Protocol tests red-first и TypeScript/Vitest-only. Реализованные проверки
+покрывают proto service contract, generated stubs, JSON payload vectors,
+child-process handshake, стандартную health-проверку, unary Call, обе стороны
+bidirectional stream и отклонение oversized stream message. Отдельные тесты
+deadlines, cancellation/concurrency/close-race, backpressure и macOS/Linux CI
+ещё остаются в TODO.

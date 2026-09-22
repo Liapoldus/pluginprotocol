@@ -1,7 +1,7 @@
 # TODO — plugin protocol v1 gRPC migration
 
-Status: gRPC implementation is in progress. The repository still contains
-legacy framing/session artifacts, and Gateway core still uses them. Do not
+Status: gRPC transport is implemented in this repository, but Gateway core
+still uses the old API and cross-repository acceptance is incomplete. Do not
 declare the breaking v1.1.0 migration complete until every acceptance item
 below is complete.
 
@@ -27,9 +27,10 @@ below is complete.
   stream messages under `transport/`.
 - [ ] Enable standard gRPC reflection on the loopback plugin endpoint for
   `grpcurl` diagnostics.
-- [ ] Retire `framing/`, `session/`, frame/envelope protocol artifacts and
-  `cmd/protocol-probe` only after the red-first replacement suite passes.
-- [ ] Replace raw wire-hex golden vectors with protobuf descriptor conformance
+- [X] Retire `framing/`, `session/`, frame/envelope protocol artifacts,
+  `cmd/protocol-probe`, and raw wire-hex compatibility vectors after the
+  red-first replacement suite passes.
+- [X] Replace raw wire-hex golden vectors with protobuf descriptor conformance
   and JSON-schema examples. Keep unrelated Gateway observable-behavior vectors.
 
 ## Red-first behavior coverage

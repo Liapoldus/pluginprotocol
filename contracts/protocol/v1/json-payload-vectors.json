@@ -1,0 +1,20 @@
+[
+  {
+    "name": "forms-admin-surface-read",
+    "capability": "admin.surface.get",
+    "contract": "contracts/forms-db/v1/admin-surface.json",
+    "request": { "version": 1 },
+    "response": {
+      "version": 1,
+      "plugin": "forms-db",
+      "requiredCapabilities": ["admin.surface.get", "forms.list", "forms.delete"]
+    }
+  },
+  {
+    "name": "identity-http-response",
+    "capability": "identity.client.callback",
+    "contract": "contracts/identity/v1/http-actions.schema.json",
+    "request": { "method": "GET", "path": "/identity/callback", "query": "code=fixture" },
+    "response": { "status": 302, "headers": { "Location": "/" }, "body": "" }
+  }
+]
