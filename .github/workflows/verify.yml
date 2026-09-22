@@ -33,9 +33,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go vet ./...
-      - run: go test ./...
-      - run: go build ./...
+      - run: make check
 
   contracts:
     runs-on: ubuntu-latest

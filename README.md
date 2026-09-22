@@ -49,10 +49,18 @@ semantic-versioning ожидания и должно оставаться зам
 Из корня репозитория:
 
 ```bash
+make check
 go vet ./...
 go build ./...
 npm test --prefix tests
 ```
+
+Публичный Go transport API расположен в `transport/`: `DialContext` принимает
+только адрес с IP-loopback, `Handshake` выполняет typed control RPCs и
+standard health check, `Call` передаёт JSON capability payload, а `NewServer`
+регистрирует plugin service, health и reflection с лимитами сообщений. Плагин
+реализует сгенерированный `pluginv1.PluginServiceServer`; Gateway policy,
+grants и process supervision не переносятся в transport library.
 
 Protocol tests red-first и TypeScript/Vitest-only. Они покрывают protobuf
 descriptor conformance, JSON-schema examples, malformed/oversized messages,

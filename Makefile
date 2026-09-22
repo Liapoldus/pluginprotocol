@@ -1,7 +1,13 @@
 PROTO_DIR := proto/liapoldus/plugin/v1
 TS_PLUGIN_PATH := tests/node_modules/.bin/protoc-gen-ts_proto
 
-.PHONY: generate generate-go generate-ts check-generated
+.PHONY: check generate generate-go generate-ts check-generated
+
+check: check-generated
+	npm test --prefix tests
+	go vet ./...
+	go test -race ./...
+	go build ./...
 
 generate: generate-go generate-ts
 

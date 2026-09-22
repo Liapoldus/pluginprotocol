@@ -1,8 +1,9 @@
 # TODO — plugin protocol v1 gRPC migration
 
-Status: design accepted; implementation not started. Current `v1.0.0` still
-implements custom length-prefixed framing/session. Do not describe the new
-transport as implemented until every acceptance item below is complete.
+Status: gRPC implementation is in progress. The repository still contains
+legacy framing/session artifacts, and Gateway core still uses them. Do not
+declare the breaking v1.1.0 migration complete until every acceptance item
+below is complete.
 
 ## Contract and generated API
 
@@ -21,6 +22,9 @@ transport as implemented until every acceptance item below is complete.
   `make check-generated` regenerates and fails on stale tracked output.
 - [X] Generate TypeScript gRPC client/server stubs only under `tests/generated/`
   with `ts-proto`/`@grpc/grpc-js`; do not publish an npm SDK.
+- [X] Provide a loopback-only Go client, typed handshake, JSON unary Call,
+  standard health check, gRPC server registration, reflection, and bounded
+  stream messages under `transport/`.
 - [ ] Enable standard gRPC reflection on the loopback plugin endpoint for
   `grpcurl` diagnostics.
 - [ ] Retire `framing/`, `session/`, frame/envelope protocol artifacts and
@@ -38,8 +42,11 @@ transport as implemented until every acceptance item below is complete.
   cancellation, bounded backpressure and graceful shutdown.
 - [ ] Real child-process plugin fixture for unary Call, Stream, health,
   reflection/`grpcurl` discovery and restart.
-- [ ] Cross-platform compile/CI on macOS and Linux; `go vet ./...`,
-  `go build ./...`, and full `npm test --prefix tests` pass.
+- [X] Add TypeScript E2E coverage with a real child process for typed handshake,
+  unary JSON Call, bidirectional Stream, health via the public Go client, and
+  oversized stream rejection.
+- [X] Add `make check` running generated-code check, Vitest, `go vet`, race
+  instrumentation, and build. Cross-platform CI is still pending.
 
 ## Gateway integration
 
