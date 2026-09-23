@@ -35,4 +35,13 @@ describe("scoped grant redemption v1", () => {
     expect(grantProto).toMatch(/message RedeemGrantRequest[\s\S]*?string capability = 4/);
     expect(grantProto).toContain("string purpose = 2");
   });
+
+  it("keeps grpc implementation types behind the protocol transport API", async () => {
+    const transport = await readFile(`${root}/transport/grants.go`, "utf8");
+
+    expect(transport).toContain("type GrantServer struct");
+    expect(transport).toMatch(/func NewGrantBrokerServer\(service pluginv1\.GrantBrokerServer\) \*GrantServer/);
+    expect(transport).toContain("func (s *GrantServer) Serve(listener net.Listener) error");
+    expect(transport).toContain("func (s *GrantServer) Stop()");
+  });
 });
