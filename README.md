@@ -22,6 +22,9 @@ JSON contracts manifest/settings/HTTP-actions/admin-surface/admin-UI и типы
 `HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext` сохраняются.
 Protocol transport не получает публичный socket, filesystem path или raw secret.
 Grant handling и redaction остаются ответственностью Gateway boundary.
+Go-потребители versioned JSON contracts используют `ContractFiles()`, который
+отдаёт read-only `fs.FS` с embedded содержимым каталога `contracts/`; plugin
+модули не копируют capability fixtures локально.
 
 По решению проекта transport breaking change выпускается внутри protocol v1:
 protobuf namespace `liapoldus.plugin.v1`, Go import path
@@ -34,7 +37,7 @@ semantic-versioning ожидания и должно оставаться зам
 ## Слои и границы
 
 - Proto содержит transport/control RPC types, generic Call envelope и
-  bidirectional Stream message envelope.
+bidirectional Stream message envelope.
 - JSON Schemas определяют capability business payloads; transport не содержит
   отдельные protobuf DTO на каждую capability.
 - Generated Go client/server code публикуется вместе с этим module.
@@ -43,6 +46,13 @@ semantic-versioning ожидания и должно оставаться зам
 - Gateway owns process supervision, loopback endpoint allocation, grants,
   routing, HTTP/L4 dispatch, limits и conversion ошибок в Gateway Problems.
 - Constructor control plane остаётся REST и не использует этот gRPC service.
+
+Для L4 Stream каждый TCP connection имеет отдельный lifecycle, а каждая UDP
+datagram передаётся отдельным lifecycle. Typed Open/Data/Close, направление
+потока и raw-byte encoding определяются только protobuf API; JSON metadata
+открытия валидируется по
+[`stream-open-context.schema.json`](contracts/protocol/v1/stream-open-context.schema.json).
+Транспорт не передаёт socket handle, filesystem path или secret.
 
 ### Scoped secret grants
 

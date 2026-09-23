@@ -22,6 +22,10 @@ has a macOS/Linux matrix.
 - [X] Define generic unary `Call(capability, JSON bytes)` and bidi
   `Stream(StreamMessage)` RPC; preserve current JSON capability schemas and
   dispatch models.
+- [X] Define typed L4 stream lifecycle in the v1 protobuf contract: one Open,
+  raw Data messages with explicit request/response direction, then Close;
+  TCP uses a stream per connection and UDP a stream per datagram. The bounded
+  open-context JSON schema is versioned under `contracts/protocol/v1/`.
 - [X] Keep Constructor control plane REST-only.
 - [X] Generate and check in Go protobuf and gRPC stubs; CI command
   `make check-generated` regenerates and fails on stale tracked output.
@@ -39,14 +43,20 @@ has a macOS/Linux matrix.
   red-first replacement suite passes.
 - [X] Replace raw wire-hex golden vectors with protobuf descriptor conformance
   and JSON-schema examples. Keep unrelated Gateway observable-behavior vectors.
+- [X] Expose repository-owned versioned JSON contracts through read-only Go
+  `ContractFiles()` so plugin adapters can serve canonical contract assets
+  without copying them into plugin repositories.
 
 ## Red-first behavior coverage
 
 - [ ] Malformed protobuf/RPC messages. Oversized unary calls are rejected both
   by the public Go client and at the real server receive boundary using a TS
   child-process test; oversized stream messages are also covered.
-- [ ] Handshake order, invalid manifest/capability, config
-  apply failure.
+- [X] TypeScript child-process tests verify the control handshake's
+  `Manifest` → `ConfigSchema` → `ConfigApply` order, rejection of an empty
+  manifest name or incorrect protocol namespace before configuration calls,
+  and rejection when `ConfigApply` declines the runtime settings. Capability
+  set matching remains Gateway-owned and is tracked in `core/TODO.md`.
 - [ ] Close-race behavior. Deadline expiry, explicit cancellation observed by
   the child-process plugin, cancellation classification through the public Go
   client, and four overlapping unary calls completing independently are
@@ -70,9 +80,12 @@ has a macOS/Linux matrix.
   sibling local module replacement until release, without
   changing `HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext`,
   scoped grants, Supervisor ownership or secret redaction.
-- [X] Preserve HTTP, L4 and identity dispatch through generic Call; no
-  route/business policy moves into protocol library. Stream transport remains
-  available to plugin hosts; Gateway event forwarding is separate work.
+- [X] Preserve HTTP and identity dispatch through generic Call; no route or
+  business policy moves into the protocol library.
+- [X] Migrate core L4 dispatch from unary JSON Call to the typed Stream lifecycle
+  while preserving public L4 JSON/domain models. Gateway child-process tests
+  cover TCP dispatch and UDP raw datagrams; protocol child-process tests cover
+  multi-message TCP, UDP, directions and graceful Close.
 - [ ] Confirm logs, traces, Problems and audit records never expose secrets
   or grant handles. Gateway E2E verifies a bounded Call deadline maps to the
   versioned `plugin_timeout` Problem; the broader redaction audit remains.
