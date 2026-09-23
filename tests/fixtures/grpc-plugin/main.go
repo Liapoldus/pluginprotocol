@@ -23,20 +23,46 @@ type fixture struct {
 	cancellations atomic.Int32
 }
 
+func recordControlCall(name string) {
+	path := os.Getenv("LIAPOLDUS_FIXTURE_TRACE")
+	if path == "" {
+		return
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, _ = file.WriteString(name + "\n")
+}
+
 func (f *fixture) Manifest(context.Context, *pluginv1.ManifestRequest) (*pluginv1.Manifest, error) {
+	recordControlCall("manifest")
+	name := os.Getenv("LIAPOLDUS_FIXTURE_MANIFEST_NAME")
+	if name == "__empty__" {
+		name = ""
+	} else if name == "" {
+		name = "fixture"
+	}
+	protocolVersion := os.Getenv("LIAPOLDUS_FIXTURE_PROTOCOL_VERSION")
+	if protocolVersion == "" {
+		protocolVersion = "liapoldus.plugin.v1"
+	}
 	return &pluginv1.Manifest{
-		Name:            "fixture",
-		ProtocolVersion: "liapoldus.plugin.v1",
+		Name:            name,
+		ProtocolVersion: protocolVersion,
 		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow", "forms.delay", "forms.cancelled"},
 	}, nil
 }
 
 func (*fixture) ConfigSchema(context.Context, *pluginv1.ConfigSchemaRequest) (*pluginv1.ConfigSchema, error) {
+	recordControlCall("config.schema")
 	return &pluginv1.ConfigSchema{}, nil
 }
 
 func (*fixture) ConfigApply(context.Context, *pluginv1.ConfigApplyRequest) (*pluginv1.ConfigApplyResult, error) {
-	return &pluginv1.ConfigApplyResult{Applied: true}, nil
+	recordControlCall("config.apply")
+	return &pluginv1.ConfigApplyResult{Applied: os.Getenv("LIAPOLDUS_FIXTURE_CONFIG_APPLIED") != "false"}, nil
 }
 
 func (f *fixture) Shutdown(context.Context, *pluginv1.ShutdownRequest) (*pluginv1.ShutdownResult, error) {
