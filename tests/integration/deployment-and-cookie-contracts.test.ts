@@ -10,12 +10,12 @@ describe("protocol v1 remote deployment and HTTP cookie contracts", () => {
   it("defines a fixed remote TLS/mTLS endpoint without insecure fallback", async () => {
     const deployment = await json("contracts/protocol/v1/remote-deployment.json");
     expect(deployment.protocolVersion).toBe("liapoldus.plugin.v1");
-    expect(deployment.endpoint.required).toEqual(expect.arrayContaining(["address", "tls"]));
-    expect(deployment.endpoint.properties.tls.required).toEqual(
+    expect(deployment.modes.remote.endpoint.required).toEqual(expect.arrayContaining(["address", "tls"]));
+    expect(deployment.modes.remote.endpoint.properties.tls.required).toEqual(
       expect.arrayContaining(["serverName", "ca", "clientCertificate", "clientKey"]),
     );
-    expect(deployment.fallback).toBe("none");
-    expect(deployment.processOwner.remote).toBe("external");
+    expect(deployment.modes.remote.fallback).toBe("none");
+    expect(deployment.modes.remote.processOwner).toBe("external");
   });
 
   it("shares a versioned typed cookie response-action schema", async () => {
