@@ -45,9 +45,10 @@ has a macOS/Linux matrix.
 - [ ] Handshake order, invalid manifest/capability, config
   apply failure.
 - [ ] Close-race behavior. Deadline expiry, explicit cancellation observed by
-  the child-process plugin, and four overlapping unary calls completing
-  independently are covered; transport-client error classification and
-  cancel/close-race stress remain.
+  the child-process plugin, cancellation classification through the public Go
+  client, and four overlapping unary calls completing independently are
+  covered; cancel/close-race stress and broader non-context status mapping
+  remain.
 - [ ] Bidirectional Stream both directions is covered; event message separation,
   cancellation, bounded backpressure and graceful shutdown still need dedicated
   stress tests.

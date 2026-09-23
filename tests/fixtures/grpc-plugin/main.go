@@ -68,10 +68,10 @@ func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*plu
 		defer timer.Stop()
 		select {
 		case <-ctx.Done():
-			f.cancellations.Add(1)
 			if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
 				return nil, status.Error(codes.DeadlineExceeded, "")
 			}
+			f.cancellations.Add(1)
 			return nil, status.FromContextError(ctx.Err()).Err()
 		case <-timer.C:
 			return &pluginv1.CallResponse{Payload: []byte(`{}`)}, nil
