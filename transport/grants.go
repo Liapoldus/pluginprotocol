@@ -3,14 +3,18 @@ package transport
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 var ErrGrantRejected = errors.New("grant redemption rejected")
+var ErrGrantDenied = errors.New("grant redemption denied")
 
 const GrantBrokerEndpointEnvironment = "LIAPOLDUS_GRANT_BROKER_ENDPOINT"
 
@@ -46,14 +50,35 @@ func DialGrantBrokerFromEnvironmentContext(ctx context.Context) (*GrantClient, e
 func (c *GrantClient) Close() error { return c.connection.Close() }
 
 // NewGrantBrokerServer creates a size-bounded broker gRPC server for Gateway.
-func NewGrantBrokerServer(service pluginv1.GrantBrokerServer) *grpc.Server {
+type GrantServer struct {
+	server *grpc.Server
+}
+
+type grantBrokerAdapter struct {
+	pluginv1.UnimplementedGrantBrokerServer
+	service pluginv1.GrantBrokerServer
+}
+
+func (a grantBrokerAdapter) RedeemGrant(ctx context.Context, request *pluginv1.RedeemGrantRequest) (*pluginv1.RedeemGrantResponse, error) {
+	response, err := a.service.RedeemGrant(ctx, request)
+	if errors.Is(err, ErrGrantDenied) {
+		return nil, status.Error(codes.PermissionDenied, "")
+	}
+	return response, err
+}
+
+func NewGrantBrokerServer(service pluginv1.GrantBrokerServer) *GrantServer {
 	server := grpc.NewServer(
 		grpc.MaxRecvMsgSize(DefaultMaxMessageBytes),
 		grpc.MaxSendMsgSize(DefaultMaxMessageBytes),
 	)
-	pluginv1.RegisterGrantBrokerServer(server, service)
-	return server
+	pluginv1.RegisterGrantBrokerServer(server, grantBrokerAdapter{service: service})
+	return &GrantServer{server: server}
 }
+
+func (s *GrantServer) Serve(listener net.Listener) error { return s.server.Serve(listener) }
+
+func (s *GrantServer) Stop() { s.server.Stop() }
 
 // Redeem obtains secret material for one active capability invocation. The
 // Gateway validates handle, purpose, domain, plugin identity and call lifetime.

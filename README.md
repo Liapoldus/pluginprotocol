@@ -55,8 +55,10 @@ are excluded from capability JSON, plugin settings, and ordinary IPC metadata.
 Each handle is minted by Gateway for one capability invocation and bound to the
 plugin instance, capability, configured secret, purpose, and domain scope. The
 broker accepts redemption only while that call is active, only for the exact
-purpose, and only for a domain in the grant's allow-list (an empty domain is
-valid only for a grant that has no domain restriction). Gateway revokes the
+capability and purpose, and only for a domain in the grant's allow-list (an
+empty domain is valid only for a grant that has no domain restriction). The
+redemption request repeats the capability name so Gateway can check the
+capability binding at the broker boundary. Gateway revokes the
 handle when the call completes, fails, is cancelled, or reaches its deadline.
 The secret is returned only in the typed `RedeemGrantResponse`; it must not be
 logged, copied into a later call, or included in plugin errors/events. The
@@ -90,6 +92,10 @@ standard health check, `Call` передаёт JSON capability payload, а `NewS
 открыть его через `transport.ListenLoopback`. Плагин реализует сгенерированный
 `pluginv1.PluginServiceServer`; Gateway policy, grants и process supervision не
 переносятся в transport library.
+
+Gateway may host the scoped-grant callback with `NewGrantBrokerServer`, which
+returns the protocol-owned `GrantServer` wrapper (`Serve`/`Stop`) rather than
+exposing gRPC implementation types to Gateway infrastructure packages.
 
 Protocol tests red-first и TypeScript/Vitest-only. Реализованные проверки
 покрывают proto service contract, generated stubs, JSON payload vectors,
