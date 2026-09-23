@@ -39,11 +39,9 @@ has a macOS/Linux matrix.
 
 ## Red-first behavior coverage
 
-- [ ] Malformed protobuf/RPC messages and oversized unary payloads. The public
-  Go client now rejects a valid JSON payload over 10 MiB as a protocol
-  violation before transport (TypeScript child-process E2E); direct server-side
-  oversized unary injection remains to be tested. Oversized stream messages
-  are covered.
+- [ ] Malformed protobuf/RPC messages. Oversized unary calls are rejected both
+  by the public Go client and at the real server receive boundary using a TS
+  child-process test; oversized stream messages are also covered.
 - [ ] Handshake order, invalid manifest/capability, config
   apply failure.
 - [ ] Concurrent unary calls, cancellation and close-race behavior. Deadline
@@ -70,8 +68,9 @@ has a macOS/Linux matrix.
 - [X] Preserve HTTP, L4 and identity dispatch through generic Call; no
   route/business policy moves into protocol library. Stream transport remains
   available to plugin hosts; Gateway event forwarding is separate work.
-- [ ] Verify call deadline mapping to Gateway error catalog and confirm logs,
-  traces, Problems and audit records never expose secrets or grant handles.
+- [ ] Confirm logs, traces, Problems and audit records never expose secrets
+  or grant handles. Gateway E2E verifies a bounded Call deadline maps to the
+  versioned `plugin_timeout` Problem; the broader redaction audit remains.
 - [X] Run core `make check`, `go vet ./...`, `go test -race ./...` and child
   process integration suite locally on macOS; core CI is Linux-only today.
 

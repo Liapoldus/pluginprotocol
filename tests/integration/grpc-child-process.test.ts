@@ -8,6 +8,7 @@ import { PluginServiceClient } from "../generated/liapoldus/plugin/v1/service.js
 const root = fileURLToPath(new URL("../..", import.meta.url));
 let child: ChildProcessWithoutNullStreams;
 let client: PluginServiceClient;
+let pluginAddress: string;
 
 function unary<T>(invoke: (callback: (error: Error | null, value?: T) => void) => unknown): Promise<T> {
   return new Promise((resolve, reject) => invoke((error, value) => error ? reject(error) : resolve(value as T)));
@@ -28,6 +29,7 @@ describe("gRPC plugin child process", () => {
       child.once("exit", (code) => reject(new Error(`plugin fixture exited (${code})`)));
     });
     client = new PluginServiceClient(address, credentials.createInsecure());
+    pluginAddress = address;
   }, 35_000);
 
   afterAll(() => {
@@ -69,6 +71,20 @@ describe("gRPC plugin child process", () => {
     });
     stream.write({ capability: "forms.live", payload: new Uint8Array(2 << 20) });
     expect(await status).toBe(8);
+  });
+
+  it("rejects oversized unary protobuf messages at the server boundary", async () => {
+    const largeClient = new PluginServiceClient(pluginAddress, credentials.createInsecure(), {
+      "grpc.max_send_message_length": 12 << 20,
+    });
+    const code = await new Promise<number>((resolve) => {
+      largeClient.call(
+        { capability: "forms.submit", payload: new Uint8Array(11 << 20) },
+        (error) => resolve(error?.code ?? 0),
+      );
+    });
+    largeClient.close();
+    expect(code).toBe(status.RESOURCE_EXHAUSTED);
   });
 
   it("propagates a unary deadline to the plugin process", async () => {
