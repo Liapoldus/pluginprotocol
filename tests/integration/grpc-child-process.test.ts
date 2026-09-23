@@ -99,6 +99,23 @@ describe("gRPC plugin child process", () => {
     expect(code).toBe(status.DEADLINE_EXCEEDED);
   });
 
+  it("propagates explicit unary cancellation to the plugin process", async () => {
+    const code = new Promise<number>((resolve) => {
+      const call = client.call({
+        capability: "forms.slow",
+        payload: new TextEncoder().encode("{}"),
+      }, (error) => resolve(error?.code ?? 0));
+      setTimeout(() => call.cancel(), 50);
+    });
+    expect(await code).toBe(status.CANCELLED);
+
+    const response = await unary((callback) => client.call({
+      capability: "forms.cancelled",
+      payload: new TextEncoder().encode("{}"),
+    }, callback));
+    expect(new TextDecoder().decode(response.payload)).toBe('{"count":1}');
+  });
+
   it("serves concurrent unary capability calls independently", async () => {
     const started = Date.now();
     const responses = await Promise.all(Array.from({ length: 4 }, () => unary((callback) => client.call(
