@@ -119,12 +119,18 @@ describe("gRPC plugin child process", () => {
     });
     expect(await code).toBe(status.CANCELLED);
 
-    const response = await unary((callback) => client.call({
-      capability: "forms.cancelled",
-      payload: new TextEncoder().encode("{}"),
-      grants: [],
-    }, callback));
-    expect(JSON.parse(new TextDecoder().decode(response.payload)).count).toBe(countBefore + 1);
+    const deadline = Date.now() + 2_000;
+    let countAfter = countBefore;
+    while (Date.now() < deadline && countAfter === countBefore) {
+      const response = await unary((callback) => client.call({
+        capability: "forms.cancelled",
+        payload: new TextEncoder().encode("{}"),
+        grants: [],
+      }, callback));
+      countAfter = JSON.parse(new TextDecoder().decode(response.payload)).count as number;
+      if (countAfter === countBefore) await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    expect(countAfter).toBe(countBefore + 1);
   });
 
   it("classifies RPC cancellation through the public Go client", async () => {
