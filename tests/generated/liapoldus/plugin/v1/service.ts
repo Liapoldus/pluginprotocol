@@ -34,6 +34,123 @@ import { ActiveGrant } from "./grant.js";
 
 export const protobufPackage = "liapoldus.plugin.v1";
 
+export enum StreamTransport {
+  STREAM_TRANSPORT_UNSPECIFIED = 0,
+  STREAM_TRANSPORT_TCP = 1,
+  STREAM_TRANSPORT_UDP = 2,
+  UNRECOGNIZED = -1,
+}
+
+export function streamTransportFromJSON(object: any): StreamTransport {
+  switch (object) {
+    case 0:
+    case "STREAM_TRANSPORT_UNSPECIFIED":
+      return StreamTransport.STREAM_TRANSPORT_UNSPECIFIED;
+    case 1:
+    case "STREAM_TRANSPORT_TCP":
+      return StreamTransport.STREAM_TRANSPORT_TCP;
+    case 2:
+    case "STREAM_TRANSPORT_UDP":
+      return StreamTransport.STREAM_TRANSPORT_UDP;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return StreamTransport.UNRECOGNIZED;
+  }
+}
+
+export function streamTransportToJSON(object: StreamTransport): string {
+  switch (object) {
+    case StreamTransport.STREAM_TRANSPORT_UNSPECIFIED:
+      return "STREAM_TRANSPORT_UNSPECIFIED";
+    case StreamTransport.STREAM_TRANSPORT_TCP:
+      return "STREAM_TRANSPORT_TCP";
+    case StreamTransport.STREAM_TRANSPORT_UDP:
+      return "STREAM_TRANSPORT_UDP";
+    case StreamTransport.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+export enum StreamDirection {
+  STREAM_DIRECTION_UNSPECIFIED = 0,
+  STREAM_DIRECTION_REQUEST = 1,
+  STREAM_DIRECTION_RESPONSE = 2,
+  UNRECOGNIZED = -1,
+}
+
+export function streamDirectionFromJSON(object: any): StreamDirection {
+  switch (object) {
+    case 0:
+    case "STREAM_DIRECTION_UNSPECIFIED":
+      return StreamDirection.STREAM_DIRECTION_UNSPECIFIED;
+    case 1:
+    case "STREAM_DIRECTION_REQUEST":
+      return StreamDirection.STREAM_DIRECTION_REQUEST;
+    case 2:
+    case "STREAM_DIRECTION_RESPONSE":
+      return StreamDirection.STREAM_DIRECTION_RESPONSE;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return StreamDirection.UNRECOGNIZED;
+  }
+}
+
+export function streamDirectionToJSON(object: StreamDirection): string {
+  switch (object) {
+    case StreamDirection.STREAM_DIRECTION_UNSPECIFIED:
+      return "STREAM_DIRECTION_UNSPECIFIED";
+    case StreamDirection.STREAM_DIRECTION_REQUEST:
+      return "STREAM_DIRECTION_REQUEST";
+    case StreamDirection.STREAM_DIRECTION_RESPONSE:
+      return "STREAM_DIRECTION_RESPONSE";
+    case StreamDirection.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+export enum StreamCloseCode {
+  STREAM_CLOSE_CODE_NORMAL = 0,
+  STREAM_CLOSE_CODE_DROP = 1,
+  STREAM_CLOSE_CODE_ERROR = 2,
+  UNRECOGNIZED = -1,
+}
+
+export function streamCloseCodeFromJSON(object: any): StreamCloseCode {
+  switch (object) {
+    case 0:
+    case "STREAM_CLOSE_CODE_NORMAL":
+      return StreamCloseCode.STREAM_CLOSE_CODE_NORMAL;
+    case 1:
+    case "STREAM_CLOSE_CODE_DROP":
+      return StreamCloseCode.STREAM_CLOSE_CODE_DROP;
+    case 2:
+    case "STREAM_CLOSE_CODE_ERROR":
+      return StreamCloseCode.STREAM_CLOSE_CODE_ERROR;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return StreamCloseCode.UNRECOGNIZED;
+  }
+}
+
+export function streamCloseCodeToJSON(object: StreamCloseCode): string {
+  switch (object) {
+    case StreamCloseCode.STREAM_CLOSE_CODE_NORMAL:
+      return "STREAM_CLOSE_CODE_NORMAL";
+    case StreamCloseCode.STREAM_CLOSE_CODE_DROP:
+      return "STREAM_CLOSE_CODE_DROP";
+    case StreamCloseCode.STREAM_CLOSE_CODE_ERROR:
+      return "STREAM_CLOSE_CODE_ERROR";
+    case StreamCloseCode.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export interface CallRequest {
   capability: string;
   payload: Uint8Array;
@@ -57,10 +174,29 @@ export interface PluginEvent_FieldsEntry {
   value: string;
 }
 
+export interface StreamOpen {
+  transport: StreamTransport;
+  connectionId: string;
+  contextJson: Uint8Array;
+}
+
+export interface StreamData {
+  payload: Uint8Array;
+  direction: StreamDirection;
+}
+
+export interface StreamClose {
+  code: StreamCloseCode;
+}
+
 export interface StreamMessage {
   capability: string;
+  /** Deprecated untyped payload. Use data for L4 bytes. */
   payload?: Uint8Array | undefined;
   event?: PluginEvent | undefined;
+  open?: StreamOpen | undefined;
+  data?: StreamData | undefined;
+  close?: StreamClose | undefined;
 }
 
 function createBaseCallRequest(): CallRequest {
@@ -481,8 +617,269 @@ export const PluginEvent_FieldsEntry: MessageFns<PluginEvent_FieldsEntry> = {
   },
 };
 
+function createBaseStreamOpen(): StreamOpen {
+  return { transport: 0, connectionId: "", contextJson: new Uint8Array(0) };
+}
+
+export const StreamOpen: MessageFns<StreamOpen> = {
+  encode(message: StreamOpen, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.transport !== 0) {
+      writer.uint32(8).int32(message.transport);
+    }
+    if (message.connectionId !== "") {
+      writer.uint32(18).string(message.connectionId);
+    }
+    if (message.contextJson.length !== 0) {
+      writer.uint32(26).bytes(message.contextJson);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): StreamOpen {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseStreamOpen();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.transport = reader.int32() as any;
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.connectionId = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.contextJson = reader.bytes();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): StreamOpen {
+    return {
+      transport: isSet(object.transport) ? streamTransportFromJSON(object.transport) : 0,
+      connectionId: isSet(object.connectionId)
+        ? globalThis.String(object.connectionId)
+        : isSet(object.connection_id)
+        ? globalThis.String(object.connection_id)
+        : "",
+      contextJson: isSet(object.contextJson)
+        ? bytesFromBase64(object.contextJson)
+        : isSet(object.context_json)
+        ? bytesFromBase64(object.context_json)
+        : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: StreamOpen): unknown {
+    const obj: any = {};
+    if (message.transport !== 0) {
+      obj.transport = streamTransportToJSON(message.transport);
+    }
+    if (message.connectionId !== "") {
+      obj.connectionId = message.connectionId;
+    }
+    if (message.contextJson.length !== 0) {
+      obj.contextJson = base64FromBytes(message.contextJson);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<StreamOpen>, I>>(base?: I): StreamOpen {
+    return StreamOpen.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<StreamOpen>, I>>(object: I): StreamOpen {
+    const message = createBaseStreamOpen();
+    message.transport = object.transport ?? 0;
+    message.connectionId = object.connectionId ?? "";
+    message.contextJson = object.contextJson ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+function createBaseStreamData(): StreamData {
+  return { payload: new Uint8Array(0), direction: 0 };
+}
+
+export const StreamData: MessageFns<StreamData> = {
+  encode(message: StreamData, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.payload.length !== 0) {
+      writer.uint32(10).bytes(message.payload);
+    }
+    if (message.direction !== 0) {
+      writer.uint32(16).int32(message.direction);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): StreamData {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseStreamData();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.payload = reader.bytes();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.direction = reader.int32() as any;
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): StreamData {
+    return {
+      payload: isSet(object.payload) ? bytesFromBase64(object.payload) : new Uint8Array(0),
+      direction: isSet(object.direction) ? streamDirectionFromJSON(object.direction) : 0,
+    };
+  },
+
+  toJSON(message: StreamData): unknown {
+    const obj: any = {};
+    if (message.payload.length !== 0) {
+      obj.payload = base64FromBytes(message.payload);
+    }
+    if (message.direction !== 0) {
+      obj.direction = streamDirectionToJSON(message.direction);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<StreamData>, I>>(base?: I): StreamData {
+    return StreamData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<StreamData>, I>>(object: I): StreamData {
+    const message = createBaseStreamData();
+    message.payload = object.payload ?? new Uint8Array(0);
+    message.direction = object.direction ?? 0;
+    return message;
+  },
+};
+
+function createBaseStreamClose(): StreamClose {
+  return { code: 0 };
+}
+
+export const StreamClose: MessageFns<StreamClose> = {
+  encode(message: StreamClose, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.code !== 0) {
+      writer.uint32(8).int32(message.code);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): StreamClose {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseStreamClose();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.code = reader.int32() as any;
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): StreamClose {
+    return { code: isSet(object.code) ? streamCloseCodeFromJSON(object.code) : 0 };
+  },
+
+  toJSON(message: StreamClose): unknown {
+    const obj: any = {};
+    if (message.code !== 0) {
+      obj.code = streamCloseCodeToJSON(message.code);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<StreamClose>, I>>(base?: I): StreamClose {
+    return StreamClose.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<StreamClose>, I>>(object: I): StreamClose {
+    const message = createBaseStreamClose();
+    message.code = object.code ?? 0;
+    return message;
+  },
+};
+
 function createBaseStreamMessage(): StreamMessage {
-  return { capability: "", payload: undefined, event: undefined };
+  return { capability: "", payload: undefined, event: undefined, open: undefined, data: undefined, close: undefined };
 }
 
 export const StreamMessage: MessageFns<StreamMessage> = {
@@ -495,6 +892,15 @@ export const StreamMessage: MessageFns<StreamMessage> = {
     }
     if (message.event !== undefined) {
       PluginEvent.encode(message.event, writer.uint32(26).fork()).join();
+    }
+    if (message.open !== undefined) {
+      StreamOpen.encode(message.open, writer.uint32(34).fork()).join();
+    }
+    if (message.data !== undefined) {
+      StreamData.encode(message.data, writer.uint32(42).fork()).join();
+    }
+    if (message.close !== undefined) {
+      StreamClose.encode(message.close, writer.uint32(50).fork()).join();
     }
     return writer;
   },
@@ -536,6 +942,30 @@ export const StreamMessage: MessageFns<StreamMessage> = {
             message.event = PluginEvent.decode(reader, reader.uint32());
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.open = StreamOpen.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.data = StreamData.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.close = StreamClose.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -553,6 +983,9 @@ export const StreamMessage: MessageFns<StreamMessage> = {
       capability: isSet(object.capability) ? globalThis.String(object.capability) : "",
       payload: isSet(object.payload) ? bytesFromBase64(object.payload) : undefined,
       event: isSet(object.event) ? PluginEvent.fromJSON(object.event) : undefined,
+      open: isSet(object.open) ? StreamOpen.fromJSON(object.open) : undefined,
+      data: isSet(object.data) ? StreamData.fromJSON(object.data) : undefined,
+      close: isSet(object.close) ? StreamClose.fromJSON(object.close) : undefined,
     };
   },
 
@@ -567,6 +1000,15 @@ export const StreamMessage: MessageFns<StreamMessage> = {
     if (message.event !== undefined) {
       obj.event = PluginEvent.toJSON(message.event);
     }
+    if (message.open !== undefined) {
+      obj.open = StreamOpen.toJSON(message.open);
+    }
+    if (message.data !== undefined) {
+      obj.data = StreamData.toJSON(message.data);
+    }
+    if (message.close !== undefined) {
+      obj.close = StreamClose.toJSON(message.close);
+    }
     return obj;
   },
 
@@ -579,6 +1021,15 @@ export const StreamMessage: MessageFns<StreamMessage> = {
     message.payload = object.payload ?? undefined;
     message.event = (object.event !== undefined && object.event !== null)
       ? PluginEvent.fromPartial(object.event)
+      : undefined;
+    message.open = (object.open !== undefined && object.open !== null)
+      ? StreamOpen.fromPartial(object.open)
+      : undefined;
+    message.data = (object.data !== undefined && object.data !== null)
+      ? StreamData.fromPartial(object.data)
+      : undefined;
+    message.close = (object.close !== undefined && object.close !== null)
+      ? StreamClose.fromPartial(object.close)
       : undefined;
     return message;
   },

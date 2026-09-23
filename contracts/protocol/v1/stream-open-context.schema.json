@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/blob/main/contracts/protocol/v1/stream-open-context.schema.json",
+  "title": "Plugin L4 stream open context",
+  "description": "Bounded connection metadata only; socket handles, filesystem paths, credentials and secret values are forbidden.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source", "destination"],
+      "properties": {
+        "kind": { "const": "tcp" },
+        "source": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "destination": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "sni": { "type": "string", "maxLength": 253 },
+        "alpn": { "type": "string", "maxLength": 255 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source", "destination"],
+      "properties": {
+        "kind": { "const": "udp" },
+        "source": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "destination": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
+    }
+  ]
+}

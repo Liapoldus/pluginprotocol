@@ -21,6 +21,153 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type StreamTransport int32
+
+const (
+	StreamTransport_STREAM_TRANSPORT_UNSPECIFIED StreamTransport = 0
+	StreamTransport_STREAM_TRANSPORT_TCP         StreamTransport = 1
+	StreamTransport_STREAM_TRANSPORT_UDP         StreamTransport = 2
+)
+
+// Enum value maps for StreamTransport.
+var (
+	StreamTransport_name = map[int32]string{
+		0: "STREAM_TRANSPORT_UNSPECIFIED",
+		1: "STREAM_TRANSPORT_TCP",
+		2: "STREAM_TRANSPORT_UDP",
+	}
+	StreamTransport_value = map[string]int32{
+		"STREAM_TRANSPORT_UNSPECIFIED": 0,
+		"STREAM_TRANSPORT_TCP":         1,
+		"STREAM_TRANSPORT_UDP":         2,
+	}
+)
+
+func (x StreamTransport) Enum() *StreamTransport {
+	p := new(StreamTransport)
+	*p = x
+	return p
+}
+
+func (x StreamTransport) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StreamTransport) Descriptor() protoreflect.EnumDescriptor {
+	return file_liapoldus_plugin_v1_service_proto_enumTypes[0].Descriptor()
+}
+
+func (StreamTransport) Type() protoreflect.EnumType {
+	return &file_liapoldus_plugin_v1_service_proto_enumTypes[0]
+}
+
+func (x StreamTransport) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StreamTransport.Descriptor instead.
+func (StreamTransport) EnumDescriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{0}
+}
+
+type StreamDirection int32
+
+const (
+	StreamDirection_STREAM_DIRECTION_UNSPECIFIED StreamDirection = 0
+	StreamDirection_STREAM_DIRECTION_REQUEST     StreamDirection = 1
+	StreamDirection_STREAM_DIRECTION_RESPONSE    StreamDirection = 2
+)
+
+// Enum value maps for StreamDirection.
+var (
+	StreamDirection_name = map[int32]string{
+		0: "STREAM_DIRECTION_UNSPECIFIED",
+		1: "STREAM_DIRECTION_REQUEST",
+		2: "STREAM_DIRECTION_RESPONSE",
+	}
+	StreamDirection_value = map[string]int32{
+		"STREAM_DIRECTION_UNSPECIFIED": 0,
+		"STREAM_DIRECTION_REQUEST":     1,
+		"STREAM_DIRECTION_RESPONSE":    2,
+	}
+)
+
+func (x StreamDirection) Enum() *StreamDirection {
+	p := new(StreamDirection)
+	*p = x
+	return p
+}
+
+func (x StreamDirection) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StreamDirection) Descriptor() protoreflect.EnumDescriptor {
+	return file_liapoldus_plugin_v1_service_proto_enumTypes[1].Descriptor()
+}
+
+func (StreamDirection) Type() protoreflect.EnumType {
+	return &file_liapoldus_plugin_v1_service_proto_enumTypes[1]
+}
+
+func (x StreamDirection) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StreamDirection.Descriptor instead.
+func (StreamDirection) EnumDescriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{1}
+}
+
+type StreamCloseCode int32
+
+const (
+	StreamCloseCode_STREAM_CLOSE_CODE_NORMAL StreamCloseCode = 0
+	StreamCloseCode_STREAM_CLOSE_CODE_DROP   StreamCloseCode = 1
+	StreamCloseCode_STREAM_CLOSE_CODE_ERROR  StreamCloseCode = 2
+)
+
+// Enum value maps for StreamCloseCode.
+var (
+	StreamCloseCode_name = map[int32]string{
+		0: "STREAM_CLOSE_CODE_NORMAL",
+		1: "STREAM_CLOSE_CODE_DROP",
+		2: "STREAM_CLOSE_CODE_ERROR",
+	}
+	StreamCloseCode_value = map[string]int32{
+		"STREAM_CLOSE_CODE_NORMAL": 0,
+		"STREAM_CLOSE_CODE_DROP":   1,
+		"STREAM_CLOSE_CODE_ERROR":  2,
+	}
+)
+
+func (x StreamCloseCode) Enum() *StreamCloseCode {
+	p := new(StreamCloseCode)
+	*p = x
+	return p
+}
+
+func (x StreamCloseCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StreamCloseCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_liapoldus_plugin_v1_service_proto_enumTypes[2].Descriptor()
+}
+
+func (StreamCloseCode) Type() protoreflect.EnumType {
+	return &file_liapoldus_plugin_v1_service_proto_enumTypes[2]
+}
+
+func (x StreamCloseCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StreamCloseCode.Descriptor instead.
+func (StreamCloseCode) EnumDescriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{2}
+}
+
 type CallRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Capability    string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
@@ -201,6 +348,162 @@ func (x *PluginEvent) GetFields() map[string]string {
 	return nil
 }
 
+type StreamOpen struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Transport     StreamTransport        `protobuf:"varint,1,opt,name=transport,proto3,enum=liapoldus.plugin.v1.StreamTransport" json:"transport,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	ContextJson   []byte                 `protobuf:"bytes,3,opt,name=context_json,json=contextJson,proto3" json:"context_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamOpen) Reset() {
+	*x = StreamOpen{}
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamOpen) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamOpen) ProtoMessage() {}
+
+func (x *StreamOpen) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamOpen.ProtoReflect.Descriptor instead.
+func (*StreamOpen) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *StreamOpen) GetTransport() StreamTransport {
+	if x != nil {
+		return x.Transport
+	}
+	return StreamTransport_STREAM_TRANSPORT_UNSPECIFIED
+}
+
+func (x *StreamOpen) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *StreamOpen) GetContextJson() []byte {
+	if x != nil {
+		return x.ContextJson
+	}
+	return nil
+}
+
+type StreamData struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	Direction     StreamDirection        `protobuf:"varint,2,opt,name=direction,proto3,enum=liapoldus.plugin.v1.StreamDirection" json:"direction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamData) Reset() {
+	*x = StreamData{}
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamData) ProtoMessage() {}
+
+func (x *StreamData) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamData.ProtoReflect.Descriptor instead.
+func (*StreamData) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *StreamData) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *StreamData) GetDirection() StreamDirection {
+	if x != nil {
+		return x.Direction
+	}
+	return StreamDirection_STREAM_DIRECTION_UNSPECIFIED
+}
+
+type StreamClose struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          StreamCloseCode        `protobuf:"varint,1,opt,name=code,proto3,enum=liapoldus.plugin.v1.StreamCloseCode" json:"code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamClose) Reset() {
+	*x = StreamClose{}
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamClose) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamClose) ProtoMessage() {}
+
+func (x *StreamClose) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamClose.ProtoReflect.Descriptor instead.
+func (*StreamClose) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *StreamClose) GetCode() StreamCloseCode {
+	if x != nil {
+		return x.Code
+	}
+	return StreamCloseCode_STREAM_CLOSE_CODE_NORMAL
+}
+
 type StreamMessage struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Capability string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
@@ -208,6 +511,9 @@ type StreamMessage struct {
 	//
 	//	*StreamMessage_Payload
 	//	*StreamMessage_Event
+	//	*StreamMessage_Open
+	//	*StreamMessage_Data
+	//	*StreamMessage_Close
 	Body          isStreamMessage_Body `protobuf_oneof:"body"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -215,7 +521,7 @@ type StreamMessage struct {
 
 func (x *StreamMessage) Reset() {
 	*x = StreamMessage{}
-	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[3]
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -227,7 +533,7 @@ func (x *StreamMessage) String() string {
 func (*StreamMessage) ProtoMessage() {}
 
 func (x *StreamMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[3]
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -240,7 +546,7 @@ func (x *StreamMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamMessage.ProtoReflect.Descriptor instead.
 func (*StreamMessage) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{3}
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *StreamMessage) GetCapability() string {
@@ -275,11 +581,39 @@ func (x *StreamMessage) GetEvent() *PluginEvent {
 	return nil
 }
 
+func (x *StreamMessage) GetOpen() *StreamOpen {
+	if x != nil {
+		if x, ok := x.Body.(*StreamMessage_Open); ok {
+			return x.Open
+		}
+	}
+	return nil
+}
+
+func (x *StreamMessage) GetData() *StreamData {
+	if x != nil {
+		if x, ok := x.Body.(*StreamMessage_Data); ok {
+			return x.Data
+		}
+	}
+	return nil
+}
+
+func (x *StreamMessage) GetClose() *StreamClose {
+	if x != nil {
+		if x, ok := x.Body.(*StreamMessage_Close); ok {
+			return x.Close
+		}
+	}
+	return nil
+}
+
 type isStreamMessage_Body interface {
 	isStreamMessage_Body()
 }
 
 type StreamMessage_Payload struct {
+	// Deprecated untyped payload. Use data for L4 bytes.
 	Payload []byte `protobuf:"bytes,2,opt,name=payload,proto3,oneof"`
 }
 
@@ -287,9 +621,27 @@ type StreamMessage_Event struct {
 	Event *PluginEvent `protobuf:"bytes,3,opt,name=event,proto3,oneof"`
 }
 
+type StreamMessage_Open struct {
+	Open *StreamOpen `protobuf:"bytes,4,opt,name=open,proto3,oneof"`
+}
+
+type StreamMessage_Data struct {
+	Data *StreamData `protobuf:"bytes,5,opt,name=data,proto3,oneof"`
+}
+
+type StreamMessage_Close struct {
+	Close *StreamClose `protobuf:"bytes,6,opt,name=close,proto3,oneof"`
+}
+
 func (*StreamMessage_Payload) isStreamMessage_Body() {}
 
 func (*StreamMessage_Event) isStreamMessage_Body() {}
+
+func (*StreamMessage_Open) isStreamMessage_Body() {}
+
+func (*StreamMessage_Data) isStreamMessage_Body() {}
+
+func (*StreamMessage_Close) isStreamMessage_Body() {}
 
 var File_liapoldus_plugin_v1_service_proto protoreflect.FileDescriptor
 
@@ -312,14 +664,40 @@ const file_liapoldus_plugin_v1_service_proto_rawDesc = "" +
 	"\x06fields\x18\x03 \x03(\v2,.liapoldus.plugin.v1.PluginEvent.FieldsEntryR\x06fields\x1a9\n" +
 	"\vFieldsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8d\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x98\x01\n" +
+	"\n" +
+	"StreamOpen\x12B\n" +
+	"\ttransport\x18\x01 \x01(\x0e2$.liapoldus.plugin.v1.StreamTransportR\ttransport\x12#\n" +
+	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12!\n" +
+	"\fcontext_json\x18\x03 \x01(\fR\vcontextJson\"j\n" +
+	"\n" +
+	"StreamData\x12\x18\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\x12B\n" +
+	"\tdirection\x18\x02 \x01(\x0e2$.liapoldus.plugin.v1.StreamDirectionR\tdirection\"G\n" +
+	"\vStreamClose\x128\n" +
+	"\x04code\x18\x01 \x01(\x0e2$.liapoldus.plugin.v1.StreamCloseCodeR\x04code\"\xb5\x02\n" +
 	"\rStreamMessage\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +
 	"capability\x12\x1a\n" +
 	"\apayload\x18\x02 \x01(\fH\x00R\apayload\x128\n" +
-	"\x05event\x18\x03 \x01(\v2 .liapoldus.plugin.v1.PluginEventH\x00R\x05eventB\x06\n" +
-	"\x04body2\x97\x04\n" +
+	"\x05event\x18\x03 \x01(\v2 .liapoldus.plugin.v1.PluginEventH\x00R\x05event\x125\n" +
+	"\x04open\x18\x04 \x01(\v2\x1f.liapoldus.plugin.v1.StreamOpenH\x00R\x04open\x125\n" +
+	"\x04data\x18\x05 \x01(\v2\x1f.liapoldus.plugin.v1.StreamDataH\x00R\x04data\x128\n" +
+	"\x05close\x18\x06 \x01(\v2 .liapoldus.plugin.v1.StreamCloseH\x00R\x05closeB\x06\n" +
+	"\x04body*g\n" +
+	"\x0fStreamTransport\x12 \n" +
+	"\x1cSTREAM_TRANSPORT_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14STREAM_TRANSPORT_TCP\x10\x01\x12\x18\n" +
+	"\x14STREAM_TRANSPORT_UDP\x10\x02*p\n" +
+	"\x0fStreamDirection\x12 \n" +
+	"\x1cSTREAM_DIRECTION_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18STREAM_DIRECTION_REQUEST\x10\x01\x12\x1d\n" +
+	"\x19STREAM_DIRECTION_RESPONSE\x10\x02*h\n" +
+	"\x0fStreamCloseCode\x12\x1c\n" +
+	"\x18STREAM_CLOSE_CODE_NORMAL\x10\x00\x12\x1a\n" +
+	"\x16STREAM_CLOSE_CODE_DROP\x10\x01\x12\x1b\n" +
+	"\x17STREAM_CLOSE_CODE_ERROR\x10\x022\x97\x04\n" +
 	"\rPluginService\x12O\n" +
 	"\bManifest\x12$.liapoldus.plugin.v1.ManifestRequest\x1a\x1d.liapoldus.plugin.v1.Manifest\x12[\n" +
 	"\fConfigSchema\x12(.liapoldus.plugin.v1.ConfigSchemaRequest\x1a!.liapoldus.plugin.v1.ConfigSchema\x12^\n" +
@@ -340,44 +718,57 @@ func file_liapoldus_plugin_v1_service_proto_rawDescGZIP() []byte {
 	return file_liapoldus_plugin_v1_service_proto_rawDescData
 }
 
-var file_liapoldus_plugin_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_liapoldus_plugin_v1_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_liapoldus_plugin_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_liapoldus_plugin_v1_service_proto_goTypes = []any{
-	(*CallRequest)(nil),         // 0: liapoldus.plugin.v1.CallRequest
-	(*CallResponse)(nil),        // 1: liapoldus.plugin.v1.CallResponse
-	(*PluginEvent)(nil),         // 2: liapoldus.plugin.v1.PluginEvent
-	(*StreamMessage)(nil),       // 3: liapoldus.plugin.v1.StreamMessage
-	nil,                         // 4: liapoldus.plugin.v1.PluginEvent.FieldsEntry
-	(*ActiveGrant)(nil),         // 5: liapoldus.plugin.v1.ActiveGrant
-	(*ManifestRequest)(nil),     // 6: liapoldus.plugin.v1.ManifestRequest
-	(*ConfigSchemaRequest)(nil), // 7: liapoldus.plugin.v1.ConfigSchemaRequest
-	(*ConfigApplyRequest)(nil),  // 8: liapoldus.plugin.v1.ConfigApplyRequest
-	(*ShutdownRequest)(nil),     // 9: liapoldus.plugin.v1.ShutdownRequest
-	(*Manifest)(nil),            // 10: liapoldus.plugin.v1.Manifest
-	(*ConfigSchema)(nil),        // 11: liapoldus.plugin.v1.ConfigSchema
-	(*ConfigApplyResult)(nil),   // 12: liapoldus.plugin.v1.ConfigApplyResult
-	(*ShutdownResult)(nil),      // 13: liapoldus.plugin.v1.ShutdownResult
+	(StreamTransport)(0),        // 0: liapoldus.plugin.v1.StreamTransport
+	(StreamDirection)(0),        // 1: liapoldus.plugin.v1.StreamDirection
+	(StreamCloseCode)(0),        // 2: liapoldus.plugin.v1.StreamCloseCode
+	(*CallRequest)(nil),         // 3: liapoldus.plugin.v1.CallRequest
+	(*CallResponse)(nil),        // 4: liapoldus.plugin.v1.CallResponse
+	(*PluginEvent)(nil),         // 5: liapoldus.plugin.v1.PluginEvent
+	(*StreamOpen)(nil),          // 6: liapoldus.plugin.v1.StreamOpen
+	(*StreamData)(nil),          // 7: liapoldus.plugin.v1.StreamData
+	(*StreamClose)(nil),         // 8: liapoldus.plugin.v1.StreamClose
+	(*StreamMessage)(nil),       // 9: liapoldus.plugin.v1.StreamMessage
+	nil,                         // 10: liapoldus.plugin.v1.PluginEvent.FieldsEntry
+	(*ActiveGrant)(nil),         // 11: liapoldus.plugin.v1.ActiveGrant
+	(*ManifestRequest)(nil),     // 12: liapoldus.plugin.v1.ManifestRequest
+	(*ConfigSchemaRequest)(nil), // 13: liapoldus.plugin.v1.ConfigSchemaRequest
+	(*ConfigApplyRequest)(nil),  // 14: liapoldus.plugin.v1.ConfigApplyRequest
+	(*ShutdownRequest)(nil),     // 15: liapoldus.plugin.v1.ShutdownRequest
+	(*Manifest)(nil),            // 16: liapoldus.plugin.v1.Manifest
+	(*ConfigSchema)(nil),        // 17: liapoldus.plugin.v1.ConfigSchema
+	(*ConfigApplyResult)(nil),   // 18: liapoldus.plugin.v1.ConfigApplyResult
+	(*ShutdownResult)(nil),      // 19: liapoldus.plugin.v1.ShutdownResult
 }
 var file_liapoldus_plugin_v1_service_proto_depIdxs = []int32{
-	5,  // 0: liapoldus.plugin.v1.CallRequest.grants:type_name -> liapoldus.plugin.v1.ActiveGrant
-	4,  // 1: liapoldus.plugin.v1.PluginEvent.fields:type_name -> liapoldus.plugin.v1.PluginEvent.FieldsEntry
-	2,  // 2: liapoldus.plugin.v1.StreamMessage.event:type_name -> liapoldus.plugin.v1.PluginEvent
-	6,  // 3: liapoldus.plugin.v1.PluginService.Manifest:input_type -> liapoldus.plugin.v1.ManifestRequest
-	7,  // 4: liapoldus.plugin.v1.PluginService.ConfigSchema:input_type -> liapoldus.plugin.v1.ConfigSchemaRequest
-	8,  // 5: liapoldus.plugin.v1.PluginService.ConfigApply:input_type -> liapoldus.plugin.v1.ConfigApplyRequest
-	9,  // 6: liapoldus.plugin.v1.PluginService.Shutdown:input_type -> liapoldus.plugin.v1.ShutdownRequest
-	0,  // 7: liapoldus.plugin.v1.PluginService.Call:input_type -> liapoldus.plugin.v1.CallRequest
-	3,  // 8: liapoldus.plugin.v1.PluginService.Stream:input_type -> liapoldus.plugin.v1.StreamMessage
-	10, // 9: liapoldus.plugin.v1.PluginService.Manifest:output_type -> liapoldus.plugin.v1.Manifest
-	11, // 10: liapoldus.plugin.v1.PluginService.ConfigSchema:output_type -> liapoldus.plugin.v1.ConfigSchema
-	12, // 11: liapoldus.plugin.v1.PluginService.ConfigApply:output_type -> liapoldus.plugin.v1.ConfigApplyResult
-	13, // 12: liapoldus.plugin.v1.PluginService.Shutdown:output_type -> liapoldus.plugin.v1.ShutdownResult
-	1,  // 13: liapoldus.plugin.v1.PluginService.Call:output_type -> liapoldus.plugin.v1.CallResponse
-	3,  // 14: liapoldus.plugin.v1.PluginService.Stream:output_type -> liapoldus.plugin.v1.StreamMessage
-	9,  // [9:15] is the sub-list for method output_type
-	3,  // [3:9] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	11, // 0: liapoldus.plugin.v1.CallRequest.grants:type_name -> liapoldus.plugin.v1.ActiveGrant
+	10, // 1: liapoldus.plugin.v1.PluginEvent.fields:type_name -> liapoldus.plugin.v1.PluginEvent.FieldsEntry
+	0,  // 2: liapoldus.plugin.v1.StreamOpen.transport:type_name -> liapoldus.plugin.v1.StreamTransport
+	1,  // 3: liapoldus.plugin.v1.StreamData.direction:type_name -> liapoldus.plugin.v1.StreamDirection
+	2,  // 4: liapoldus.plugin.v1.StreamClose.code:type_name -> liapoldus.plugin.v1.StreamCloseCode
+	5,  // 5: liapoldus.plugin.v1.StreamMessage.event:type_name -> liapoldus.plugin.v1.PluginEvent
+	6,  // 6: liapoldus.plugin.v1.StreamMessage.open:type_name -> liapoldus.plugin.v1.StreamOpen
+	7,  // 7: liapoldus.plugin.v1.StreamMessage.data:type_name -> liapoldus.plugin.v1.StreamData
+	8,  // 8: liapoldus.plugin.v1.StreamMessage.close:type_name -> liapoldus.plugin.v1.StreamClose
+	12, // 9: liapoldus.plugin.v1.PluginService.Manifest:input_type -> liapoldus.plugin.v1.ManifestRequest
+	13, // 10: liapoldus.plugin.v1.PluginService.ConfigSchema:input_type -> liapoldus.plugin.v1.ConfigSchemaRequest
+	14, // 11: liapoldus.plugin.v1.PluginService.ConfigApply:input_type -> liapoldus.plugin.v1.ConfigApplyRequest
+	15, // 12: liapoldus.plugin.v1.PluginService.Shutdown:input_type -> liapoldus.plugin.v1.ShutdownRequest
+	3,  // 13: liapoldus.plugin.v1.PluginService.Call:input_type -> liapoldus.plugin.v1.CallRequest
+	9,  // 14: liapoldus.plugin.v1.PluginService.Stream:input_type -> liapoldus.plugin.v1.StreamMessage
+	16, // 15: liapoldus.plugin.v1.PluginService.Manifest:output_type -> liapoldus.plugin.v1.Manifest
+	17, // 16: liapoldus.plugin.v1.PluginService.ConfigSchema:output_type -> liapoldus.plugin.v1.ConfigSchema
+	18, // 17: liapoldus.plugin.v1.PluginService.ConfigApply:output_type -> liapoldus.plugin.v1.ConfigApplyResult
+	19, // 18: liapoldus.plugin.v1.PluginService.Shutdown:output_type -> liapoldus.plugin.v1.ShutdownResult
+	4,  // 19: liapoldus.plugin.v1.PluginService.Call:output_type -> liapoldus.plugin.v1.CallResponse
+	9,  // 20: liapoldus.plugin.v1.PluginService.Stream:output_type -> liapoldus.plugin.v1.StreamMessage
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_liapoldus_plugin_v1_service_proto_init() }
@@ -387,22 +778,26 @@ func file_liapoldus_plugin_v1_service_proto_init() {
 	}
 	file_liapoldus_plugin_v1_control_proto_init()
 	file_liapoldus_plugin_v1_grant_proto_init()
-	file_liapoldus_plugin_v1_service_proto_msgTypes[3].OneofWrappers = []any{
+	file_liapoldus_plugin_v1_service_proto_msgTypes[6].OneofWrappers = []any{
 		(*StreamMessage_Payload)(nil),
 		(*StreamMessage_Event)(nil),
+		(*StreamMessage_Open)(nil),
+		(*StreamMessage_Data)(nil),
+		(*StreamMessage_Close)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_liapoldus_plugin_v1_service_proto_rawDesc), len(file_liapoldus_plugin_v1_service_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   5,
+			NumEnums:      3,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_liapoldus_plugin_v1_service_proto_goTypes,
 		DependencyIndexes: file_liapoldus_plugin_v1_service_proto_depIdxs,
+		EnumInfos:         file_liapoldus_plugin_v1_service_proto_enumTypes,
 		MessageInfos:      file_liapoldus_plugin_v1_service_proto_msgTypes,
 	}.Build()
 	File_liapoldus_plugin_v1_service_proto = out.File

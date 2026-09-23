@@ -34,10 +34,47 @@ message PluginEvent {
   map<string, string> fields = 3;
 }
 
+enum StreamTransport {
+  STREAM_TRANSPORT_UNSPECIFIED = 0;
+  STREAM_TRANSPORT_TCP = 1;
+  STREAM_TRANSPORT_UDP = 2;
+}
+
+enum StreamDirection {
+  STREAM_DIRECTION_UNSPECIFIED = 0;
+  STREAM_DIRECTION_REQUEST = 1;
+  STREAM_DIRECTION_RESPONSE = 2;
+}
+
+enum StreamCloseCode {
+  STREAM_CLOSE_CODE_NORMAL = 0;
+  STREAM_CLOSE_CODE_DROP = 1;
+  STREAM_CLOSE_CODE_ERROR = 2;
+}
+
+message StreamOpen {
+  StreamTransport transport = 1;
+  string connection_id = 2;
+  bytes context_json = 3;
+}
+
+message StreamData {
+  bytes payload = 1;
+  StreamDirection direction = 2;
+}
+
+message StreamClose {
+  StreamCloseCode code = 1;
+}
+
 message StreamMessage {
   string capability = 1;
   oneof body {
+    // Deprecated untyped payload. Use data for L4 bytes.
     bytes payload = 2;
     PluginEvent event = 3;
+    StreamOpen open = 4;
+    StreamData data = 5;
+    StreamClose close = 6;
   }
 }
