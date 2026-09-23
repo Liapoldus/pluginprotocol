@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { credentials, Metadata, status } from "@grpc/grpc-js";
 import { PluginServiceClient } from "../generated/liapoldus/plugin/v1/service.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
+const execFileAsync = promisify(execFile);
 let child: ChildProcessWithoutNullStreams;
 let client: PluginServiceClient;
 let pluginAddress: string;
@@ -119,6 +121,28 @@ describe("gRPC plugin child process", () => {
       payload: new TextEncoder().encode("{}"),
     }, callback));
     expect(JSON.parse(new TextDecoder().decode(response.payload)).count).toBe(countBefore + 1);
+  });
+
+  it("classifies RPC cancellation through the public Go client", async () => {
+    const before = await unary((callback) => client.call({
+      capability: "forms.cancelled",
+      payload: new TextEncoder().encode("{}"),
+    }, callback));
+    const countBefore = JSON.parse(new TextDecoder().decode(before.payload)).count as number;
+    const result = await execFileAsync("go", ["run", "./tests/fixtures/grpc-client", pluginAddress, "cancel"], { cwd: root });
+    expect(JSON.parse(result.stdout)).toEqual({ error: "canceled" });
+
+    const deadline = Date.now() + 2_000;
+    let countAfter = countBefore;
+    while (Date.now() < deadline && countAfter === countBefore) {
+      const response = await unary((callback) => client.call({
+        capability: "forms.cancelled",
+        payload: new TextEncoder().encode("{}"),
+      }, callback));
+      countAfter = JSON.parse(new TextDecoder().decode(response.payload)).count as number;
+      if (countAfter === countBefore) await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    expect(countAfter).toBe(countBefore + 1);
   });
 
   it("serves concurrent unary capability calls independently", async () => {

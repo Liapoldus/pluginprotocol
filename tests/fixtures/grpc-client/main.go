@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -38,6 +38,17 @@ func run(endpoint, mode string) error {
 			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "other"})
 		}
 		return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "accepted"})
+	}
+	if mode == "cancel" {
+		callContext, cancelCall := context.WithCancel(ctx)
+		cancellation := time.AfterFunc(50*time.Millisecond, cancelCall)
+		defer cancellation.Stop()
+		defer cancelCall()
+		_, err := client.Call(callContext, "forms.slow", []byte("{}"))
+		if errors.Is(err, context.Canceled) {
+			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "canceled"})
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "other"})
 	}
 	response, err := client.Call(ctx, "forms.submit", []byte(`{"value":"hello"}`))
 	if err != nil {
