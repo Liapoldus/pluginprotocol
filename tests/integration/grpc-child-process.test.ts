@@ -52,6 +52,7 @@ describe("gRPC plugin child process", () => {
     const response = await unary((callback) => client.call({
       capability: "forms.submit",
       payload: new TextEncoder().encode('{"value":"hello"}'),
+      grants: [],
     }, callback));
     expect(new TextDecoder().decode(response.payload)).toBe('{"accepted":true}');
 
@@ -81,7 +82,7 @@ describe("gRPC plugin child process", () => {
     });
     const code = await new Promise<number>((resolve) => {
       largeClient.call(
-        { capability: "forms.submit", payload: new Uint8Array(11 << 20) },
+        { capability: "forms.submit", payload: new Uint8Array(11 << 20), grants: [] },
         (error) => resolve(error?.code ?? 0),
       );
     });
@@ -92,7 +93,7 @@ describe("gRPC plugin child process", () => {
   it("propagates a unary deadline to the plugin process", async () => {
     const code = await new Promise<number>((resolve) => {
       client.call(
-        { capability: "forms.slow", payload: new TextEncoder().encode("{}") },
+        { capability: "forms.slow", payload: new TextEncoder().encode("{}"), grants: [] },
         new Metadata(),
         { deadline: new Date(Date.now() + 50) },
         (error) => resolve(error?.code ?? 0),
@@ -105,12 +106,14 @@ describe("gRPC plugin child process", () => {
     const before = await unary((callback) => client.call({
       capability: "forms.cancelled",
       payload: new TextEncoder().encode("{}"),
+      grants: [],
     }, callback));
     const countBefore = JSON.parse(new TextDecoder().decode(before.payload)).count as number;
     const code = new Promise<number>((resolve) => {
       const call = client.call({
         capability: "forms.slow",
         payload: new TextEncoder().encode("{}"),
+        grants: [],
       }, (error) => resolve(error?.code ?? 0));
       setTimeout(() => call.cancel(), 50);
     });
@@ -119,6 +122,7 @@ describe("gRPC plugin child process", () => {
     const response = await unary((callback) => client.call({
       capability: "forms.cancelled",
       payload: new TextEncoder().encode("{}"),
+      grants: [],
     }, callback));
     expect(JSON.parse(new TextDecoder().decode(response.payload)).count).toBe(countBefore + 1);
   });
@@ -127,6 +131,7 @@ describe("gRPC plugin child process", () => {
     const before = await unary((callback) => client.call({
       capability: "forms.cancelled",
       payload: new TextEncoder().encode("{}"),
+      grants: [],
     }, callback));
     const countBefore = JSON.parse(new TextDecoder().decode(before.payload)).count as number;
     const result = await execFileAsync("go", ["run", "./tests/fixtures/grpc-client", pluginAddress, "cancel"], { cwd: root });
@@ -138,6 +143,7 @@ describe("gRPC plugin child process", () => {
       const response = await unary((callback) => client.call({
         capability: "forms.cancelled",
         payload: new TextEncoder().encode("{}"),
+        grants: [],
       }, callback));
       countAfter = JSON.parse(new TextDecoder().decode(response.payload)).count as number;
       if (countAfter === countBefore) await new Promise((resolve) => setTimeout(resolve, 25));
@@ -151,6 +157,7 @@ describe("gRPC plugin child process", () => {
       {
         capability: "forms.delay",
         payload: new TextEncoder().encode('{"delayMs":250}'),
+        grants: [],
       },
       callback,
     ))));
