@@ -27,4 +27,12 @@ describe("scoped grant redemption v1", () => {
     expect(source).toContain("/liapoldus.plugin.v1.GrantBroker/RedeemGrant");
     expect(source).toContain("RedeemGrantResponse");
   });
+
+  it("binds each handle and redemption request to one capability", async () => {
+    const grantProto = await readFile(`${root}/proto/liapoldus/plugin/v1/grant.proto`, "utf8");
+
+    expect(grantProto).toMatch(/message ActiveGrant[\s\S]*?string capability = 4/);
+    expect(grantProto).toMatch(/message RedeemGrantRequest[\s\S]*?string capability = 4/);
+    expect(grantProto).toContain("string purpose = 2");
+  });
 });
