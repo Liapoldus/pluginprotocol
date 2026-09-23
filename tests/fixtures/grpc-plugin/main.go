@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"sync/atomic"
@@ -88,16 +89,58 @@ func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*plu
 }
 
 func (*fixture) Stream(stream grpc.BidiStreamingServer[pluginv1.StreamMessage, pluginv1.StreamMessage]) error {
+	opened := false
 	for {
 		message, err := stream.Recv()
 		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
 			return err
 		}
-		if err := stream.Send(&pluginv1.StreamMessage{
-			Capability: message.GetCapability(),
-			Body:       &pluginv1.StreamMessage_Payload{Payload: []byte(`{"event":"ready"}`)},
-		}); err != nil {
-			return err
+		switch body := message.GetBody().(type) {
+		case *pluginv1.StreamMessage_Open:
+			if opened || body.Open.GetConnectionId() == "" || !json.Valid(body.Open.GetContextJson()) {
+				return status.Error(codes.InvalidArgument, "invalid stream open")
+			}
+			if body.Open.GetTransport() != pluginv1.StreamTransport_STREAM_TRANSPORT_TCP && body.Open.GetTransport() != pluginv1.StreamTransport_STREAM_TRANSPORT_UDP {
+				return status.Error(codes.InvalidArgument, "invalid stream transport")
+			}
+			opened = true
+		case *pluginv1.StreamMessage_Data:
+			if !opened || body.Data.GetDirection() != pluginv1.StreamDirection_STREAM_DIRECTION_REQUEST {
+				return status.Error(codes.InvalidArgument, "invalid stream data")
+			}
+			if err := stream.Send(&pluginv1.StreamMessage{
+				Capability: message.GetCapability(),
+				Body: &pluginv1.StreamMessage_Data{Data: &pluginv1.StreamData{
+					Payload:   append([]byte(nil), body.Data.GetPayload()...),
+					Direction: pluginv1.StreamDirection_STREAM_DIRECTION_RESPONSE,
+				}},
+			}); err != nil {
+				return err
+			}
+		case *pluginv1.StreamMessage_Close:
+			if !opened {
+				return status.Error(codes.InvalidArgument, "stream closed before open")
+			}
+			if err := stream.Send(&pluginv1.StreamMessage{
+				Capability: message.GetCapability(),
+				Body:       &pluginv1.StreamMessage_Close{Close: body.Close},
+			}); err != nil {
+				return err
+			}
+			return nil
+		default:
+			if message.GetPayload() == nil {
+				return status.Error(codes.InvalidArgument, "unsupported stream message")
+			}
+			if err := stream.Send(&pluginv1.StreamMessage{
+				Capability: message.GetCapability(),
+				Body:       &pluginv1.StreamMessage_Payload{Payload: []byte(`{"event":"ready"}`)},
+			}); err != nil {
+				return err
+			}
 		}
 	}
 }
