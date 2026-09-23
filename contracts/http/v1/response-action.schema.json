@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/http/v1/response-action.schema.json",
+  "title": "HTTP-действие ответа plugin Liapoldus v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status"],
+  "properties": {
+    "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+    "headers": {
+      "type": "object",
+      "propertyNames": { "pattern": "^(?![Ss][Ee][Tt]-[Cc][Oo][Oo][Kk][Ii][Ee]$)[!#$%&'*+.^_`|~0-9A-Za-z-]+$" },
+      "additionalProperties": { "type": "string", "pattern": "^[^\\r\\n\\u0000-\\u001F\\u007F]*$" }
+    },
+    "cookies": {
+      "type": "array",
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/cookieAction" }
+    },
+    "body": { "type": "string" }
+  },
+  "$defs": {
+    "cookieAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value", "secure", "httpOnly"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$" },
+        "value": { "type": "string", "maxLength": 4096, "pattern": "^[^\\r\\n\\u0000-\\u001F\\u007F]*$" },
+        "path": { "type": "string", "maxLength": 1024, "pattern": "^/[^\\r\\n\\u0000]*$" },
+        "domain": { "type": "string", "minLength": 1, "maxLength": 253 },
+        "expires": { "type": "string", "format": "date-time" },
+        "maxAge": { "type": "integer", "minimum": -1, "maximum": 2147483647 },
+        "secure": { "type": "boolean" },
+        "httpOnly": { "type": "boolean" },
+        "sameSite": { "enum": ["Strict", "Lax", "None"] }
+      }
+    }
+  },
+  "x-liapoldus-semantics": {
+    "serialization": "Каждый элемент cookies[] становится отдельным заголовком Set-Cookie. В headers запрещено передавать Set-Cookie в любом регистре.",
+    "atomicity": "До записи HTTP-заголовков проверяются все поля ответа и все cookie actions. Ошибка любого action отклоняет весь ответ.",
+    "security": "Значения cookie чувствительны и должны редактироваться в логах, trace, audit и ошибках.",
+    "sameSiteNone": "sameSite=None требует secure=true.",
+    "prefixes": "__Host- требует secure=true, path=/ и отсутствующий domain; __Secure- требует secure=true.",
+    "domain": "Если domain задан, он должен быть корректным domain-match для host запроса и не должен быть public suffix.",
+    "v1Limits": { "maxActions": 32, "maxSerializedCookieBytes": 4096, "maxSerializedCookieSetBytes": 16384 }
+  }
+}

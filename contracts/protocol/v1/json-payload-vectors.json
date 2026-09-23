@@ -15,6 +15,6 @@
     "capability": "identity.client.callback",
     "contract": "contracts/identity/v1/http-actions.schema.json",
     "request": { "method": "GET", "path": "/identity/callback", "query": "code=fixture" },
-    "response": { "status": 302, "headers": { "Location": "/" }, "body": "" }
+    "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "session", "value": "synthetic-test-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }], "body": "" }
   }
 ]

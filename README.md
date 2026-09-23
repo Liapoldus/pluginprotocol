@@ -4,12 +4,21 @@
 protobuf sources в [`proto/liapoldus/plugin/v1`](proto/liapoldus/plugin/v1) и
 versioned declarative contracts в [`contracts/`](contracts/).
 
-## Текущая миграция
+## Transport и режимы запуска
 
-Gateway v1 использует gRPC/HTTP/2 поверх TCP-loopback. Plugin server слушает
-только `127.0.0.1:<port>`, Gateway подключается к нему с insecure gRPC
-credentials. `grpc.health.v1` обслуживает readiness, стандартный gRPC reflection
-включён для `grpcurl` на loopback endpoint.
+Единый v1 transport — gRPC/HTTP/2 поверх TCP. Local-supervised режим использует
+назначенный `127.0.0.1:<port>` и insecure credentials только на loopback.
+Remote mode адресуется фиксированным host:port и требует TLS с проверкой
+идентичности сервера и mTLS; перехода на менее защищённый transport нет.
+Gateway управляет процессом только в local mode. Нормативный контракт запуска находится в
+[`remote-deployment.json`](contracts/protocol/v1/remote-deployment.json).
+
+Текущий публичный client/helper API пока реализует loopback transport; защищённые
+настройки remote dial/listen, mTLS GrantBroker и remote E2E остаются задачами
+этого репозитория и должны быть завершены до заявления remote mode как
+реализованного. `grpc.health.v1` обслуживает readiness; стандартный gRPC
+reflection включён для локальной диагностики и не должен становиться публичным
+endpoint.
 
 Control RPC — `Manifest`, `ConfigSchema`, `ConfigApply`, `Shutdown`; health —
 стандартный `grpc.health.v1`. Бизнес-вызовы используют единый unary `Call` с
@@ -18,7 +27,7 @@ capability name и versioned UTF-8 JSON payload. Двунаправленный 
 framing, multiplexing, cancellation и flow control; старые custom frame,
 length-prefix и самописный session multiplexer удалены.
 
-JSON contracts manifest/settings/HTTP-actions/admin-surface/admin-UI и типы
+JSON contracts manifest/settings/HTTP response actions/admin-surface/admin-UI и типы
 `HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext` сохраняются.
 Protocol transport не получает публичный socket, filesystem path или raw secret.
 Grant handling и redaction остаются ответственностью Gateway boundary.
@@ -76,11 +85,13 @@ Gateway redacts protocol diagnostics and never exposes the opaque handle in
 logs or user-facing errors. Plugins should keep the bytes only for the active
 operation and erase temporary copies when it completes.
 
-The broker is reachable only over the supplied loopback endpoint and is not a
-public Gateway API. The plugin must not accept a client-supplied handle as
-authority: it can redeem only handles attached by Gateway to its current
-`CallRequest`. Grant validation and secret resolution remain in Gateway; this
-protocol callback does not transfer filesystem paths or secret ownership.
+В local mode broker доступен только по переданному loopback endpoint; в remote
+mode нужен отдельный закрытый TLS/mTLS callback endpoint из доверенной plugin
+network. Это не публичный Gateway API. Remote transport для GrantBroker пока не
+реализован. Plugin не должен считать переданный клиентом handle авторизацией:
+он может погасить только handle, прикреплённый Gateway к текущему
+`CallRequest`. Проверка grant и разрешение secret остаются ответственностью
+Gateway; callback не передаёт plugin filesystem paths или владение secret.
 
 ## Проверки
 
@@ -93,8 +104,8 @@ go build ./...
 npm test --prefix tests
 ```
 
-Публичный Go transport API расположен в `transport/`: `DialContext` принимает
-только адрес с IP-loopback, `Handshake` выполняет typed control RPCs и
+Публичный Go transport API расположен в `transport/`: текущий `DialContext`
+принимает только адрес с IP-loopback, `Handshake` выполняет typed control RPCs и
 standard health check, `Call` передаёт JSON capability payload, а `NewServer`
 регистрирует plugin service, health и reflection с лимитами сообщений. Плагин
 получает адрес от Supervisor через launch contract
@@ -103,13 +114,14 @@ standard health check, `Call` передаёт JSON capability payload, а `NewS
 `pluginv1.PluginServiceServer`; Gateway policy, grants и process supervision не
 переносятся в transport library.
 
-Gateway may host the scoped-grant callback with `NewGrantBrokerServer`, which
-returns the protocol-owned `GrantServer` wrapper (`Serve`/`Stop`) rather than
-exposing gRPC implementation types to Gateway infrastructure packages.
+Gateway может разместить scoped-grant callback через `NewGrantBrokerServer`,
+который возвращает принадлежащую protocol библиотеке обёртку `GrantServer`
+(`Serve`/`Stop`), не раскрывая infrastructure-пакетам Gateway gRPC-типы.
 
 Protocol tests red-first и TypeScript/Vitest-only. Реализованные проверки
 покрывают proto service contract, generated stubs, JSON payload vectors,
 child-process handshake, стандартную health-проверку, unary Call, обе стороны
 bidirectional stream и отклонение oversized stream message. Отдельные тесты
-deadlines, cancellation/concurrency/close-race, backpressure и macOS/Linux CI
-ещё остаются в TODO.
+deadlines, cancellation/concurrency/close-race, backpressure, remote TLS/mTLS,
+remote GrantBroker, интеграция типизированной HTTP-cookie boundary и
+macOS/Linux CI остаются в TODO.

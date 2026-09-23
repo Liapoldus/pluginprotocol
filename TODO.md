@@ -1,108 +1,31 @@
-# TODO — plugin protocol v1 gRPC migration
+# TODO — pluginprotocol v1
 
-Status: gRPC transport v1 is implemented in this repository and integrated by
-Gateway core. Module `v1.1.0` is planned but has not been published; the
-breaking-migration compatibility note must remain. Core and protocol local
-acceptance suites pass on macOS; the core CI job targets Linux and protocol CI
-has a macOS/Linux matrix.
+Gateway-wide decisions and migration sequence live in the [Gateway v1
+roadmap](https://liapoldus.github.io/gateway/architecture/v1-migration-roadmap).
+This file tracks only unfinished protocol-repository work. Completed history is
+kept in Git commits.
 
-## Contract and generated API
+## Normative transport and contracts
 
-- [X] Keep protocol namespace `liapoldus.plugin.v1`; replace framing-specific
-  message/service definitions with gRPC service/control/Call/Stream messages.
-- [X] Keep Go import path `github.com/Liapoldus/pluginprotocol`; preserve the
-  planned `v1.1.0` release and prominent breaking-migration note (the release
-  itself has not been published).
-- [X] Define `Manifest`, `ConfigSchema`, `ConfigApply`, and `Shutdown` as typed
-  unary RPCs.
-- [X] Use standard `grpc.health.v1`; do not define a second health RPC.
-- [X] Add typed v1 `GrantBroker.RedeemGrant`, opaque call-scoped handles in
-  `CallRequest`, launch-contract broker endpoint handoff, and a bounded Go
-  plugin-side redemption client. Secret bytes stay out of capability JSON.
-- [X] Define generic unary `Call(capability, JSON bytes)` and bidi
-  `Stream(StreamMessage)` RPC; preserve current JSON capability schemas and
-  dispatch models.
-- [X] Define typed L4 stream lifecycle in the v1 protobuf contract: one Open,
-  raw Data messages with explicit request/response direction, then Close;
-  TCP uses a stream per connection and UDP a stream per datagram. The bounded
-  open-context JSON schema is versioned under `contracts/protocol/v1/`.
-- [X] Keep Constructor control plane REST-only.
-- [X] Generate and check in Go protobuf and gRPC stubs; CI command
-  `make check-generated` regenerates and fails on stale tracked output.
-- [X] Generate TypeScript gRPC client/server stubs only under `tests/generated/`
-  with `ts-proto`/`@grpc/grpc-js`; do not publish an npm SDK.
-- [X] Provide a loopback-only Go client, typed handshake, JSON unary Call,
-  standard health check, gRPC server registration, reflection, and bounded
-  stream messages under `transport/`.
-- [X] Enable standard gRPC reflection on the loopback plugin endpoint for
-  `grpcurl` diagnostics. Manually verified against the real Go child-process
-  fixture: `grpcurl -plaintext <loopback> list` and `describe` returned health,
-  reflection and `liapoldus.plugin.v1.PluginService` descriptors.
-- [X] Retire `framing/`, `session/`, frame/envelope protocol artifacts,
-  `cmd/protocol-probe`, and raw wire-hex compatibility vectors after the
-  red-first replacement suite passes.
-- [X] Replace raw wire-hex golden vectors with protobuf descriptor conformance
-  and JSON-schema examples. Keep unrelated Gateway observable-behavior vectors.
-- [X] Expose repository-owned versioned JSON contracts through read-only Go
-  `ContractFiles()` so plugin adapters can serve canonical contract assets
-  without copying them into plugin repositories.
+- [ ] Finalize and version local/remote launch contracts without adding
+  Gateway-specific plugin names or product policies.
+- [ ] Define remote TLS peer identity, certificate rotation and mandatory mTLS
+  conformance vectors; no insecure downgrade or implicit endpoint discovery.
+- [ ] Finalize typed cookie request context and cookie response actions in the
+  appropriate capability JSON contracts; publish no duplicate schema in core.
+- [ ] Keep `Manifest`, config lifecycle, standard gRPC health, unary JSON `Call`,
+  bidi `Stream`, and call-scoped grant redemption compatible under
+  `liapoldus.plugin.v1`.
+- [ ] Finalize bounded stream lifecycle vectors for Open/Data/Close, raw bytes,
+  cancellation, backpressure and connection identity.
 
-## Red-first behavior coverage
+## Conformance and release
 
-- [ ] Malformed protobuf/RPC messages. Oversized unary calls are rejected both
-  by the public Go client and at the real server receive boundary using a TS
-  child-process test; oversized stream messages are also covered.
-- [X] TypeScript child-process tests verify the control handshake's
-  `Manifest` → `ConfigSchema` → `ConfigApply` order, rejection of an empty
-  manifest name or incorrect protocol namespace before configuration calls,
-  and rejection when `ConfigApply` declines the runtime settings. Capability
-  set matching remains Gateway-owned and is tracked in `core/TODO.md`.
-- [ ] Close-race behavior. Deadline expiry, explicit cancellation observed by
-  the child-process plugin, cancellation classification through the public Go
-  client, and four overlapping unary calls completing independently are
-  covered; cancel/close-race stress and broader non-context status mapping
-  remain.
-- [ ] Bidirectional Stream both directions is covered; event message separation,
-  cancellation, bounded backpressure and graceful shutdown still need dedicated
-  stress tests.
-- [X] Real protocol child-process fixture covers unary Call, Stream, standard
-  health and oversized stream rejection; reflection is manually verified.
-  Gateway core child-process E2E also verifies restart after unexpected exit.
-- [X] Add TypeScript E2E coverage with a real child process for typed handshake,
-  unary JSON Call, bidirectional Stream, health via the public Go client, and
-  oversized stream rejection.
-- [X] Add `make check` running generated-code check, Vitest, `go vet`, race
-  instrumentation, and build; protocol CI runs macOS/Linux matrix.
-
-## Gateway integration
-
-- [X] Upgrade `core` dependency/API calls to the new v1 gRPC API using the
-  sibling local module replacement until release, without
-  changing `HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext`,
-  scoped grants, Supervisor ownership or secret redaction.
-- [X] Preserve HTTP and identity dispatch through generic Call; no route or
-  business policy moves into the protocol library.
-- [X] Migrate core L4 dispatch from unary JSON Call to the typed Stream lifecycle
-  while preserving public L4 JSON/domain models. Gateway child-process tests
-  cover TCP dispatch and UDP raw datagrams; protocol child-process tests cover
-  multi-message TCP, UDP, directions and graceful Close.
-- [ ] Confirm logs, traces, Problems and audit records never expose secrets
-  or grant handles. Gateway E2E verifies a bounded Call deadline maps to the
-  versioned `plugin_timeout` Problem; the broader redaction audit remains.
-- [X] Run core `make check`, `go vet ./...`, `go test -race ./...` and child
-  process integration suite locally on macOS; core CI is Linux-only today.
-
-## Documentation
-
-- [X] Keep `README.md`, `AGENTS.md`, `CHANGELOG.md`, and migration notes aligned
-  with the implemented service and v1.1.0 compatibility exception.
-- [X] Keep `liapoldus.github.io/gateway/architecture/protocol.md` and plugin
-  author guide linked to these normative proto and JSON contract sources.
-- [X] Remove stale descriptions of FrameKind, length-prefix, manual session IDs,
-  CANCEL frames and custom error frames from Gateway docs after implementation.
-- [X] Specify grant redemption boundary, active-call lifetime, purpose/domain
-  validation, revocation, and redaction in the protocol README; the Gateway
-  architecture page links to the normative proto without copying it.
-- [ ] Gateway runtime must allocate a broker per plugin, mint/revoke handles
-  around individual calls, resolve configured secrets, and test denial of
-  cross-instance/cross-purpose/cross-domain/expired redemption.
+- [ ] Add TypeScript red tests before each contract change; generated Go and
+  test-only TypeScript stubs must match repository-owned proto.
+- [ ] Cover malformed/oversized payloads, deadlines, cancellation, concurrent
+  calls, bidirectional streams, close races, restart and redaction.
+- [ ] Validate TLS/mTLS remote process E2E and grant redemption without logging
+  credentials, cookies, secret values or grant handles.
+- [ ] Require proto descriptor/schema-vector conformance, `make check`,
+  `go vet ./...`, `go build ./...` and macOS/Linux builds before v1 release.

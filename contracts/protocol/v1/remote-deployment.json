@@ -1,0 +1,46 @@
+{
+  "protocolVersion": "liapoldus.plugin.v1",
+  "transport": "gRPC over HTTP/2 over TCP",
+  "modes": {
+    "local": {
+      "processOwner": "gateway-supervisor",
+      "endpoint": { "host": "127.0.0.1", "port": "gateway-assigned" },
+      "channelSecurity": "insecure-loopback-only",
+      "restartOwner": "gateway-supervisor"
+    },
+    "remote": {
+      "processOwner": "external",
+      "endpoint": {
+        "required": ["address", "tls"],
+        "properties": {
+          "address": { "type": "fixed-host-port", "discovery": false },
+          "tls": {
+            "required": ["serverName", "ca", "clientCertificate", "clientKey"],
+            "properties": {
+              "serverName": { "type": "dns-name-or-ip-san" },
+              "ca": { "type": "external-file-reference" },
+              "clientCertificate": { "type": "external-file-reference" },
+              "clientKey": { "type": "external-secret-file-reference" }
+            }
+          }
+        }
+      },
+      "channelSecurity": "tls-mutual-authentication-required",
+      "restartOwner": "external",
+      "fallback": "none"
+    }
+  },
+  "handshake": ["Manifest", "grpc.health.v1", "ConfigSchema", "ConfigApply"],
+  "capabilities": { "unary": "Call with versioned JSON payload", "stream": "bidirectional Stream" },
+  "grantBroker": {
+    "remoteTransport": "TLS with mutual authentication",
+    "redemption": "call-scoped and bound to plugin identity, capability, purpose, scope, and expiry",
+    "publiclyExposed": false
+  },
+  "invariants": [
+    "Remote mode не запускает и не перезапускает удалённый процесс.",
+    "При ошибке TLS или protocol запрещён переход на insecure transport или local mode.",
+    "Local и remote mode используют один protocol namespace и одни payload contracts.",
+    "Unix socket не является transport по умолчанию."
+  ]
+}
