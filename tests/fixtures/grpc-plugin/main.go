@@ -24,7 +24,7 @@ func (f *fixture) Manifest(context.Context, *pluginv1.ManifestRequest) (*pluginv
 	return &pluginv1.Manifest{
 		Name:            "fixture",
 		ProtocolVersion: "liapoldus.plugin.v1",
-		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow"},
+		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow", "forms.delay"},
 	}, nil
 }
 
@@ -42,6 +42,22 @@ func (f *fixture) Shutdown(context.Context, *pluginv1.ShutdownRequest) (*pluginv
 }
 
 func (*fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*pluginv1.CallResponse, error) {
+	if request.GetCapability() == "forms.delay" {
+		var input struct {
+			DelayMS int `json:"delayMs"`
+		}
+		if err := json.Unmarshal(request.GetPayload(), &input); err != nil {
+			return &pluginv1.CallResponse{Code: "invalid_json"}, nil
+		}
+		timer := time.NewTimer(time.Duration(input.DelayMS) * time.Millisecond)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return nil, status.FromContextError(ctx.Err()).Err()
+		case <-timer.C:
+			return &pluginv1.CallResponse{Payload: []byte("{\"done\":true}")}, nil
+		}
+	}
 	if request.GetCapability() == "forms.slow" {
 		timer := time.NewTimer(5 * time.Second)
 		defer timer.Stop()
