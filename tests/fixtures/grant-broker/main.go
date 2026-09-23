@@ -17,7 +17,7 @@ type broker struct {
 }
 
 func (broker) RedeemGrant(_ context.Context, request *pluginv1.RedeemGrantRequest) (*pluginv1.RedeemGrantResponse, error) {
-	if request.GetHandle() != "opaque-handle" || request.GetPurpose() != "acme-dns01" || request.GetDomain() != "example.com" {
+	if request.GetHandle() != "opaque-handle" || request.GetCapability() != "tls.issue" || request.GetPurpose() != "acme-dns01" || request.GetDomain() != "example.com" {
 		return nil, status.Error(codes.PermissionDenied, "")
 	}
 	return &pluginv1.RedeemGrantResponse{Secret: []byte("fixture-secret")}, nil

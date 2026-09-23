@@ -26,6 +26,7 @@ type ActiveGrant struct {
 	Handle        string                 `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
 	Purpose       string                 `protobuf:"bytes,2,opt,name=purpose,proto3" json:"purpose,omitempty"`
 	Domains       []string               `protobuf:"bytes,3,rep,name=domains,proto3" json:"domains,omitempty"`
+	Capability    string                 `protobuf:"bytes,4,opt,name=capability,proto3" json:"capability,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -81,11 +82,19 @@ func (x *ActiveGrant) GetDomains() []string {
 	return nil
 }
 
+func (x *ActiveGrant) GetCapability() string {
+	if x != nil {
+		return x.Capability
+	}
+	return ""
+}
+
 type RedeemGrantRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Handle        string                 `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
 	Purpose       string                 `protobuf:"bytes,2,opt,name=purpose,proto3" json:"purpose,omitempty"`
 	Domain        string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
+	Capability    string                 `protobuf:"bytes,4,opt,name=capability,proto3" json:"capability,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -141,6 +150,13 @@ func (x *RedeemGrantRequest) GetDomain() string {
 	return ""
 }
 
+func (x *RedeemGrantRequest) GetCapability() string {
+	if x != nil {
+		return x.Capability
+	}
+	return ""
+}
+
 type RedeemGrantResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Secret        []byte                 `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
@@ -189,15 +205,21 @@ var File_liapoldus_plugin_v1_grant_proto protoreflect.FileDescriptor
 
 const file_liapoldus_plugin_v1_grant_proto_rawDesc = "" +
 	"\n" +
-	"\x1fliapoldus/plugin/v1/grant.proto\x12\x13liapoldus.plugin.v1\"Y\n" +
+	"\x1fliapoldus/plugin/v1/grant.proto\x12\x13liapoldus.plugin.v1\"y\n" +
 	"\vActiveGrant\x12\x16\n" +
 	"\x06handle\x18\x01 \x01(\tR\x06handle\x12\x18\n" +
 	"\apurpose\x18\x02 \x01(\tR\apurpose\x12\x18\n" +
-	"\adomains\x18\x03 \x03(\tR\adomains\"^\n" +
+	"\adomains\x18\x03 \x03(\tR\adomains\x12\x1e\n" +
+	"\n" +
+	"capability\x18\x04 \x01(\tR\n" +
+	"capability\"~\n" +
 	"\x12RedeemGrantRequest\x12\x16\n" +
 	"\x06handle\x18\x01 \x01(\tR\x06handle\x12\x18\n" +
 	"\apurpose\x18\x02 \x01(\tR\apurpose\x12\x16\n" +
-	"\x06domain\x18\x03 \x01(\tR\x06domain\"-\n" +
+	"\x06domain\x18\x03 \x01(\tR\x06domain\x12\x1e\n" +
+	"\n" +
+	"capability\x18\x04 \x01(\tR\n" +
+	"capability\"-\n" +
 	"\x13RedeemGrantResponse\x12\x16\n" +
 	"\x06secret\x18\x01 \x01(\fR\x06secret2o\n" +
 	"\vGrantBroker\x12`\n" +

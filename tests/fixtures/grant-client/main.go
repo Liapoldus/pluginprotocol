@@ -18,7 +18,7 @@ func run(endpoint string) error {
 		return err
 	}
 	defer client.Close()
-	secret, err := client.Redeem(ctx, "opaque-handle", "acme-dns01", "example.com")
+	secret, err := client.Redeem(ctx, "tls.issue", "opaque-handle", "acme-dns01", "example.com")
 	if err != nil {
 		return err
 	}

@@ -14,12 +14,14 @@ message ActiveGrant {
   string handle = 1;
   string purpose = 2;
   repeated string domains = 3;
+  string capability = 4;
 }
 
 message RedeemGrantRequest {
   string handle = 1;
   string purpose = 2;
   string domain = 3;
+  string capability = 4;
 }
 
 message RedeemGrantResponse {

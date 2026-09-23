@@ -57,14 +57,15 @@ func NewGrantBrokerServer(service pluginv1.GrantBrokerServer) *grpc.Server {
 
 // Redeem obtains secret material for one active capability invocation. The
 // Gateway validates handle, purpose, domain, plugin identity and call lifetime.
-func (c *GrantClient) Redeem(ctx context.Context, handle, purpose, domain string) ([]byte, error) {
-	if handle == "" || purpose == "" {
+func (c *GrantClient) Redeem(ctx context.Context, capability, handle, purpose, domain string) ([]byte, error) {
+	if capability == "" || handle == "" || purpose == "" {
 		return nil, ErrGrantRejected
 	}
 	response, err := c.service.RedeemGrant(ctx, &pluginv1.RedeemGrantRequest{
-		Handle:  handle,
-		Purpose: purpose,
-		Domain:  domain,
+		Handle:     handle,
+		Purpose:    purpose,
+		Domain:     domain,
+		Capability: capability,
 	})
 	if err != nil {
 		return nil, ErrGrantRejected

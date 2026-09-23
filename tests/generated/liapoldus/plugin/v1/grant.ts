@@ -25,12 +25,14 @@ export interface ActiveGrant {
   handle: string;
   purpose: string;
   domains: string[];
+  capability: string;
 }
 
 export interface RedeemGrantRequest {
   handle: string;
   purpose: string;
   domain: string;
+  capability: string;
 }
 
 export interface RedeemGrantResponse {
@@ -38,7 +40,7 @@ export interface RedeemGrantResponse {
 }
 
 function createBaseActiveGrant(): ActiveGrant {
-  return { handle: "", purpose: "", domains: [] };
+  return { handle: "", purpose: "", domains: [], capability: "" };
 }
 
 export const ActiveGrant: MessageFns<ActiveGrant> = {
@@ -51,6 +53,9 @@ export const ActiveGrant: MessageFns<ActiveGrant> = {
     }
     for (const v of message.domains) {
       writer.uint32(26).string(v!);
+    }
+    if (message.capability !== "") {
+      writer.uint32(34).string(message.capability);
     }
     return writer;
   },
@@ -92,6 +97,14 @@ export const ActiveGrant: MessageFns<ActiveGrant> = {
             message.domains.push(reader.string());
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.capability = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -109,6 +122,7 @@ export const ActiveGrant: MessageFns<ActiveGrant> = {
       handle: isSet(object.handle) ? globalThis.String(object.handle) : "",
       purpose: isSet(object.purpose) ? globalThis.String(object.purpose) : "",
       domains: globalThis.Array.isArray(object?.domains) ? object.domains.map((e: any) => globalThis.String(e)) : [],
+      capability: isSet(object.capability) ? globalThis.String(object.capability) : "",
     };
   },
 
@@ -123,6 +137,9 @@ export const ActiveGrant: MessageFns<ActiveGrant> = {
     if (message.domains?.length) {
       obj.domains = message.domains;
     }
+    if (message.capability !== "") {
+      obj.capability = message.capability;
+    }
     return obj;
   },
 
@@ -134,12 +151,13 @@ export const ActiveGrant: MessageFns<ActiveGrant> = {
     message.handle = object.handle ?? "";
     message.purpose = object.purpose ?? "";
     message.domains = object.domains?.map((e) => e) || [];
+    message.capability = object.capability ?? "";
     return message;
   },
 };
 
 function createBaseRedeemGrantRequest(): RedeemGrantRequest {
-  return { handle: "", purpose: "", domain: "" };
+  return { handle: "", purpose: "", domain: "", capability: "" };
 }
 
 export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
@@ -152,6 +170,9 @@ export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
     }
     if (message.domain !== "") {
       writer.uint32(26).string(message.domain);
+    }
+    if (message.capability !== "") {
+      writer.uint32(34).string(message.capability);
     }
     return writer;
   },
@@ -193,6 +214,14 @@ export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
             message.domain = reader.string();
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.capability = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -210,6 +239,7 @@ export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
       handle: isSet(object.handle) ? globalThis.String(object.handle) : "",
       purpose: isSet(object.purpose) ? globalThis.String(object.purpose) : "",
       domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      capability: isSet(object.capability) ? globalThis.String(object.capability) : "",
     };
   },
 
@@ -224,6 +254,9 @@ export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
     if (message.domain !== "") {
       obj.domain = message.domain;
     }
+    if (message.capability !== "") {
+      obj.capability = message.capability;
+    }
     return obj;
   },
 
@@ -235,6 +268,7 @@ export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
     message.handle = object.handle ?? "";
     message.purpose = object.purpose ?? "";
     message.domain = object.domain ?? "";
+    message.capability = object.capability ?? "";
     return message;
   },
 };
