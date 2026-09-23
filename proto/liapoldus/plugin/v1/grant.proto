@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package liapoldus.plugin.v1;
+
+option go_package = "github.com/Liapoldus/pluginprotocol/pluginv1;pluginv1";
+
+// GrantBroker is hosted by Gateway on a private loopback endpoint. Plugins
+// redeem opaque, per-call handles; secret material is never part of Call JSON.
+service GrantBroker {
+  rpc RedeemGrant(RedeemGrantRequest) returns (RedeemGrantResponse);
+}
+
+message ActiveGrant {
+  string handle = 1;
+  string purpose = 2;
+  repeated string domains = 3;
+}
+
+message RedeemGrantRequest {
+  string handle = 1;
+  string purpose = 2;
+  string domain = 3;
+}
+
+message RedeemGrantResponse {
+  bytes secret = 1;
+}

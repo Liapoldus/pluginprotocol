@@ -16,6 +16,9 @@ has a macOS/Linux matrix.
 - [X] Define `Manifest`, `ConfigSchema`, `ConfigApply`, and `Shutdown` as typed
   unary RPCs.
 - [X] Use standard `grpc.health.v1`; do not define a second health RPC.
+- [X] Add typed v1 `GrantBroker.RedeemGrant`, opaque call-scoped handles in
+  `CallRequest`, launch-contract broker endpoint handoff, and a bounded Go
+  plugin-side redemption client. Secret bytes stay out of capability JSON.
 - [X] Define generic unary `Call(capability, JSON bytes)` and bidi
   `Stream(StreamMessage)` RPC; preserve current JSON capability schemas and
   dispatch models.
@@ -84,3 +87,9 @@ has a macOS/Linux matrix.
   author guide linked to these normative proto and JSON contract sources.
 - [X] Remove stale descriptions of FrameKind, length-prefix, manual session IDs,
   CANCEL frames and custom error frames from Gateway docs after implementation.
+- [X] Specify grant redemption boundary, active-call lifetime, purpose/domain
+  validation, revocation, and redaction in the protocol README; the Gateway
+  architecture page links to the normative proto without copying it.
+- [ ] Gateway runtime must allocate a broker per plugin, mint/revoke handles
+  around individual calls, resolve configured secrets, and test denial of
+  cross-instance/cross-purpose/cross-domain/expired redemption.

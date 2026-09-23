@@ -111,10 +111,16 @@ func (c *Client) Handshake(ctx context.Context, config []byte) (Handshake, error
 }
 
 func (c *Client) Call(ctx context.Context, capability string, payload []byte) (*pluginv1.CallResponse, error) {
+	return c.CallWithGrants(ctx, capability, payload, nil)
+}
+
+// CallWithGrants sends opaque, call-scoped grant handles alongside a JSON
+// capability payload. Secret bytes must only be obtained via GrantBroker.
+func (c *Client) CallWithGrants(ctx context.Context, capability string, payload []byte, grants []*pluginv1.ActiveGrant) (*pluginv1.CallResponse, error) {
 	if capability == "" || len(payload) > DefaultMaxMessageBytes || !json.Valid(payload) {
 		return nil, ErrProtocolViolation
 	}
-	response, err := c.service.Call(ctx, &pluginv1.CallRequest{Capability: capability, Payload: payload})
+	response, err := c.service.Call(ctx, &pluginv1.CallRequest{Capability: capability, Payload: payload, Grants: grants})
 	if err != nil {
 		return nil, classifyRPCError(ctx, err)
 	}

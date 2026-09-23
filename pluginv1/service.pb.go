@@ -25,6 +25,7 @@ type CallRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Capability    string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
 	Payload       []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	Grants        []*ActiveGrant         `protobuf:"bytes,3,rep,name=grants,proto3" json:"grants,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -69,6 +70,13 @@ func (x *CallRequest) GetCapability() string {
 func (x *CallRequest) GetPayload() []byte {
 	if x != nil {
 		return x.Payload
+	}
+	return nil
+}
+
+func (x *CallRequest) GetGrants() []*ActiveGrant {
+	if x != nil {
+		return x.Grants
 	}
 	return nil
 }
@@ -287,12 +295,13 @@ var File_liapoldus_plugin_v1_service_proto protoreflect.FileDescriptor
 
 const file_liapoldus_plugin_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"!liapoldus/plugin/v1/service.proto\x12\x13liapoldus.plugin.v1\x1a!liapoldus/plugin/v1/control.proto\"G\n" +
+	"!liapoldus/plugin/v1/service.proto\x12\x13liapoldus.plugin.v1\x1a!liapoldus/plugin/v1/control.proto\x1a\x1fliapoldus/plugin/v1/grant.proto\"\x81\x01\n" +
 	"\vCallRequest\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +
 	"capability\x12\x18\n" +
-	"\apayload\x18\x02 \x01(\fR\apayload\"V\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\x128\n" +
+	"\x06grants\x18\x03 \x03(\v2 .liapoldus.plugin.v1.ActiveGrantR\x06grants\"V\n" +
 	"\fCallResponse\x12\x18\n" +
 	"\apayload\x18\x01 \x01(\fR\apayload\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
@@ -338,35 +347,37 @@ var file_liapoldus_plugin_v1_service_proto_goTypes = []any{
 	(*PluginEvent)(nil),         // 2: liapoldus.plugin.v1.PluginEvent
 	(*StreamMessage)(nil),       // 3: liapoldus.plugin.v1.StreamMessage
 	nil,                         // 4: liapoldus.plugin.v1.PluginEvent.FieldsEntry
-	(*ManifestRequest)(nil),     // 5: liapoldus.plugin.v1.ManifestRequest
-	(*ConfigSchemaRequest)(nil), // 6: liapoldus.plugin.v1.ConfigSchemaRequest
-	(*ConfigApplyRequest)(nil),  // 7: liapoldus.plugin.v1.ConfigApplyRequest
-	(*ShutdownRequest)(nil),     // 8: liapoldus.plugin.v1.ShutdownRequest
-	(*Manifest)(nil),            // 9: liapoldus.plugin.v1.Manifest
-	(*ConfigSchema)(nil),        // 10: liapoldus.plugin.v1.ConfigSchema
-	(*ConfigApplyResult)(nil),   // 11: liapoldus.plugin.v1.ConfigApplyResult
-	(*ShutdownResult)(nil),      // 12: liapoldus.plugin.v1.ShutdownResult
+	(*ActiveGrant)(nil),         // 5: liapoldus.plugin.v1.ActiveGrant
+	(*ManifestRequest)(nil),     // 6: liapoldus.plugin.v1.ManifestRequest
+	(*ConfigSchemaRequest)(nil), // 7: liapoldus.plugin.v1.ConfigSchemaRequest
+	(*ConfigApplyRequest)(nil),  // 8: liapoldus.plugin.v1.ConfigApplyRequest
+	(*ShutdownRequest)(nil),     // 9: liapoldus.plugin.v1.ShutdownRequest
+	(*Manifest)(nil),            // 10: liapoldus.plugin.v1.Manifest
+	(*ConfigSchema)(nil),        // 11: liapoldus.plugin.v1.ConfigSchema
+	(*ConfigApplyResult)(nil),   // 12: liapoldus.plugin.v1.ConfigApplyResult
+	(*ShutdownResult)(nil),      // 13: liapoldus.plugin.v1.ShutdownResult
 }
 var file_liapoldus_plugin_v1_service_proto_depIdxs = []int32{
-	4,  // 0: liapoldus.plugin.v1.PluginEvent.fields:type_name -> liapoldus.plugin.v1.PluginEvent.FieldsEntry
-	2,  // 1: liapoldus.plugin.v1.StreamMessage.event:type_name -> liapoldus.plugin.v1.PluginEvent
-	5,  // 2: liapoldus.plugin.v1.PluginService.Manifest:input_type -> liapoldus.plugin.v1.ManifestRequest
-	6,  // 3: liapoldus.plugin.v1.PluginService.ConfigSchema:input_type -> liapoldus.plugin.v1.ConfigSchemaRequest
-	7,  // 4: liapoldus.plugin.v1.PluginService.ConfigApply:input_type -> liapoldus.plugin.v1.ConfigApplyRequest
-	8,  // 5: liapoldus.plugin.v1.PluginService.Shutdown:input_type -> liapoldus.plugin.v1.ShutdownRequest
-	0,  // 6: liapoldus.plugin.v1.PluginService.Call:input_type -> liapoldus.plugin.v1.CallRequest
-	3,  // 7: liapoldus.plugin.v1.PluginService.Stream:input_type -> liapoldus.plugin.v1.StreamMessage
-	9,  // 8: liapoldus.plugin.v1.PluginService.Manifest:output_type -> liapoldus.plugin.v1.Manifest
-	10, // 9: liapoldus.plugin.v1.PluginService.ConfigSchema:output_type -> liapoldus.plugin.v1.ConfigSchema
-	11, // 10: liapoldus.plugin.v1.PluginService.ConfigApply:output_type -> liapoldus.plugin.v1.ConfigApplyResult
-	12, // 11: liapoldus.plugin.v1.PluginService.Shutdown:output_type -> liapoldus.plugin.v1.ShutdownResult
-	1,  // 12: liapoldus.plugin.v1.PluginService.Call:output_type -> liapoldus.plugin.v1.CallResponse
-	3,  // 13: liapoldus.plugin.v1.PluginService.Stream:output_type -> liapoldus.plugin.v1.StreamMessage
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	5,  // 0: liapoldus.plugin.v1.CallRequest.grants:type_name -> liapoldus.plugin.v1.ActiveGrant
+	4,  // 1: liapoldus.plugin.v1.PluginEvent.fields:type_name -> liapoldus.plugin.v1.PluginEvent.FieldsEntry
+	2,  // 2: liapoldus.plugin.v1.StreamMessage.event:type_name -> liapoldus.plugin.v1.PluginEvent
+	6,  // 3: liapoldus.plugin.v1.PluginService.Manifest:input_type -> liapoldus.plugin.v1.ManifestRequest
+	7,  // 4: liapoldus.plugin.v1.PluginService.ConfigSchema:input_type -> liapoldus.plugin.v1.ConfigSchemaRequest
+	8,  // 5: liapoldus.plugin.v1.PluginService.ConfigApply:input_type -> liapoldus.plugin.v1.ConfigApplyRequest
+	9,  // 6: liapoldus.plugin.v1.PluginService.Shutdown:input_type -> liapoldus.plugin.v1.ShutdownRequest
+	0,  // 7: liapoldus.plugin.v1.PluginService.Call:input_type -> liapoldus.plugin.v1.CallRequest
+	3,  // 8: liapoldus.plugin.v1.PluginService.Stream:input_type -> liapoldus.plugin.v1.StreamMessage
+	10, // 9: liapoldus.plugin.v1.PluginService.Manifest:output_type -> liapoldus.plugin.v1.Manifest
+	11, // 10: liapoldus.plugin.v1.PluginService.ConfigSchema:output_type -> liapoldus.plugin.v1.ConfigSchema
+	12, // 11: liapoldus.plugin.v1.PluginService.ConfigApply:output_type -> liapoldus.plugin.v1.ConfigApplyResult
+	13, // 12: liapoldus.plugin.v1.PluginService.Shutdown:output_type -> liapoldus.plugin.v1.ShutdownResult
+	1,  // 13: liapoldus.plugin.v1.PluginService.Call:output_type -> liapoldus.plugin.v1.CallResponse
+	3,  // 14: liapoldus.plugin.v1.PluginService.Stream:output_type -> liapoldus.plugin.v1.StreamMessage
+	9,  // [9:15] is the sub-list for method output_type
+	3,  // [3:9] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_liapoldus_plugin_v1_service_proto_init() }
@@ -375,6 +386,7 @@ func file_liapoldus_plugin_v1_service_proto_init() {
 		return
 	}
 	file_liapoldus_plugin_v1_control_proto_init()
+	file_liapoldus_plugin_v1_grant_proto_init()
 	file_liapoldus_plugin_v1_service_proto_msgTypes[3].OneofWrappers = []any{
 		(*StreamMessage_Payload)(nil),
 		(*StreamMessage_Event)(nil),

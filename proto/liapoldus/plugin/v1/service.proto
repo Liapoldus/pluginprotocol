@@ -5,6 +5,7 @@ package liapoldus.plugin.v1;
 option go_package = "github.com/Liapoldus/pluginprotocol/pluginv1;pluginv1";
 
 import "liapoldus/plugin/v1/control.proto";
+import "liapoldus/plugin/v1/grant.proto";
 
 service PluginService {
   rpc Manifest(ManifestRequest) returns (.liapoldus.plugin.v1.Manifest);
@@ -18,6 +19,7 @@ service PluginService {
 message CallRequest {
   string capability = 1;
   bytes payload = 2;
+  repeated ActiveGrant grants = 3;
 }
 
 message CallResponse {

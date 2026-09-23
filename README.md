@@ -44,6 +44,32 @@ semantic-versioning ожидания и должно оставаться зам
   routing, HTTP/L4 dispatch, limits и conversion ошибок в Gateway Problems.
 - Constructor control plane остаётся REST и не использует этот gRPC service.
 
+### Scoped secret grants
+
+Gateway allocates a separate private TCP-loopback endpoint for the typed
+`GrantBroker.RedeemGrant` callback and passes it through the launch contract's
+`LIAPOLDUS_GRANT_BROKER_ENDPOINT` variable. `CallRequest.grants` contains only
+opaque handles plus the declared purpose and domain allow-list; secret bytes
+are excluded from capability JSON, plugin settings, and ordinary IPC metadata.
+
+Each handle is minted by Gateway for one capability invocation and bound to the
+plugin instance, capability, configured secret, purpose, and domain scope. The
+broker accepts redemption only while that call is active, only for the exact
+purpose, and only for a domain in the grant's allow-list (an empty domain is
+valid only for a grant that has no domain restriction). Gateway revokes the
+handle when the call completes, fails, is cancelled, or reaches its deadline.
+The secret is returned only in the typed `RedeemGrantResponse`; it must not be
+logged, copied into a later call, or included in plugin errors/events. The
+Gateway redacts protocol diagnostics and never exposes the opaque handle in
+logs or user-facing errors. Plugins should keep the bytes only for the active
+operation and erase temporary copies when it completes.
+
+The broker is reachable only over the supplied loopback endpoint and is not a
+public Gateway API. The plugin must not accept a client-supplied handle as
+authority: it can redeem only handles attached by Gateway to its current
+`CallRequest`. Grant validation and secret resolution remain in Gateway; this
+protocol callback does not transfer filesystem paths or secret ownership.
+
 ## Проверки
 
 Из корня репозитория:

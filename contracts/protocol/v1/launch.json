@@ -1,6 +1,7 @@
 {
   "protocolVersion": "liapoldus.plugin.v1",
   "endpointEnvironment": "LIAPOLDUS_PLUGIN_ENDPOINT",
+  "grantBrokerEndpointEnvironment": "LIAPOLDUS_GRANT_BROKER_ENDPOINT",
   "endpoint": {
     "transport": "tcp",
     "host": "127.0.0.1",

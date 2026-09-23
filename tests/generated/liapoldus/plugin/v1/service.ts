@@ -30,12 +30,14 @@ import {
   ShutdownRequest,
   ShutdownResult,
 } from "./control.js";
+import { ActiveGrant } from "./grant.js";
 
 export const protobufPackage = "liapoldus.plugin.v1";
 
 export interface CallRequest {
   capability: string;
   payload: Uint8Array;
+  grants: ActiveGrant[];
 }
 
 export interface CallResponse {
@@ -62,7 +64,7 @@ export interface StreamMessage {
 }
 
 function createBaseCallRequest(): CallRequest {
-  return { capability: "", payload: new Uint8Array(0) };
+  return { capability: "", payload: new Uint8Array(0), grants: [] };
 }
 
 export const CallRequest: MessageFns<CallRequest> = {
@@ -72,6 +74,9 @@ export const CallRequest: MessageFns<CallRequest> = {
     }
     if (message.payload.length !== 0) {
       writer.uint32(18).bytes(message.payload);
+    }
+    for (const v of message.grants) {
+      ActiveGrant.encode(v!, writer.uint32(26).fork()).join();
     }
     return writer;
   },
@@ -105,6 +110,14 @@ export const CallRequest: MessageFns<CallRequest> = {
             message.payload = reader.bytes();
             continue;
           }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.grants.push(ActiveGrant.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -121,6 +134,7 @@ export const CallRequest: MessageFns<CallRequest> = {
     return {
       capability: isSet(object.capability) ? globalThis.String(object.capability) : "",
       payload: isSet(object.payload) ? bytesFromBase64(object.payload) : new Uint8Array(0),
+      grants: globalThis.Array.isArray(object?.grants) ? object.grants.map((e: any) => ActiveGrant.fromJSON(e)) : [],
     };
   },
 
@@ -132,6 +146,9 @@ export const CallRequest: MessageFns<CallRequest> = {
     if (message.payload.length !== 0) {
       obj.payload = base64FromBytes(message.payload);
     }
+    if (message.grants?.length) {
+      obj.grants = message.grants.map((e) => ActiveGrant.toJSON(e));
+    }
     return obj;
   },
 
@@ -142,6 +159,7 @@ export const CallRequest: MessageFns<CallRequest> = {
     const message = createBaseCallRequest();
     message.capability = object.capability ?? "";
     message.payload = object.payload ?? new Uint8Array(0);
+    message.grants = object.grants?.map((e) => ActiveGrant.fromPartial(e)) || [];
     return message;
   },
 };

@@ -15,6 +15,9 @@ wire-совместимости.
 - Declarative capability JSON Schemas, Gateway ownership/grants, JSON boundary
   types, secret redaction и REST control plane Constructor не меняются.
 - Reflection включается на loopback для `grpcurl`.
+- Добавлен typed `GrantBroker.RedeemGrant` в v1 и opaque `ActiveGrant` metadata
+  на `CallRequest`: Gateway выдаёт секрет только в typed response активного
+  scoped-вызова, не через capability JSON.
 - Сырые framing wire-hex vectors удалены и заменены protobuf descriptor и JSON
   payload conformance tests.
 
