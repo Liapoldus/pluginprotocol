@@ -44,8 +44,8 @@ has a macOS/Linux matrix.
   child-process test; oversized stream messages are also covered.
 - [ ] Handshake order, invalid manifest/capability, config
   apply failure.
-- [ ] Cancellation and close-race behavior. Deadline expiry of a real
-  child-process unary RPC and four overlapping unary calls completing
+- [ ] Close-race behavior. Deadline expiry, explicit cancellation observed by
+  the child-process plugin, and four overlapping unary calls completing
   independently are covered; transport-client error classification and
   cancel/close-race stress remain.
 - [ ] Bidirectional Stream both directions is covered; event message separation,

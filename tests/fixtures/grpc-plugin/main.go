@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
@@ -17,14 +18,15 @@ import (
 
 type fixture struct {
 	pluginv1.UnimplementedPluginServiceServer
-	server *grpc.Server
+	server        *grpc.Server
+	cancellations atomic.Int32
 }
 
 func (f *fixture) Manifest(context.Context, *pluginv1.ManifestRequest) (*pluginv1.Manifest, error) {
 	return &pluginv1.Manifest{
 		Name:            "fixture",
 		ProtocolVersion: "liapoldus.plugin.v1",
-		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow", "forms.delay"},
+		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow", "forms.delay", "forms.cancelled"},
 	}, nil
 }
 
@@ -41,7 +43,10 @@ func (f *fixture) Shutdown(context.Context, *pluginv1.ShutdownRequest) (*pluginv
 	return &pluginv1.ShutdownResult{Closed: true}, nil
 }
 
-func (*fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*pluginv1.CallResponse, error) {
+func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*pluginv1.CallResponse, error) {
+	if request.GetCapability() == "forms.cancelled" {
+		return &pluginv1.CallResponse{Payload: []byte(fmt.Sprintf("{\"count\":%d}", f.cancellations.Load()))}, nil
+	}
 	if request.GetCapability() == "forms.delay" {
 		var input struct {
 			DelayMS int `json:"delayMs"`
@@ -63,6 +68,7 @@ func (*fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*plugi
 		defer timer.Stop()
 		select {
 		case <-ctx.Done():
+			f.cancellations.Add(1)
 			if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
 				return nil, status.Error(codes.DeadlineExceeded, "")
 			}

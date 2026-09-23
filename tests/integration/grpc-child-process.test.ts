@@ -100,6 +100,11 @@ describe("gRPC plugin child process", () => {
   });
 
   it("propagates explicit unary cancellation to the plugin process", async () => {
+    const before = await unary((callback) => client.call({
+      capability: "forms.cancelled",
+      payload: new TextEncoder().encode("{}"),
+    }, callback));
+    const countBefore = JSON.parse(new TextDecoder().decode(before.payload)).count as number;
     const code = new Promise<number>((resolve) => {
       const call = client.call({
         capability: "forms.slow",
@@ -113,7 +118,7 @@ describe("gRPC plugin child process", () => {
       capability: "forms.cancelled",
       payload: new TextEncoder().encode("{}"),
     }, callback));
-    expect(new TextDecoder().decode(response.payload)).toBe('{"count":1}');
+    expect(JSON.parse(new TextDecoder().decode(response.payload)).count).toBe(countBefore + 1);
   });
 
   it("serves concurrent unary capability calls independently", async () => {
