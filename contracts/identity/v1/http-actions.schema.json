@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Identity capability HTTP boundary",
+  "title": "HTTP-граница identity capability",
   "allOf": [
     { "$ref": "../../http/v1/response-action.schema.json" },
     {

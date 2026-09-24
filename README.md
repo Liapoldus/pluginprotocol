@@ -8,27 +8,59 @@ versioned declarative contracts в [`contracts/`](contracts/).
 
 Единый v1 transport — gRPC/HTTP/2 поверх TCP. Local-supervised режим использует
 назначенный `127.0.0.1:<port>` и insecure credentials только на loopback.
-Remote mode адресуется фиксированным host:port и требует TLS с проверкой
-идентичности сервера и mTLS; перехода на менее защищённый transport нет.
-Gateway управляет процессом только в local mode. Нормативный контракт запуска находится в
-[`remote-deployment.json`](contracts/protocol/v1/remote-deployment.json).
+Remote mode адресуется явным стабильным Service host:port и требует TLS с
+проверкой server identity и mTLS; перехода на менее защищённый transport нет.
+Каждая remote workload replica имеет отдельную externally-issued identity,
+связанную с заранее зарегистрированным logical plugin instance. Gateway
+проверяет URI identity и DNS/IP SAN при каждом новом gRPC connection. Ready
+replicas за Service должны обслуживать совместимые protocol, Manifest и
+settings digest; readiness/config apply принадлежат внешнему Docker/Kubernetes
+operator. Ключи передаются только через защищённые file/secret mounts. Ротацию
+ведёт внешний CA/operator с коротким overlap trust bundle и rolling restart.
+Gateway управляет process только в local mode. Для remote mode Gateway
+переподключается и повторяет handshake после новых connections, но не
+перезапускает workload и не повторяет Call с неопределённым исходом. Нормативный
+wire/launch contract находится в
+[`remote-deployment.json`](contracts/protocol/v1/remote-deployment.json): он
+задаёт уникальную URI identity каждой plugin replica, раздельные per-instance
+Gateway control и Caddy data identities, разрешённые RPC/capability scopes и
+условия readiness за стабильным Service.
 
-Текущий публичный client/helper API пока реализует loopback transport; защищённые
-настройки remote dial/listen, mTLS GrantBroker и remote E2E остаются задачами
-этого репозитория и должны быть завершены до заявления remote mode как
-реализованного. `grpc.health.v1` обслуживает readiness; стандартный gRPC
-reflection включён для локальной диагностики и не должен становиться публичным
-endpoint.
+Transport API предоставляет `DialRemoteContext` для исходящего TLS/mTLS,
+`RemoteServerInterceptors` для разделения control/data URI identities и
+capability scope, а `NewRemoteServer` — для входящего TLS/mTLS server без
+reflection. Это протокольные primitives, не готовый remote deployment:
+интеграция в Gateway и active plugins, replica readiness/reconnect, credential
+rotation и remote GrantBroker TLS остаются незавершёнными. `grpc.health.v1`
+обслуживает readiness; reflection доступен только через loopback `NewServer`
+для локальной диагностики и не включается в remote server.
 
-Control RPC — `Manifest`, `ConfigSchema`, `ConfigApply`, `Shutdown`; health —
-стандартный `grpc.health.v1`. Бизнес-вызовы используют единый unary `Call` с
+Control RPC — `Manifest`, `ConfigSchema`, `ConfigApply`, `Shutdown`,
+`DispatchApply`; health — стандартный `grpc.health.v1`. Gateway применяет
+монотонное поколение и разрешённые пары capability/mode к каждой remote
+replica. Data RPC закрыты до успешного применения; plugin подтверждает свою
+identity и локальные settings/release digest. Бизнес-вызовы используют единый unary `Call` с
 capability name и versioned UTF-8 JSON payload. Двунаправленный `Stream`
-переносит L4 traffic и отдельно типизированные event messages. gRPC обеспечивает
-framing, multiplexing, cancellation и flow control; старые custom frame,
-length-prefix и самописный session multiplexer удалены.
+переносит HTTP request/response chunks, WebSocket messages, SSE events и L4 raw
+bytes. HTTP-stream открывается ограниченным JSON context, передаёт request body
+chunks без полной буферизации и использует отдельное response-start metadata до
+response chunks. WebSocket handshake/subprotocol decision возвращается до
+upgrade, а text/binary message boundaries сохраняются; SSE передаётся как
+структурированные event/data/id/retry fields. Существующие L4 поля 1–6 не
+перенумеровываются. gRPC обеспечивает framing, multiplexing, cancellation и
+flow control; старые custom frame, length-prefix и самописный session
+multiplexer удалены.
 
 JSON contracts manifest/settings/HTTP response actions/admin-surface/admin-UI и типы
 `HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext` сохраняются.
+Общий typed cookie response описан в
+[`response-action.schema.json`](contracts/http/v1/response-action.schema.json);
+потоковые open contexts и response-start metadata описаны в versioned
+[`Stream schemas`](contracts/protocol/v1/stream-open-context.schema.json) и
+[`HTTP response metadata`](contracts/protocol/v1/http-stream-response-metadata.schema.json).
+Gateway/Caddy проверяет cookie allow-list до dispatch и применяет response
+actions атомарно до headers/upgrade; cookie значения редактируются в логах и
+ошибках.
 Protocol transport не получает публичный socket, filesystem path или raw secret.
 Grant handling и redaction остаются ответственностью Gateway boundary.
 Go-потребители versioned JSON contracts используют `ContractFiles()`, который
@@ -47,13 +79,19 @@ semantic-versioning ожидания и должно оставаться зам
 
 - Proto содержит transport/control RPC types, generic Call envelope и
 bidirectional Stream message envelope.
+- Manifest содержит аддитивный descriptor `capability → invocation modes`;
+  Caddyfile binding валидируется по нему до активации snapshot.
 - JSON Schemas определяют capability business payloads; transport не содержит
   отдельные protobuf DTO на каждую capability.
 - Generated Go client/server code публикуется вместе с этим module.
 - TypeScript generated stubs существуют только под `tests/` для Vitest
   conformance и не выпускаются как публичный npm package.
-- Gateway owns process supervision, loopback endpoint allocation, grants,
-  routing, HTTP/L4 dispatch, limits и conversion ошибок в Gateway Problems.
+- Gateway управляет plugin process supervision, endpoint allocation, grants и
+  control-plane policy. В целевой Gateway architecture Caddy Liapoldus handler
+  владеет public listeners и напрямую вызывает plugin через `Call`/`Stream`;
+  Gateway подготавливает immutable dispatch snapshot, но не проксирует
+  пользовательский request/response. Протокол сам не задаёт route или
+  Caddyfile semantics.
 - Constructor control plane остаётся REST и не использует этот gRPC service.
 
 Для L4 Stream каждый TCP connection имеет отдельный lifecycle, а каждая UDP
@@ -63,35 +101,35 @@ datagram передаётся отдельным lifecycle. Typed Open/Data/Clos
 [`stream-open-context.schema.json`](contracts/protocol/v1/stream-open-context.schema.json).
 Транспорт не передаёт socket handle, filesystem path или secret.
 
-### Scoped secret grants
+### Ограниченные grants секретов
 
-Gateway allocates a separate private TCP-loopback endpoint for the typed
-`GrantBroker.RedeemGrant` callback and passes it through the launch contract's
-`LIAPOLDUS_GRANT_BROKER_ENDPOINT` variable. `CallRequest.grants` contains only
-opaque handles plus the declared purpose and domain allow-list; secret bytes
-are excluded from capability JSON, plugin settings, and ordinary IPC metadata.
+Gateway выделяет отдельный закрытый TCP-loopback endpoint для типизированного
+callback `GrantBroker.RedeemGrant` и передаёт его через переменную
+`LIAPOLDUS_GRANT_BROKER_ENDPOINT` из launch contract. `CallRequest.grants`
+содержит только непрозрачные handles, объявленную цель и allow-list доменов;
+байты секрета не попадают в capability JSON, plugin settings или обычные IPC
+metadata.
 
-Each handle is minted by Gateway for one capability invocation and bound to the
-plugin instance, capability, configured secret, purpose, and domain scope. The
-broker accepts redemption only while that call is active, only for the exact
-capability and purpose, and only for a domain in the grant's allow-list (an
-empty domain is valid only for a grant that has no domain restriction). The
-redemption request repeats the capability name so Gateway can check the
-capability binding at the broker boundary. Gateway revokes the
-handle when the call completes, fails, is cancelled, or reaches its deadline.
-The secret is returned only in the typed `RedeemGrantResponse`; it must not be
-logged, copied into a later call, or included in plugin errors/events. The
-Gateway redacts protocol diagnostics and never exposes the opaque handle in
-logs or user-facing errors. Plugins should keep the bytes only for the active
-operation and erase temporary copies when it completes.
+Каждый handle выпускается Gateway для одного вызова capability и связывается с
+экземпляром plugin, capability, настроенным секретом, целью и областью доменов.
+Broker принимает погашение только пока вызов активен, только для точных
+capability и цели, а также только для домена из allow-list grant (пустой домен
+допустим, только если grant не ограничивает домены). Запрос погашения повторяет
+имя capability, чтобы Gateway проверил её привязку на границе broker. Gateway
+отзывает handle после завершения, ошибки, отмены или дедлайна вызова. Секрет
+возвращается только в типизированном `RedeemGrantResponse`; его нельзя
+логировать, переносить в следующий вызов или включать в ошибки/events plugin.
+Gateway редактирует protocol diagnostics и не раскрывает непрозрачный handle в
+логах или пользовательских ошибках. Plugin хранит байты только в течение
+активной операции и удаляет временные копии после её завершения.
 
 В local mode broker доступен только по переданному loopback endpoint; в remote
 mode нужен отдельный закрытый TLS/mTLS callback endpoint из доверенной plugin
 network. Это не публичный Gateway API. Remote transport для GrantBroker пока не
 реализован. Plugin не должен считать переданный клиентом handle авторизацией:
 он может погасить только handle, прикреплённый Gateway к текущему
-`CallRequest`. Проверка grant и разрешение secret остаются ответственностью
-Gateway; callback не передаёт plugin filesystem paths или владение secret.
+`CallRequest`. Проверка grant и выдача секрета остаются ответственностью
+Gateway; callback не передаёт plugin filesystem paths или владение секретом.
 
 ## Проверки
 
@@ -121,7 +159,8 @@ Gateway может разместить scoped-grant callback через `NewGra
 Protocol tests red-first и TypeScript/Vitest-only. Реализованные проверки
 покрывают proto service contract, generated stubs, JSON payload vectors,
 child-process handshake, стандартную health-проверку, unary Call, обе стороны
-bidirectional stream и отклонение oversized stream message. Отдельные тесты
-deadlines, cancellation/concurrency/close-race, backpressure, remote TLS/mTLS,
-remote GrantBroker, интеграция типизированной HTTP-cookie boundary и
-macOS/Linux CI остаются в TODO.
+bidirectional stream, oversized stream message, remote TLS/mTLS client,
+control/data RPC authorization и remote server TLS boundary. Отдельные тесты
+deadlines, cancellation/concurrency/close-race, backpressure, remote GrantBroker,
+credential rotation/reconnect replicas, интеграция типизированной HTTP-cookie
+boundary и macOS/Linux CI остаются в TODO.

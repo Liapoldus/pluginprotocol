@@ -26,8 +26,8 @@ export async function buildGoFixture(repositoryRoot: string, packagePath: string
   };
 }
 
-export function startGoFixture(executable: string, options: SpawnOptions = {}): ChildProcessWithoutNullStreams {
-  return spawn(executable, [], { ...options, stdio: "pipe" });
+export function startGoFixture(executable: string, options: SpawnOptions = {}, args: string[] = []): ChildProcessWithoutNullStreams {
+  return spawn(executable, args, { ...options, stdio: "pipe" });
 }
 
 export async function stopChildProcess(child: ChildProcess): Promise<void> {

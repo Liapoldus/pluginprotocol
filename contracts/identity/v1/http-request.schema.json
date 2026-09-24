@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/identity/v1/http-request.schema.json",
+  "title": "HTTP-запрос identity capability v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["method", "path"],
+  "properties": {
+    "method": { "type": "string", "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,32}$" },
+    "path": { "type": "string", "minLength": 1, "maxLength": 8192 },
+    "query": { "type": "string", "maxLength": 8192 }
+  }
+}
