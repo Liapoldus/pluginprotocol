@@ -23,9 +23,6 @@ import (
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"github.com/Liapoldus/pluginprotocol/transport"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type service struct {
@@ -135,28 +132,22 @@ func run() error {
 	}
 	rootPool := x509.NewCertPool()
 	rootPool.AddCert(ca)
-	serverTLS := &tls.Config{Certificates: []tls.Certificate{serverPair}, ClientCAs: rootPool, ClientAuth: tls.RequireAndVerifyClientCert, MinVersion: tls.VersionTLS13}
 	capability := "forms.submit"
-	unaryInterceptor, streamInterceptor, err := transport.RemoteServerInterceptors(transport.RemoteAuthorization{
-		ControlIdentity: identities["control"].String(),
-		DataIdentity:    identities["data"].String(),
-		AllowsCapability: func(value string) bool {
-			return value == capability
+	remoteServer, err := transport.NewRemoteServer(service{}, transport.RemoteServerOptions{
+		TLSCertificate: serverPair,
+		ClientRoots:    rootPool,
+		Authorization: transport.RemoteAuthorization{
+			ControlIdentity: identities["control"].String(),
+			DataIdentity:    identities["data"].String(),
+			AllowsCapability: func(value string) bool {
+				return value == capability
+			},
 		},
 	})
 	if err != nil {
 		return err
 	}
-	grpcServer := grpc.NewServer(
-		grpc.Creds(credentials.NewTLS(serverTLS)),
-		grpc.UnaryInterceptor(unaryInterceptor),
-		grpc.StreamInterceptor(streamInterceptor),
-	)
-	pluginv1.RegisterPluginServiceServer(grpcServer, service{})
-	healthServer := health.NewServer()
-	healthServer.SetServingStatus(pluginv1.PluginService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
-	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
-	go func() { _ = grpcServer.Serve(listener) }()
+	go func() { _ = remoteServer.Serve(listener) }()
 	result := map[string]any{
 		"address": listener.Addr().String(), "caFile": paths["ca"], "serverName": "plugin.test",
 		"serverIdentity": serverIdentity.String(), "controlCertificate": paths["controlCertificate"], "controlKey": paths["controlKey"],
@@ -169,7 +160,7 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 	<-shutdown
-	grpcServer.GracefulStop()
+	remoteServer.GracefulStop()
 	return nil
 }
 
