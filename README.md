@@ -101,6 +101,17 @@ datagram передаётся отдельным lifecycle. Typed Open/Data/Clos
 [`stream-open-context.schema.json`](contracts/protocol/v1/stream-open-context.schema.json).
 Транспорт не передаёт socket handle, filesystem path или secret.
 
+Полная нормативная state machine, допустимые переходы, gRPC-коды ошибок и
+лимиты bounded metadata заданы в
+[`stream-lifecycle.json`](contracts/protocol/v1/stream-lifecycle.json). Сервер
+валидирует сообщения обоих направлений до передачи обработчику или отправки
+клиенту. Open — первое и единственное начальное сообщение; mode, transport и
+context должны совпадать; HTTP half-close одноразовый; response-start обязателен
+до HTTP response chunks; WebSocket rejection не может выбрать subprotocol; SSE
+поля ограничены до сериализации. Нарушение последовательности возвращает
+`INVALID_ARGUMENT`, превышение лимита — `RESOURCE_EXHAUSTED`. Отмена gRPC context
+закрывает обе стороны без replay.
+
 ### Ограниченные grants секретов
 
 Gateway выделяет отдельный закрытый TCP-loopback endpoint для типизированного

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/protocol/v1/stream-lifecycle.json",
+  "title": "Plugin Stream v1 lifecycle",
+  "description": "Normative lifecycle and bounded metadata rules for the v1 bidirectional Stream RPC.",
+  "version": 1,
+  "limits": {
+    "contextBytes": 16384,
+    "sseDataBytes": 65536,
+    "sseEventBytes": 256,
+    "sseIDBytes": 256,
+    "sseRetryMillis": 86400000
+  },
+  "status": {
+    "invalidMessage": "INVALID_ARGUMENT",
+    "limitExceeded": "RESOURCE_EXHAUSTED",
+    "websocketRejectedHTTPStatus": 403
+  },
+  "rules": {
+    "open": "Exactly one non-empty capability Open is the first client message. context_json is a bounded JSON object whose kind must match the selected mode and transport. HTTP_STREAM, WEBSOCKET, and SSE require unspecified transport; TCP and UDP require matching transport and context kind. An omitted or unspecified mode selects legacy L4 mode from TCP or UDP transport only.",
+    "directions": "Client-to-plugin messages carry request direction; plugin-to-client messages carry response direction. Open is client-only. A message capability may be empty after Open or equal the Open capability; another capability is invalid.",
+    "http": "Request chunks may end once with end_stream=true. The plugin may start its response before request end. Exactly one response-start precedes response chunks. Response chunks may end once with end_stream=true. Close before response-start represents an ordinary pre-header error; after response-start Close is allowed only after response end. No request chunks follow request end and no response chunks follow response end.",
+    "websocket": "Exactly one plugin handshake result precedes WebSocket messages. If accepted=false, subprotocol must be empty and metadata is applied to an HTTP 403 rejection; no WebSocket messages follow. If accepted=true, subprotocol is empty or exactly one value offered in the Open context. WebSocket messages preserve text/binary boundaries and carry the direction appropriate to their sender.",
+    "sse": "Plugin-to-client SSE events are allowed only after Open and before Close. data may contain LF for multiple SSE data lines, but data, event, and id may not contain CR or NUL. event and id may not contain LF.",
+    "l4": "TCP allows zero or more request and response data frames per connection. UDP permits at most one request and one response data frame per Stream; each datagram uses a separate Stream. Close is terminal for the direction that sends it; a plugin Close terminates the RPC and no further messages are valid.",
+    "close": "Close may be sent at most once per direction. A client Close stops further client messages but permits the plugin to finish its response with one plugin Close. A plugin Close is terminal. HTTP response end_stream may be followed by one plugin Close; the RPC may also finish at that point. Repeated Close or end_stream, or data after either terminal condition, is invalid.",
+    "completion": "Transport cancellation is propagated. A plugin may finish the RPC without Close only after a complete HTTP response body or a completed WebSocket handshake/response; SSE and L4 require plugin Close for an orderly completion. A client half-close without StreamClose is not an application-level cancellation signal.",
+    "backpressure": "Implementations process each frame in order and rely on gRPC flow control; implementations must not buffer an unbounded stream or replay frames after reconnect."
+  }
+}
