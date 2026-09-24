@@ -32,7 +32,7 @@
                   "identity": { "type": "exact-uri-san", "format": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:control" },
                   "clientCertificate": { "type": "external-file-reference" },
                   "clientKey": { "type": "external-secret-file-reference", "minimumPermissions": "owner-read-only" },
-                  "allowedRPCs": ["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "grpc.health.v1"]
+                  "allowedRPCs": ["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]
                 }
               },
               "caddyDataIdentity": {
@@ -45,6 +45,7 @@
                   "capabilityScope": {
                     "source": "active-dispatch-generation",
                     "enforcePerCall": true,
+                    "enforceInvocationMode": true,
                     "emptySetDenied": true
                   }
                 }
@@ -57,12 +58,12 @@
       "pluginAuthorization": {
         "gatewayControl": {
           "identityFormat": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:control",
-          "allowedRPCs": ["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "grpc.health.v1"]
+          "allowedRPCs": ["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]
         },
         "caddyData": {
           "identityFormat": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:data",
           "allowedRPCs": ["Call", "Stream"],
-          "capabilityScope": "only capabilities in the active dispatch generation for this plugin instance"
+          "capabilityScope": "only capability and invocation-mode pairs in the active DispatchApply generation for this plugin instance"
         },
         "unlistedIdentityOrRPC": "deny"
       },
@@ -72,6 +73,13 @@
         "unreadyReplica": "exclude from readiness",
         "unknownUnaryCallResult": "never replay",
         "activeStreamReconnect": "close; do not migrate"
+      },
+      "dispatchApply": {
+        "scope": "per-logical-instance-and-replica",
+        "settingsAndReleaseDigests": "must-equal-the-replica-local-active-settings-and-running-release-digests",
+        "generation": "strictly-increasing; identical-repeat-is-idempotent; same-generation-different-scope-is-rejected",
+        "activationBarrier": "gateway-requires-an-acknowledgement-from-every-ready-replica-before-caddy-activation",
+        "acknowledgement": ["generation", "replicaIdentityUri", "manifestDigest", "settingsDigest", "releaseDigest", "dispatchDigest"]
       },
       "restartOwner": "external",
       "fallback": "none"

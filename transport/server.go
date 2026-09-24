@@ -51,6 +51,10 @@ func messageLimits(options ServerOptions) (int, int) {
 
 func registerServices(server *grpc.Server, service pluginv1.PluginServiceServer) {
 	pluginv1.RegisterPluginServiceServer(server, service)
+	registerHealthService(server)
+}
+
+func registerHealthService(server *grpc.Server) {
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(pluginv1.PluginService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)

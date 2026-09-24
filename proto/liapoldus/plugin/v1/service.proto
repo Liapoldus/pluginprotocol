@@ -12,6 +12,7 @@ service PluginService {
   rpc ConfigSchema(ConfigSchemaRequest) returns (.liapoldus.plugin.v1.ConfigSchema);
   rpc ConfigApply(ConfigApplyRequest) returns (ConfigApplyResult);
   rpc Shutdown(ShutdownRequest) returns (ShutdownResult);
+  rpc DispatchApply(DispatchApplyRequest) returns (DispatchApplyResponse);
   rpc Call(CallRequest) returns (CallResponse);
   rpc Stream(stream StreamMessage) returns (stream StreamMessage);
 }

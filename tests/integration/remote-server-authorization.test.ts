@@ -58,6 +58,24 @@ describe("remote plugin server authorization", () => {
     expect(await invoke("data", "manifest")).toBe(false);
   }, 20_000);
 
+  it("requires a typed DispatchApply acknowledgement before enabling data calls", async () => {
+    expect(await invoke("data", "call", "forms.submit")).toBe(false);
+    const result = await invokeRaw("control", "dispatch");
+    expect(result.accepted).toBe(true);
+    expect(result.response).toMatchObject({
+      generation: "1",
+      replicaIdentityUri: "urn:liapoldus:plugin:forms:replica:pod-1",
+      settingsDigest: expect.stringMatching(/^sha256:/),
+      releaseDigest: expect.stringMatching(/^sha256:/),
+      manifestDigest: expect.stringMatching(/^sha256:/),
+      dispatchDigest: expect.stringMatching(/^sha256:/),
+    });
+    expect(await invoke("control", "dispatch")).toBe(true);
+    expect(await invoke("control", "dispatch-conflict")).toBe(false);
+    expect(await invoke("data", "call", "forms.submit")).toBe(true);
+    expect(await invoke("data", "call", "forms.read")).toBe(false);
+  }, 20_000);
+
   it("permits only the data identity and active capability for Call and Stream", async () => {
     expect(await invoke("data", "call", "forms.submit")).toBe(true);
     expect(await invoke("data", "call", "forms.read")).toBe(false);
@@ -77,6 +95,10 @@ describe("remote plugin server authorization", () => {
 });
 
 async function invoke(identity: "control" | "data" | "other", operation: string, capability = ""): Promise<boolean> {
+	return (await invokeRaw(identity, operation, capability)).accepted === true;
+}
+
+async function invokeRaw(identity: "control" | "data" | "other", operation: string, capability = ""): Promise<{ accepted: boolean; response?: Record<string, unknown> }> {
   if (!clientFixture) throw new Error("remote authorization client fixture is not built");
   const certificate = credentials[`${identity}Certificate`];
   const key = credentials[`${identity}Key`];
@@ -99,7 +121,7 @@ async function invoke(identity: "control" | "data" | "other", operation: string,
     child.once("exit", (code) => {
       try {
         if (code !== 0) throw new Error(`authorization client exited (${code}): ${stderr}`);
-        resolve(JSON.parse(stdout).accepted === true);
+        resolve(JSON.parse(stdout));
       } catch (error) {
         reject(error);
       }

@@ -31,6 +31,7 @@ type RemoteAuthorization struct {
 	ControlIdentity  string
 	DataIdentity     string
 	AllowsCapability func(string) bool
+	Dispatch         *DispatchGeneration
 }
 
 type remoteAuthorizationContract struct {
@@ -73,7 +74,7 @@ func RemoteServerInterceptors(authorization RemoteAuthorization) (grpc.UnaryServ
 		}
 		if principal == remoteDataPrincipal {
 			call, isCall := request.(*pluginv1.CallRequest)
-			if !isCall || !policyAllowsRPC(policy.data, serviceName, rpcName) || call.GetCapability() == "" || !authorization.AllowsCapability(call.GetCapability()) {
+			if !isCall || !policyAllowsRPC(policy.data, serviceName, rpcName) || call.GetCapability() == "" || !authorization.AllowsCapability(call.GetCapability()) || authorization.Dispatch == nil || !authorization.Dispatch.Allows(call.GetCapability(), pluginv1.InvocationMode_INVOCATION_MODE_CALL) {
 				return nil, permissionDenied()
 			}
 		}
@@ -93,7 +94,7 @@ func RemoteServerInterceptors(authorization RemoteAuthorization) (grpc.UnaryServ
 		if !policyAllowsRPC(policy.data, serviceName, rpcName) || info.FullMethod != pluginv1.PluginService_Stream_FullMethodName {
 			return permissionDenied()
 		}
-		return handler(server, &authorizedPluginStream{ServerStream: stream, allows: authorization.AllowsCapability})
+		return handler(server, &authorizedPluginStream{ServerStream: stream, allows: authorization.AllowsCapability, dispatch: authorization.Dispatch})
 	}
 	return unary, stream, nil
 }
@@ -217,6 +218,7 @@ func permissionDenied() error {
 type authorizedPluginStream struct {
 	grpc.ServerStream
 	allows      func(string) bool
+	dispatch    *DispatchGeneration
 	mu          sync.Mutex
 	capability  string
 	firstOpenOK bool
@@ -234,7 +236,8 @@ func (stream *authorizedPluginStream) RecvMsg(message any) error {
 	defer stream.mu.Unlock()
 	if !stream.firstOpenOK {
 		capability := request.GetCapability()
-		if request.GetOpen() == nil || capability == "" || !stream.allows(capability) {
+		open := request.GetOpen()
+		if open == nil || capability == "" || !stream.allows(capability) || stream.dispatch == nil || !stream.dispatch.Allows(capability, open.GetMode()) {
 			return permissionDenied()
 		}
 		stream.capability = capability

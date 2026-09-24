@@ -87,6 +87,32 @@ export interface CapabilityDescriptor {
   modes: InvocationMode[];
 }
 
+/**
+ * DispatchApply installs one immutable data-plane authorization generation.
+ * A successful response acknowledges this exact scope for this replica only.
+ */
+export interface DispatchApplyRequest {
+  generation: number;
+  instanceId: string;
+  settingsDigest: string;
+  releaseDigest: string;
+  capabilities: CapabilityDispatchScope[];
+}
+
+export interface CapabilityDispatchScope {
+  capability: string;
+  modes: InvocationMode[];
+}
+
+export interface DispatchApplyResponse {
+  generation: number;
+  replicaIdentityUri: string;
+  manifestDigest: string;
+  settingsDigest: string;
+  releaseDigest: string;
+  dispatchDigest: string;
+}
+
 export interface ConfigSchemaRequest {
 }
 
@@ -390,6 +416,426 @@ export const CapabilityDescriptor: MessageFns<CapabilityDescriptor> = {
     const message = createBaseCapabilityDescriptor();
     message.capability = object.capability ?? "";
     message.modes = object.modes?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseDispatchApplyRequest(): DispatchApplyRequest {
+  return { generation: 0, instanceId: "", settingsDigest: "", releaseDigest: "", capabilities: [] };
+}
+
+export const DispatchApplyRequest: MessageFns<DispatchApplyRequest> = {
+  encode(message: DispatchApplyRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.generation !== 0) {
+      writer.uint32(8).uint64(message.generation);
+    }
+    if (message.instanceId !== "") {
+      writer.uint32(18).string(message.instanceId);
+    }
+    if (message.settingsDigest !== "") {
+      writer.uint32(26).string(message.settingsDigest);
+    }
+    if (message.releaseDigest !== "") {
+      writer.uint32(34).string(message.releaseDigest);
+    }
+    for (const v of message.capabilities) {
+      CapabilityDispatchScope.encode(v!, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DispatchApplyRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDispatchApplyRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.generation = longToNumber(reader.uint64());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.instanceId = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.settingsDigest = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.releaseDigest = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.capabilities.push(CapabilityDispatchScope.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DispatchApplyRequest {
+    return {
+      generation: isSet(object.generation) ? globalThis.Number(object.generation) : 0,
+      instanceId: isSet(object.instanceId)
+        ? globalThis.String(object.instanceId)
+        : isSet(object.instance_id)
+        ? globalThis.String(object.instance_id)
+        : "",
+      settingsDigest: isSet(object.settingsDigest)
+        ? globalThis.String(object.settingsDigest)
+        : isSet(object.settings_digest)
+        ? globalThis.String(object.settings_digest)
+        : "",
+      releaseDigest: isSet(object.releaseDigest)
+        ? globalThis.String(object.releaseDigest)
+        : isSet(object.release_digest)
+        ? globalThis.String(object.release_digest)
+        : "",
+      capabilities: globalThis.Array.isArray(object?.capabilities)
+        ? object.capabilities.map((e: any) => CapabilityDispatchScope.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: DispatchApplyRequest): unknown {
+    const obj: any = {};
+    if (message.generation !== 0) {
+      obj.generation = Math.round(message.generation);
+    }
+    if (message.instanceId !== "") {
+      obj.instanceId = message.instanceId;
+    }
+    if (message.settingsDigest !== "") {
+      obj.settingsDigest = message.settingsDigest;
+    }
+    if (message.releaseDigest !== "") {
+      obj.releaseDigest = message.releaseDigest;
+    }
+    if (message.capabilities?.length) {
+      obj.capabilities = message.capabilities.map((e) => CapabilityDispatchScope.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DispatchApplyRequest>, I>>(base?: I): DispatchApplyRequest {
+    return DispatchApplyRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DispatchApplyRequest>, I>>(object: I): DispatchApplyRequest {
+    const message = createBaseDispatchApplyRequest();
+    message.generation = object.generation ?? 0;
+    message.instanceId = object.instanceId ?? "";
+    message.settingsDigest = object.settingsDigest ?? "";
+    message.releaseDigest = object.releaseDigest ?? "";
+    message.capabilities = object.capabilities?.map((e) => CapabilityDispatchScope.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseCapabilityDispatchScope(): CapabilityDispatchScope {
+  return { capability: "", modes: [] };
+}
+
+export const CapabilityDispatchScope: MessageFns<CapabilityDispatchScope> = {
+  encode(message: CapabilityDispatchScope, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.capability !== "") {
+      writer.uint32(10).string(message.capability);
+    }
+    writer.uint32(18).fork();
+    for (const v of message.modes) {
+      writer.int32(v);
+    }
+    writer.join();
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CapabilityDispatchScope {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCapabilityDispatchScope();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.capability = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag === 16) {
+              message.modes.push(reader.int32() as any);
+
+              continue;
+            }
+
+            if (tag === 18) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.modes.push(reader.int32() as any);
+              }
+
+              continue;
+            }
+
+            break;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CapabilityDispatchScope {
+    return {
+      capability: isSet(object.capability) ? globalThis.String(object.capability) : "",
+      modes: globalThis.Array.isArray(object?.modes) ? object.modes.map((e: any) => invocationModeFromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: CapabilityDispatchScope): unknown {
+    const obj: any = {};
+    if (message.capability !== "") {
+      obj.capability = message.capability;
+    }
+    if (message.modes?.length) {
+      obj.modes = message.modes.map((e) => invocationModeToJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CapabilityDispatchScope>, I>>(base?: I): CapabilityDispatchScope {
+    return CapabilityDispatchScope.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CapabilityDispatchScope>, I>>(object: I): CapabilityDispatchScope {
+    const message = createBaseCapabilityDispatchScope();
+    message.capability = object.capability ?? "";
+    message.modes = object.modes?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseDispatchApplyResponse(): DispatchApplyResponse {
+  return {
+    generation: 0,
+    replicaIdentityUri: "",
+    manifestDigest: "",
+    settingsDigest: "",
+    releaseDigest: "",
+    dispatchDigest: "",
+  };
+}
+
+export const DispatchApplyResponse: MessageFns<DispatchApplyResponse> = {
+  encode(message: DispatchApplyResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.generation !== 0) {
+      writer.uint32(8).uint64(message.generation);
+    }
+    if (message.replicaIdentityUri !== "") {
+      writer.uint32(18).string(message.replicaIdentityUri);
+    }
+    if (message.manifestDigest !== "") {
+      writer.uint32(26).string(message.manifestDigest);
+    }
+    if (message.settingsDigest !== "") {
+      writer.uint32(34).string(message.settingsDigest);
+    }
+    if (message.releaseDigest !== "") {
+      writer.uint32(42).string(message.releaseDigest);
+    }
+    if (message.dispatchDigest !== "") {
+      writer.uint32(50).string(message.dispatchDigest);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DispatchApplyResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDispatchApplyResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.generation = longToNumber(reader.uint64());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.replicaIdentityUri = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.manifestDigest = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.settingsDigest = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.releaseDigest = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.dispatchDigest = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DispatchApplyResponse {
+    return {
+      generation: isSet(object.generation) ? globalThis.Number(object.generation) : 0,
+      replicaIdentityUri: isSet(object.replicaIdentityUri)
+        ? globalThis.String(object.replicaIdentityUri)
+        : isSet(object.replica_identity_uri)
+        ? globalThis.String(object.replica_identity_uri)
+        : "",
+      manifestDigest: isSet(object.manifestDigest)
+        ? globalThis.String(object.manifestDigest)
+        : isSet(object.manifest_digest)
+        ? globalThis.String(object.manifest_digest)
+        : "",
+      settingsDigest: isSet(object.settingsDigest)
+        ? globalThis.String(object.settingsDigest)
+        : isSet(object.settings_digest)
+        ? globalThis.String(object.settings_digest)
+        : "",
+      releaseDigest: isSet(object.releaseDigest)
+        ? globalThis.String(object.releaseDigest)
+        : isSet(object.release_digest)
+        ? globalThis.String(object.release_digest)
+        : "",
+      dispatchDigest: isSet(object.dispatchDigest)
+        ? globalThis.String(object.dispatchDigest)
+        : isSet(object.dispatch_digest)
+        ? globalThis.String(object.dispatch_digest)
+        : "",
+    };
+  },
+
+  toJSON(message: DispatchApplyResponse): unknown {
+    const obj: any = {};
+    if (message.generation !== 0) {
+      obj.generation = Math.round(message.generation);
+    }
+    if (message.replicaIdentityUri !== "") {
+      obj.replicaIdentityUri = message.replicaIdentityUri;
+    }
+    if (message.manifestDigest !== "") {
+      obj.manifestDigest = message.manifestDigest;
+    }
+    if (message.settingsDigest !== "") {
+      obj.settingsDigest = message.settingsDigest;
+    }
+    if (message.releaseDigest !== "") {
+      obj.releaseDigest = message.releaseDigest;
+    }
+    if (message.dispatchDigest !== "") {
+      obj.dispatchDigest = message.dispatchDigest;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DispatchApplyResponse>, I>>(base?: I): DispatchApplyResponse {
+    return DispatchApplyResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DispatchApplyResponse>, I>>(object: I): DispatchApplyResponse {
+    const message = createBaseDispatchApplyResponse();
+    message.generation = object.generation ?? 0;
+    message.replicaIdentityUri = object.replicaIdentityUri ?? "";
+    message.manifestDigest = object.manifestDigest ?? "";
+    message.settingsDigest = object.settingsDigest ?? "";
+    message.releaseDigest = object.releaseDigest ?? "";
+    message.dispatchDigest = object.dispatchDigest ?? "";
     return message;
   },
 };
@@ -957,6 +1403,17 @@ export type DeepPartial<T> = T extends Builtin ? T
 type KeysOfUnion<T> = T extends T ? keyof T : never;
 export type Exact<P, I extends P> = P extends Builtin ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
+
+function longToNumber(int64: { toString(): string }): number {
+  const num = globalThis.Number(int64.toString());
+  if (num > globalThis.Number.MAX_SAFE_INTEGER) {
+    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
+  }
+  if (num < globalThis.Number.MIN_SAFE_INTEGER) {
+    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
+  }
+  return num;
+}
 
 function isSet(value: any): boolean {
   return value !== null && value !== undefined;

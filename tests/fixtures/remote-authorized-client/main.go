@@ -12,11 +12,14 @@ import (
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"github.com/Liapoldus/pluginprotocol/transport"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/protojson"
 )
+
+var dispatchResponse json.RawMessage
 
 func main() {
 	accepted := run() == nil
-	_ = json.NewEncoder(os.Stdout).Encode(map[string]bool{"accepted": accepted})
+	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"accepted": accepted, "response": dispatchResponse})
 }
 
 func run() error {
@@ -49,11 +52,25 @@ func run() error {
 		_, err = client.Service().Manifest(ctx, &pluginv1.ManifestRequest{})
 	case "call":
 		_, err = client.Service().Call(ctx, &pluginv1.CallRequest{Capability: os.Args[8], Payload: []byte(`{}`)})
+	case "dispatch", "dispatch-conflict":
+		settingsDigest := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		if os.Args[7] == "dispatch-conflict" {
+			settingsDigest = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+		}
+		var result *pluginv1.DispatchApplyResponse
+		result, err = client.Service().DispatchApply(ctx, &pluginv1.DispatchApplyRequest{
+			Generation: 1, InstanceId: "forms", SettingsDigest: settingsDigest,
+			ReleaseDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			Capabilities:  []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP}}},
+		})
+		if err == nil {
+			dispatchResponse, err = protojson.Marshal(result)
+		}
 	case "stream":
 		var stream grpc.BidiStreamingClient[pluginv1.StreamMessage, pluginv1.StreamMessage]
 		stream, err = client.Stream(ctx)
 		if err == nil {
-			err = stream.Send(&pluginv1.StreamMessage{Capability: os.Args[8], Body: &pluginv1.StreamMessage_Open{Open: &pluginv1.StreamOpen{}}})
+			err = stream.Send(&pluginv1.StreamMessage{Capability: os.Args[8], Body: &pluginv1.StreamMessage_Open{Open: &pluginv1.StreamOpen{Mode: pluginv1.InvocationMode_INVOCATION_MODE_TCP.Enum()}}})
 			if err == nil {
 				_, err = stream.Recv()
 			}

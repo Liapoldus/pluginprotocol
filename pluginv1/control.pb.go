@@ -238,6 +238,220 @@ func (x *CapabilityDescriptor) GetModes() []InvocationMode {
 	return nil
 }
 
+// DispatchApply installs one immutable data-plane authorization generation.
+// A successful response acknowledges this exact scope for this replica only.
+type DispatchApplyRequest struct {
+	state          protoimpl.MessageState     `protogen:"open.v1"`
+	Generation     uint64                     `protobuf:"varint,1,opt,name=generation,proto3" json:"generation,omitempty"`
+	InstanceId     string                     `protobuf:"bytes,2,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	SettingsDigest string                     `protobuf:"bytes,3,opt,name=settings_digest,json=settingsDigest,proto3" json:"settings_digest,omitempty"`
+	ReleaseDigest  string                     `protobuf:"bytes,4,opt,name=release_digest,json=releaseDigest,proto3" json:"release_digest,omitempty"`
+	Capabilities   []*CapabilityDispatchScope `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DispatchApplyRequest) Reset() {
+	*x = DispatchApplyRequest{}
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DispatchApplyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DispatchApplyRequest) ProtoMessage() {}
+
+func (x *DispatchApplyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DispatchApplyRequest.ProtoReflect.Descriptor instead.
+func (*DispatchApplyRequest) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DispatchApplyRequest) GetGeneration() uint64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *DispatchApplyRequest) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
+	}
+	return ""
+}
+
+func (x *DispatchApplyRequest) GetSettingsDigest() string {
+	if x != nil {
+		return x.SettingsDigest
+	}
+	return ""
+}
+
+func (x *DispatchApplyRequest) GetReleaseDigest() string {
+	if x != nil {
+		return x.ReleaseDigest
+	}
+	return ""
+}
+
+func (x *DispatchApplyRequest) GetCapabilities() []*CapabilityDispatchScope {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+type CapabilityDispatchScope struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Capability    string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
+	Modes         []InvocationMode       `protobuf:"varint,2,rep,packed,name=modes,proto3,enum=liapoldus.plugin.v1.InvocationMode" json:"modes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CapabilityDispatchScope) Reset() {
+	*x = CapabilityDispatchScope{}
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CapabilityDispatchScope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CapabilityDispatchScope) ProtoMessage() {}
+
+func (x *CapabilityDispatchScope) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CapabilityDispatchScope.ProtoReflect.Descriptor instead.
+func (*CapabilityDispatchScope) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CapabilityDispatchScope) GetCapability() string {
+	if x != nil {
+		return x.Capability
+	}
+	return ""
+}
+
+func (x *CapabilityDispatchScope) GetModes() []InvocationMode {
+	if x != nil {
+		return x.Modes
+	}
+	return nil
+}
+
+type DispatchApplyResponse struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Generation         uint64                 `protobuf:"varint,1,opt,name=generation,proto3" json:"generation,omitempty"`
+	ReplicaIdentityUri string                 `protobuf:"bytes,2,opt,name=replica_identity_uri,json=replicaIdentityUri,proto3" json:"replica_identity_uri,omitempty"`
+	ManifestDigest     string                 `protobuf:"bytes,3,opt,name=manifest_digest,json=manifestDigest,proto3" json:"manifest_digest,omitempty"`
+	SettingsDigest     string                 `protobuf:"bytes,4,opt,name=settings_digest,json=settingsDigest,proto3" json:"settings_digest,omitempty"`
+	ReleaseDigest      string                 `protobuf:"bytes,5,opt,name=release_digest,json=releaseDigest,proto3" json:"release_digest,omitempty"`
+	DispatchDigest     string                 `protobuf:"bytes,6,opt,name=dispatch_digest,json=dispatchDigest,proto3" json:"dispatch_digest,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *DispatchApplyResponse) Reset() {
+	*x = DispatchApplyResponse{}
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DispatchApplyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DispatchApplyResponse) ProtoMessage() {}
+
+func (x *DispatchApplyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DispatchApplyResponse.ProtoReflect.Descriptor instead.
+func (*DispatchApplyResponse) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *DispatchApplyResponse) GetGeneration() uint64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *DispatchApplyResponse) GetReplicaIdentityUri() string {
+	if x != nil {
+		return x.ReplicaIdentityUri
+	}
+	return ""
+}
+
+func (x *DispatchApplyResponse) GetManifestDigest() string {
+	if x != nil {
+		return x.ManifestDigest
+	}
+	return ""
+}
+
+func (x *DispatchApplyResponse) GetSettingsDigest() string {
+	if x != nil {
+		return x.SettingsDigest
+	}
+	return ""
+}
+
+func (x *DispatchApplyResponse) GetReleaseDigest() string {
+	if x != nil {
+		return x.ReleaseDigest
+	}
+	return ""
+}
+
+func (x *DispatchApplyResponse) GetDispatchDigest() string {
+	if x != nil {
+		return x.DispatchDigest
+	}
+	return ""
+}
+
 type ConfigSchemaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -246,7 +460,7 @@ type ConfigSchemaRequest struct {
 
 func (x *ConfigSchemaRequest) Reset() {
 	*x = ConfigSchemaRequest{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[3]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -258,7 +472,7 @@ func (x *ConfigSchemaRequest) String() string {
 func (*ConfigSchemaRequest) ProtoMessage() {}
 
 func (x *ConfigSchemaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[3]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -271,7 +485,7 @@ func (x *ConfigSchemaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSchemaRequest.ProtoReflect.Descriptor instead.
 func (*ConfigSchemaRequest) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{3}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{6}
 }
 
 type ConfigField struct {
@@ -288,7 +502,7 @@ type ConfigField struct {
 
 func (x *ConfigField) Reset() {
 	*x = ConfigField{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[4]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -300,7 +514,7 @@ func (x *ConfigField) String() string {
 func (*ConfigField) ProtoMessage() {}
 
 func (x *ConfigField) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[4]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -313,7 +527,7 @@ func (x *ConfigField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigField.ProtoReflect.Descriptor instead.
 func (*ConfigField) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{4}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ConfigField) GetName() string {
@@ -367,7 +581,7 @@ type ConfigSchema struct {
 
 func (x *ConfigSchema) Reset() {
 	*x = ConfigSchema{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[5]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -379,7 +593,7 @@ func (x *ConfigSchema) String() string {
 func (*ConfigSchema) ProtoMessage() {}
 
 func (x *ConfigSchema) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[5]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -392,7 +606,7 @@ func (x *ConfigSchema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSchema.ProtoReflect.Descriptor instead.
 func (*ConfigSchema) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{5}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ConfigSchema) GetFields() []*ConfigField {
@@ -411,7 +625,7 @@ type ConfigApplyRequest struct {
 
 func (x *ConfigApplyRequest) Reset() {
 	*x = ConfigApplyRequest{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[6]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -423,7 +637,7 @@ func (x *ConfigApplyRequest) String() string {
 func (*ConfigApplyRequest) ProtoMessage() {}
 
 func (x *ConfigApplyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[6]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -436,7 +650,7 @@ func (x *ConfigApplyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigApplyRequest.ProtoReflect.Descriptor instead.
 func (*ConfigApplyRequest) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{6}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ConfigApplyRequest) GetConfig() []byte {
@@ -455,7 +669,7 @@ type ConfigApplyResult struct {
 
 func (x *ConfigApplyResult) Reset() {
 	*x = ConfigApplyResult{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[7]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -467,7 +681,7 @@ func (x *ConfigApplyResult) String() string {
 func (*ConfigApplyResult) ProtoMessage() {}
 
 func (x *ConfigApplyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[7]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -480,7 +694,7 @@ func (x *ConfigApplyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigApplyResult.ProtoReflect.Descriptor instead.
 func (*ConfigApplyResult) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{7}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ConfigApplyResult) GetApplied() bool {
@@ -498,7 +712,7 @@ type ShutdownRequest struct {
 
 func (x *ShutdownRequest) Reset() {
 	*x = ShutdownRequest{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[8]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -510,7 +724,7 @@ func (x *ShutdownRequest) String() string {
 func (*ShutdownRequest) ProtoMessage() {}
 
 func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[8]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -523,7 +737,7 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{8}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{11}
 }
 
 type ShutdownResult struct {
@@ -535,7 +749,7 @@ type ShutdownResult struct {
 
 func (x *ShutdownResult) Reset() {
 	*x = ShutdownResult{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[9]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -547,7 +761,7 @@ func (x *ShutdownResult) String() string {
 func (*ShutdownResult) ProtoMessage() {}
 
 func (x *ShutdownResult) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[9]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -560,7 +774,7 @@ func (x *ShutdownResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownResult.ProtoReflect.Descriptor instead.
 func (*ShutdownResult) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{9}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ShutdownResult) GetClosed() bool {
@@ -585,7 +799,30 @@ const file_liapoldus_plugin_v1_control_proto_rawDesc = "" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +
 	"capability\x129\n" +
-	"\x05modes\x18\x02 \x03(\x0e2#.liapoldus.plugin.v1.InvocationModeR\x05modes\"\x15\n" +
+	"\x05modes\x18\x02 \x03(\x0e2#.liapoldus.plugin.v1.InvocationModeR\x05modes\"\xf9\x01\n" +
+	"\x14DispatchApplyRequest\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x01 \x01(\x04R\n" +
+	"generation\x12\x1f\n" +
+	"\vinstance_id\x18\x02 \x01(\tR\n" +
+	"instanceId\x12'\n" +
+	"\x0fsettings_digest\x18\x03 \x01(\tR\x0esettingsDigest\x12%\n" +
+	"\x0erelease_digest\x18\x04 \x01(\tR\rreleaseDigest\x12P\n" +
+	"\fcapabilities\x18\x05 \x03(\v2,.liapoldus.plugin.v1.CapabilityDispatchScopeR\fcapabilities\"t\n" +
+	"\x17CapabilityDispatchScope\x12\x1e\n" +
+	"\n" +
+	"capability\x18\x01 \x01(\tR\n" +
+	"capability\x129\n" +
+	"\x05modes\x18\x02 \x03(\x0e2#.liapoldus.plugin.v1.InvocationModeR\x05modes\"\x8b\x02\n" +
+	"\x15DispatchApplyResponse\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x01 \x01(\x04R\n" +
+	"generation\x120\n" +
+	"\x14replica_identity_uri\x18\x02 \x01(\tR\x12replicaIdentityUri\x12'\n" +
+	"\x0fmanifest_digest\x18\x03 \x01(\tR\x0emanifestDigest\x12'\n" +
+	"\x0fsettings_digest\x18\x04 \x01(\tR\x0esettingsDigest\x12%\n" +
+	"\x0erelease_digest\x18\x05 \x01(\tR\rreleaseDigest\x12'\n" +
+	"\x0fdispatch_digest\x18\x06 \x01(\tR\x0edispatchDigest\"\x15\n" +
 	"\x13ConfigSchemaRequest\"\xb0\x01\n" +
 	"\vConfigField\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
@@ -625,29 +862,34 @@ func file_liapoldus_plugin_v1_control_proto_rawDescGZIP() []byte {
 }
 
 var file_liapoldus_plugin_v1_control_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_liapoldus_plugin_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_liapoldus_plugin_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_liapoldus_plugin_v1_control_proto_goTypes = []any{
-	(InvocationMode)(0),          // 0: liapoldus.plugin.v1.InvocationMode
-	(*ManifestRequest)(nil),      // 1: liapoldus.plugin.v1.ManifestRequest
-	(*Manifest)(nil),             // 2: liapoldus.plugin.v1.Manifest
-	(*CapabilityDescriptor)(nil), // 3: liapoldus.plugin.v1.CapabilityDescriptor
-	(*ConfigSchemaRequest)(nil),  // 4: liapoldus.plugin.v1.ConfigSchemaRequest
-	(*ConfigField)(nil),          // 5: liapoldus.plugin.v1.ConfigField
-	(*ConfigSchema)(nil),         // 6: liapoldus.plugin.v1.ConfigSchema
-	(*ConfigApplyRequest)(nil),   // 7: liapoldus.plugin.v1.ConfigApplyRequest
-	(*ConfigApplyResult)(nil),    // 8: liapoldus.plugin.v1.ConfigApplyResult
-	(*ShutdownRequest)(nil),      // 9: liapoldus.plugin.v1.ShutdownRequest
-	(*ShutdownResult)(nil),       // 10: liapoldus.plugin.v1.ShutdownResult
+	(InvocationMode)(0),             // 0: liapoldus.plugin.v1.InvocationMode
+	(*ManifestRequest)(nil),         // 1: liapoldus.plugin.v1.ManifestRequest
+	(*Manifest)(nil),                // 2: liapoldus.plugin.v1.Manifest
+	(*CapabilityDescriptor)(nil),    // 3: liapoldus.plugin.v1.CapabilityDescriptor
+	(*DispatchApplyRequest)(nil),    // 4: liapoldus.plugin.v1.DispatchApplyRequest
+	(*CapabilityDispatchScope)(nil), // 5: liapoldus.plugin.v1.CapabilityDispatchScope
+	(*DispatchApplyResponse)(nil),   // 6: liapoldus.plugin.v1.DispatchApplyResponse
+	(*ConfigSchemaRequest)(nil),     // 7: liapoldus.plugin.v1.ConfigSchemaRequest
+	(*ConfigField)(nil),             // 8: liapoldus.plugin.v1.ConfigField
+	(*ConfigSchema)(nil),            // 9: liapoldus.plugin.v1.ConfigSchema
+	(*ConfigApplyRequest)(nil),      // 10: liapoldus.plugin.v1.ConfigApplyRequest
+	(*ConfigApplyResult)(nil),       // 11: liapoldus.plugin.v1.ConfigApplyResult
+	(*ShutdownRequest)(nil),         // 12: liapoldus.plugin.v1.ShutdownRequest
+	(*ShutdownResult)(nil),          // 13: liapoldus.plugin.v1.ShutdownResult
 }
 var file_liapoldus_plugin_v1_control_proto_depIdxs = []int32{
 	3, // 0: liapoldus.plugin.v1.Manifest.capability_descriptors:type_name -> liapoldus.plugin.v1.CapabilityDescriptor
 	0, // 1: liapoldus.plugin.v1.CapabilityDescriptor.modes:type_name -> liapoldus.plugin.v1.InvocationMode
-	5, // 2: liapoldus.plugin.v1.ConfigSchema.fields:type_name -> liapoldus.plugin.v1.ConfigField
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	5, // 2: liapoldus.plugin.v1.DispatchApplyRequest.capabilities:type_name -> liapoldus.plugin.v1.CapabilityDispatchScope
+	0, // 3: liapoldus.plugin.v1.CapabilityDispatchScope.modes:type_name -> liapoldus.plugin.v1.InvocationMode
+	8, // 4: liapoldus.plugin.v1.ConfigSchema.fields:type_name -> liapoldus.plugin.v1.ConfigField
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_liapoldus_plugin_v1_control_proto_init() }
@@ -661,7 +903,7 @@ func file_liapoldus_plugin_v1_control_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_liapoldus_plugin_v1_control_proto_rawDesc), len(file_liapoldus_plugin_v1_control_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

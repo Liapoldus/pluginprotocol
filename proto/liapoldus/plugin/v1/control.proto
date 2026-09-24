@@ -28,6 +28,30 @@ message CapabilityDescriptor {
   repeated InvocationMode modes = 2;
 }
 
+// DispatchApply installs one immutable data-plane authorization generation.
+// A successful response acknowledges this exact scope for this replica only.
+message DispatchApplyRequest {
+  uint64 generation = 1;
+  string instance_id = 2;
+  string settings_digest = 3;
+  string release_digest = 4;
+  repeated CapabilityDispatchScope capabilities = 5;
+}
+
+message CapabilityDispatchScope {
+  string capability = 1;
+  repeated InvocationMode modes = 2;
+}
+
+message DispatchApplyResponse {
+  uint64 generation = 1;
+  string replica_identity_uri = 2;
+  string manifest_digest = 3;
+  string settings_digest = 4;
+  string release_digest = 5;
+  string dispatch_digest = 6;
+}
+
 message ConfigSchemaRequest {}
 
 message ConfigField {

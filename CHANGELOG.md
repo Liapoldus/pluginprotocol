@@ -18,6 +18,10 @@ wire-совместимости.
 - Добавлен typed `GrantBroker.RedeemGrant` в v1 и opaque `ActiveGrant` metadata
   на `CallRequest`: Gateway выдаёт секрет только в typed response активного
   scoped-вызова, не через capability JSON.
+- Добавлен typed `DispatchApply`: Gateway применяет монотонную generation с
+  capability→invocation-mode scope к каждой replica; acknowledgement включает
+  identity replica и digest manifest/settings/release/dispatch. До применения
+  generation data RPC закрыты; повтор допускается только при полном совпадении.
 - Сырые framing wire-hex vectors удалены и заменены protobuf descriptor и JSON
   payload conformance tests.
 

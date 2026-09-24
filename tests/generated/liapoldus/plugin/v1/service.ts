@@ -25,6 +25,8 @@ import {
   ConfigApplyResult,
   ConfigSchema,
   ConfigSchemaRequest,
+  DispatchApplyRequest,
+  DispatchApplyResponse,
   InvocationMode,
   invocationModeFromJSON,
   invocationModeToJSON,
@@ -1915,6 +1917,16 @@ export const PluginServiceService = {
     responseSerialize: (value: ShutdownResult): Buffer => Buffer.from(ShutdownResult.encode(value).finish()),
     responseDeserialize: (value: Buffer): ShutdownResult => ShutdownResult.decode(value),
   },
+  dispatchApply: {
+    path: "/liapoldus.plugin.v1.PluginService/DispatchApply" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: DispatchApplyRequest): Buffer => Buffer.from(DispatchApplyRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): DispatchApplyRequest => DispatchApplyRequest.decode(value),
+    responseSerialize: (value: DispatchApplyResponse): Buffer =>
+      Buffer.from(DispatchApplyResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): DispatchApplyResponse => DispatchApplyResponse.decode(value),
+  },
   call: {
     path: "/liapoldus.plugin.v1.PluginService/Call" as const,
     requestStream: false as const,
@@ -1940,6 +1952,7 @@ export interface PluginServiceServer extends UntypedServiceImplementation {
   configSchema: handleUnaryCall<ConfigSchemaRequest, ConfigSchema>;
   configApply: handleUnaryCall<ConfigApplyRequest, ConfigApplyResult>;
   shutdown: handleUnaryCall<ShutdownRequest, ShutdownResult>;
+  dispatchApply: handleUnaryCall<DispatchApplyRequest, DispatchApplyResponse>;
   call: handleUnaryCall<CallRequest, CallResponse>;
   stream: handleBidiStreamingCall<StreamMessage, StreamMessage>;
 }
@@ -2004,6 +2017,21 @@ export interface PluginServiceClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: ShutdownResult) => void,
+  ): ClientUnaryCall;
+  dispatchApply(
+    request: DispatchApplyRequest,
+    callback: (error: ServiceError | null, response: DispatchApplyResponse) => void,
+  ): ClientUnaryCall;
+  dispatchApply(
+    request: DispatchApplyRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: DispatchApplyResponse) => void,
+  ): ClientUnaryCall;
+  dispatchApply(
+    request: DispatchApplyRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: DispatchApplyResponse) => void,
   ): ClientUnaryCall;
   call(request: CallRequest, callback: (error: ServiceError | null, response: CallResponse) => void): ClientUnaryCall;
   call(

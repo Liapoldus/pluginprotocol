@@ -19,12 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PluginService_Manifest_FullMethodName     = "/liapoldus.plugin.v1.PluginService/Manifest"
-	PluginService_ConfigSchema_FullMethodName = "/liapoldus.plugin.v1.PluginService/ConfigSchema"
-	PluginService_ConfigApply_FullMethodName  = "/liapoldus.plugin.v1.PluginService/ConfigApply"
-	PluginService_Shutdown_FullMethodName     = "/liapoldus.plugin.v1.PluginService/Shutdown"
-	PluginService_Call_FullMethodName         = "/liapoldus.plugin.v1.PluginService/Call"
-	PluginService_Stream_FullMethodName       = "/liapoldus.plugin.v1.PluginService/Stream"
+	PluginService_Manifest_FullMethodName      = "/liapoldus.plugin.v1.PluginService/Manifest"
+	PluginService_ConfigSchema_FullMethodName  = "/liapoldus.plugin.v1.PluginService/ConfigSchema"
+	PluginService_ConfigApply_FullMethodName   = "/liapoldus.plugin.v1.PluginService/ConfigApply"
+	PluginService_Shutdown_FullMethodName      = "/liapoldus.plugin.v1.PluginService/Shutdown"
+	PluginService_DispatchApply_FullMethodName = "/liapoldus.plugin.v1.PluginService/DispatchApply"
+	PluginService_Call_FullMethodName          = "/liapoldus.plugin.v1.PluginService/Call"
+	PluginService_Stream_FullMethodName        = "/liapoldus.plugin.v1.PluginService/Stream"
 )
 
 // PluginServiceClient is the client API for PluginService service.
@@ -35,6 +36,7 @@ type PluginServiceClient interface {
 	ConfigSchema(ctx context.Context, in *ConfigSchemaRequest, opts ...grpc.CallOption) (*ConfigSchema, error)
 	ConfigApply(ctx context.Context, in *ConfigApplyRequest, opts ...grpc.CallOption) (*ConfigApplyResult, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResult, error)
+	DispatchApply(ctx context.Context, in *DispatchApplyRequest, opts ...grpc.CallOption) (*DispatchApplyResponse, error)
 	Call(ctx context.Context, in *CallRequest, opts ...grpc.CallOption) (*CallResponse, error)
 	Stream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[StreamMessage, StreamMessage], error)
 }
@@ -87,6 +89,16 @@ func (c *pluginServiceClient) Shutdown(ctx context.Context, in *ShutdownRequest,
 	return out, nil
 }
 
+func (c *pluginServiceClient) DispatchApply(ctx context.Context, in *DispatchApplyRequest, opts ...grpc.CallOption) (*DispatchApplyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DispatchApplyResponse)
+	err := c.cc.Invoke(ctx, PluginService_DispatchApply_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *pluginServiceClient) Call(ctx context.Context, in *CallRequest, opts ...grpc.CallOption) (*CallResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CallResponse)
@@ -118,6 +130,7 @@ type PluginServiceServer interface {
 	ConfigSchema(context.Context, *ConfigSchemaRequest) (*ConfigSchema, error)
 	ConfigApply(context.Context, *ConfigApplyRequest) (*ConfigApplyResult, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResult, error)
+	DispatchApply(context.Context, *DispatchApplyRequest) (*DispatchApplyResponse, error)
 	Call(context.Context, *CallRequest) (*CallResponse, error)
 	Stream(grpc.BidiStreamingServer[StreamMessage, StreamMessage]) error
 	mustEmbedUnimplementedPluginServiceServer()
@@ -141,6 +154,9 @@ func (UnimplementedPluginServiceServer) ConfigApply(context.Context, *ConfigAppl
 }
 func (UnimplementedPluginServiceServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResult, error) {
 	return nil, status.Error(codes.Unimplemented, "method Shutdown not implemented")
+}
+func (UnimplementedPluginServiceServer) DispatchApply(context.Context, *DispatchApplyRequest) (*DispatchApplyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DispatchApply not implemented")
 }
 func (UnimplementedPluginServiceServer) Call(context.Context, *CallRequest) (*CallResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Call not implemented")
@@ -241,6 +257,24 @@ func _PluginService_Shutdown_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PluginService_DispatchApply_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DispatchApplyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PluginServiceServer).DispatchApply(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PluginService_DispatchApply_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PluginServiceServer).DispatchApply(ctx, req.(*DispatchApplyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PluginService_Call_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CallRequest)
 	if err := dec(in); err != nil {
@@ -288,6 +322,10 @@ var PluginService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Shutdown",
 			Handler:    _PluginService_Shutdown_Handler,
+		},
+		{
+			MethodName: "DispatchApply",
+			Handler:    _PluginService_DispatchApply_Handler,
 		},
 		{
 			MethodName: "Call",

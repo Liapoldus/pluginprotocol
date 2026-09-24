@@ -27,7 +27,7 @@ describe("remote v1 mTLS identity separation", () => {
     const control = tls.properties.gatewayControlIdentity;
     const data = tls.properties.caddyDataIdentity;
     expect(control.properties.identity.format).toBe("urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:control");
-    expect(control.properties.allowedRPCs).toEqual(["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "grpc.health.v1"]);
+    expect(control.properties.allowedRPCs).toEqual(["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]);
     expect(data.properties.identity.format).toBe("urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:data");
     expect(data.properties.allowedRPCs).toEqual(["Call", "Stream"]);
     expect(data.properties.capabilityScope).toMatchObject({
