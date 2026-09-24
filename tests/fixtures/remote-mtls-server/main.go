@@ -15,6 +15,8 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol"
@@ -25,7 +27,9 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
-type testService struct{ pluginv1.UnimplementedPluginServiceServer }
+type testService struct {
+	pluginv1.UnimplementedPluginServiceServer
+}
 
 func (testService) Manifest(context.Context, *pluginv1.ManifestRequest) (*pluginv1.Manifest, error) {
 	return &pluginv1.Manifest{Name: "fixture", ProtocolVersion: pluginprotocol.ProtocolVersion}, nil
@@ -52,7 +56,9 @@ func run() error {
 		return fmt.Errorf("credential output directory is required")
 	}
 	directory := os.Args[1]
-	if err := os.MkdirAll(directory, 0o700); err != nil { return err }
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return err
+	}
 	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return err
@@ -81,11 +87,11 @@ func run() error {
 		"clientCertificate": directory + "/client.pem", "clientKey": directory + "/client-key.pem",
 	}
 	for key, value := range map[string][]byte{
-		"ca": caDER,
+		"ca":                caDER,
 		"serverCertificate": serverCert,
-		"serverKey": serverKey,
+		"serverKey":         serverKey,
 		"clientCertificate": clientCert,
-		"clientKey": clientKey,
+		"clientKey":         clientKey,
 	} {
 		contents := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: value})
 		if key == "serverKey" || key == "clientKey" {
@@ -100,7 +106,9 @@ func run() error {
 		return err
 	}
 	serverPair, err := tls.LoadX509KeyPair(paths["serverCertificate"], paths["serverKey"])
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	rootPool := x509.NewCertPool()
 	rootPool.AddCert(ca)
 	serverTLS := &tls.Config{Certificates: []tls.Certificate{serverPair}, ClientCAs: rootPool, ClientAuth: tls.RequireAndVerifyClientCert, MinVersion: tls.VersionTLS13}
@@ -115,18 +123,33 @@ func run() error {
 		"serverIdentity": "urn:liapoldus:plugin:forms:replica:pod-1", "clientCertificate": paths["clientCertificate"],
 		"clientKey": paths["clientKey"],
 	}
-	return json.NewEncoder(os.Stdout).Encode(result)
+	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
+		return err
+	}
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+	<-shutdown
+	grpcServer.GracefulStop()
+	return nil
 }
 
 func issueCertificate(ca *x509.Certificate, caKey *ecdsa.PrivateKey, dnsName string, identity *url.URL, usage x509.ExtKeyUsage) ([]byte, []byte, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil { return nil, nil, err }
+	if err != nil {
+		return nil, nil, err
+	}
 	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-	if err != nil { return nil, nil, err }
+	if err != nil {
+		return nil, nil, err
+	}
 	template := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: dnsName}, NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{usage}, URIs: []*url.URL{identity}}
-	if dnsName != "" { template.DNSNames = []string{dnsName} }
+	if dnsName != "" {
+		template.DNSNames = []string{dnsName}
+	}
 	certificate, err := x509.CreateCertificate(rand.Reader, template, ca, &key.PublicKey, caKey)
-	if err != nil { return nil, nil, err }
+	if err != nil {
+		return nil, nil, err
+	}
 	privateKey, err := x509.MarshalECPrivateKey(key)
 	return certificate, privateKey, err
 }

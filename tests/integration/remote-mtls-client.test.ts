@@ -1,16 +1,15 @@
-import { execFile } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildGoFixture, startGoFixture, stopChildProcess, type GoFixtureBinary } from "../support/child-process.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
-const execFileAsync = promisify(execFile);
 let serverFixture: GoFixtureBinary | undefined;
+let clientFixture: GoFixtureBinary | undefined;
 let server: ReturnType<typeof startGoFixture> | undefined;
 let serverDirectory = "";
 let credentials: { address: string; caFile: string; serverName: string; serverIdentity: string; clientCertificate: string; clientKey: string };
@@ -18,7 +17,10 @@ let credentials: { address: string; caFile: string; serverName: string; serverId
 describe("remote plugin mTLS client", () => {
   beforeAll(async () => {
     serverDirectory = await mkdtemp(join(tmpdir(), "liapoldus-remote-mtls-test-"));
-    serverFixture = await buildGoFixture(root, "./tests/fixtures/remote-mtls-server");
+    [serverFixture, clientFixture] = await Promise.all([
+      buildGoFixture(root, "./tests/fixtures/remote-mtls-server"),
+      buildGoFixture(root, "./tests/fixtures/remote-mtls-client"),
+    ]);
     server = startGoFixture(serverFixture.executable, { cwd: root }, [serverDirectory]);
     const lines = createInterface({ input: server.stdout });
     const line = await new Promise<string>((resolve, reject) => {
@@ -36,34 +38,47 @@ describe("remote plugin mTLS client", () => {
   afterAll(async () => {
     if (server) await stopChildProcess(server);
     await serverFixture?.cleanup();
+    await clientFixture?.cleanup();
     if (serverDirectory) await rm(serverDirectory, { recursive: true, force: true });
   });
 
   it("performs handshake over verified TLS with a client certificate", async () => {
-    const result = await execFileAsync("go", [
-      "run", "./tests/fixtures/remote-mtls-client",
+    const result = await runClient([
       credentials.address,
       credentials.caFile,
       credentials.serverName,
       credentials.serverIdentity,
       credentials.clientCertificate,
       credentials.clientKey,
-    ], { cwd: root });
+    ]);
+    expect(result.exitCode, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({ ok: true, plugin: "fixture" });
-  });
+  }, 20_000);
 
   it("rejects a server certificate with a different plugin URI identity", async () => {
-    const result = await execFileAsync("go", [
-      "run", "./tests/fixtures/remote-mtls-client",
+    const result = await runClient([
       credentials.address,
       credentials.caFile,
       credentials.serverName,
       "urn:liapoldus:plugin:other:replica:pod-1",
       credentials.clientCertificate,
       credentials.clientKey,
-    ], { cwd: root, reject: false });
-    expect(result.code).not.toBe(0);
+    ]);
+    expect(result.exitCode).not.toBe(0);
     expect(result.stdout).not.toContain("private");
     expect(result.stderr).not.toContain("private");
-  });
+  }, 20_000);
 });
+
+function runClient(args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  if (!clientFixture) throw new Error("remote client fixture binary is not built");
+  return new Promise((resolve, reject) => {
+    const child: ChildProcessWithoutNullStreams = spawn(clientFixture.executable, args, { cwd: root, stdio: "pipe" });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+    child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+    child.once("error", reject);
+    child.once("exit", (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
+  });
+}

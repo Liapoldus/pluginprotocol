@@ -14,7 +14,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "remote client failed")
+		fmt.Fprintf(os.Stderr, "remote client failed: %s\n", err)
 		os.Exit(1)
 	}
 }
@@ -41,12 +41,12 @@ func run() error {
 		ServerName: os.Args[3], ExpectedServerIdentity: os.Args[4], RootCAs: roots, ClientCertificate: clientCertificate,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("remote channel could not be established")
 	}
 	defer client.Close()
 	handshake, err := client.Handshake(ctx, []byte("{}"))
 	if err != nil {
-		return err
+		return fmt.Errorf("remote protocol handshake failed")
 	}
 	return json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": true, "plugin": handshake.Manifest.GetName()})
 }
