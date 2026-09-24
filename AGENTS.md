@@ -19,7 +19,8 @@ JSON contract bodies.
   which maps to one pre-registered logical plugin instance. A stable Docker or
   Kubernetes Service may front multiple replicas; every newly established gRPC
   connection must repeat TLS identity validation and protocol handshake, and
-  Ready replicas must agree on release/Manifest/settings digest. Gateway does
+  Ready replicas must agree on protocol version and release/Manifest/settings
+  digests. Gateway does
   not become a CA; Management and plugin workload trust roots are separate.
   Invalid/revoked credentials fail closed without insecure downgrade.
 - The v1 transport migration intentionally replaces the old v1.0.0
