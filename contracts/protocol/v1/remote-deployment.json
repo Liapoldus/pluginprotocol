@@ -68,7 +68,7 @@
         "unlistedIdentityOrRPC": "deny"
       },
       "serviceReadiness": {
-        "readyReplicasMustAgreeOn": ["protocolVersion", "manifestDigest", "settingsDigest"],
+        "readyReplicasMustAgreeOn": ["protocolVersion", "manifestDigest", "settingsDigest", "releaseDigest"],
         "handshakeOnEveryNewConnection": true,
         "unreadyReplica": "exclude from readiness",
         "unknownUnaryCallResult": "never replay",
