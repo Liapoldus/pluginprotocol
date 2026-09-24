@@ -57,7 +57,7 @@ func NewRemoteServer(service pluginv1.PluginServiceServer, options RemoteServerO
 		grpc.MaxRecvMsgSize(maxMessageBytes),
 		grpc.MaxSendMsgSize(maxMessageBytes),
 		grpc.UnaryInterceptor(unaryInterceptor),
-		grpc.ChainStreamInterceptor(limitStreamMessages(maxStreamMessageBytes), authorizationStreamInterceptor),
+		grpc.ChainStreamInterceptor(limitStreamMessages(maxStreamMessageBytes), validateStreamMessages(), authorizationStreamInterceptor),
 	)
 	pluginv1.RegisterPluginServiceServer(server, &dispatchApplyService{
 		PluginServiceServer: service, instanceID: options.InstanceID,

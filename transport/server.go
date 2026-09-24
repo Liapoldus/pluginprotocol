@@ -30,7 +30,7 @@ func NewServer(service pluginv1.PluginServiceServer, options ServerOptions) *grp
 	server := grpc.NewServer(
 		grpc.MaxRecvMsgSize(maxMessageBytes),
 		grpc.MaxSendMsgSize(maxMessageBytes),
-		grpc.StreamInterceptor(limitStreamMessages(maxStreamMessageBytes)),
+		grpc.ChainStreamInterceptor(limitStreamMessages(maxStreamMessageBytes), validateStreamMessages()),
 	)
 	registerServices(server, service)
 	reflection.Register(server)

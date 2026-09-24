@@ -54,7 +54,14 @@ func (service) Stream(stream grpc.BidiStreamingServer[pluginv1.StreamMessage, pl
 	if err != nil {
 		return err
 	}
-	return stream.Send(message)
+	if message.GetOpen().GetConnectionId() == "remote-invalid-outbound" {
+		return stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_Data{Data: &pluginv1.StreamData{Direction: pluginv1.StreamDirection_STREAM_DIRECTION_REQUEST}}})
+	}
+	if message.GetOpen().GetConnectionId() == "remote-invalid-inbound" {
+		_, err := stream.Recv()
+		return err
+	}
+	return stream.Send(&pluginv1.StreamMessage{Body: &pluginv1.StreamMessage_Close{Close: &pluginv1.StreamClose{Code: pluginv1.StreamCloseCode_STREAM_CLOSE_CODE_NORMAL}}})
 }
 
 func main() {

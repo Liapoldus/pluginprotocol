@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { credentials, Metadata, status } from "@grpc/grpc-js";
 import { PluginServiceClient } from "../generated/liapoldus/plugin/v1/service.js";
+import { InvocationMode } from "../generated/liapoldus/plugin/v1/control.js";
+import { StreamDirection, StreamTransport } from "../generated/liapoldus/plugin/v1/service.js";
 import { buildGoFixture, startGoFixture, stopChildProcess, type GoFixtureBinary } from "../support/child-process.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -62,11 +64,16 @@ describe("gRPC plugin child process", () => {
 
     const stream = client.stream();
     const received = new Promise<string>((resolve, reject) => {
-      stream.once("data", (message) => resolve(new TextDecoder().decode(message.payload ?? new Uint8Array())));
+      stream.once("data", (message) => resolve(message.sseEvent?.data ?? ""));
       stream.once("error", reject);
     });
-    stream.write({ capability: "forms.live", payload: new TextEncoder().encode('{"watch":true}') });
-    expect(await received).toBe('{"event":"ready"}');
+    stream.write({ capability: "forms.live", open: {
+      transport: StreamTransport.STREAM_TRANSPORT_UNSPECIFIED,
+      mode: InvocationMode.INVOCATION_MODE_SSE,
+      connectionId: "child-stream-1",
+      contextJson: new TextEncoder().encode(JSON.stringify({ version: 1, kind: "sse", method: "GET", path: "/events", requestId: "request-1" })),
+    } });
+    expect(await received).toBe("ready");
     stream.end();
   });
 
@@ -76,7 +83,12 @@ describe("gRPC plugin child process", () => {
       stream.once("error", (error: { code: number }) => resolve(error.code));
       stream.once("data", () => reject(new Error("oversized stream message was accepted")));
     });
-    stream.write({ capability: "forms.live", payload: new Uint8Array(2 << 20) });
+    stream.write({ capability: "forms.live", open: {
+      transport: StreamTransport.STREAM_TRANSPORT_TCP,
+      connectionId: "oversized-stream-1",
+      contextJson: new TextEncoder().encode(JSON.stringify({ kind: "tcp", source: "127.0.0.1:1001", destination: "127.0.0.1:2002" })),
+    } });
+    stream.write({ capability: "forms.live", data: { payload: new Uint8Array(2 << 20), direction: StreamDirection.STREAM_DIRECTION_REQUEST } });
     expect(await status).toBe(8);
   });
 

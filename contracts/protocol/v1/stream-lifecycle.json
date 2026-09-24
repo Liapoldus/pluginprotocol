@@ -14,7 +14,45 @@
   "status": {
     "invalidMessage": "INVALID_ARGUMENT",
     "limitExceeded": "RESOURCE_EXHAUSTED",
-    "websocketRejectedHTTPStatus": 403
+    "websocketRejectedHTTPStatus": 403,
+    "httpResponseMin": 200,
+    "httpResponseMax": 599
+  },
+  "messages": {
+    "invalidMessage": "stream lifecycle message is invalid",
+    "limitExceeded": "stream lifecycle value exceeds protocol limit"
+  },
+  "context": {
+    "kindField": "kind",
+    "versionField": "version",
+    "sourceField": "source",
+    "destinationField": "destination",
+    "offeredSubprotocolsField": "offeredSubprotocols",
+    "modeKinds": {
+      "INVOCATION_MODE_TCP": "tcp",
+      "INVOCATION_MODE_UDP": "udp",
+      "INVOCATION_MODE_HTTP_STREAM": "http",
+      "INVOCATION_MODE_WEBSOCKET": "websocket",
+      "INVOCATION_MODE_SSE": "sse"
+    },
+    "requiredByKind": {
+      "tcp": ["kind", "source", "destination"],
+      "udp": ["kind", "source", "destination"],
+      "http": ["version", "kind", "method", "path", "requestId"],
+      "websocket": ["version", "kind", "method", "path", "requestId", "offeredSubprotocols"],
+      "sse": ["version", "kind", "method", "path", "requestId"]
+    },
+    "allowedByKind": {
+      "tcp": ["kind", "source", "destination", "sni", "alpn"],
+      "udp": ["kind", "source", "destination"],
+      "http": ["version", "kind", "method", "path", "query", "headers", "cookies", "requestId", "remoteAddr", "context"],
+      "websocket": ["version", "kind", "method", "path", "query", "headers", "cookies", "requestId", "remoteAddr", "offeredSubprotocols"],
+      "sse": ["version", "kind", "method", "path", "query", "headers", "cookies", "requestId", "remoteAddr"]
+    },
+    "fixedValuesByKind": {
+      "websocket": { "method": "GET" },
+      "sse": { "method": "GET" }
+    }
   },
   "rules": {
     "open": "Exactly one non-empty capability Open is the first client message. context_json is a bounded JSON object whose kind must match the selected mode and transport. HTTP_STREAM, WEBSOCKET, and SSE require unspecified transport; TCP and UDP require matching transport and context kind. An omitted or unspecified mode selects legacy L4 mode from TCP or UDP transport only.",
@@ -24,7 +62,7 @@
     "sse": "Plugin-to-client SSE events are allowed only after Open and before Close. data may contain LF for multiple SSE data lines, but data, event, and id may not contain CR or NUL. event and id may not contain LF.",
     "l4": "TCP allows zero or more request and response data frames per connection. UDP permits at most one request and one response data frame per Stream; each datagram uses a separate Stream. Close is terminal for the direction that sends it; a plugin Close terminates the RPC and no further messages are valid.",
     "close": "Close may be sent at most once per direction. A client Close stops further client messages but permits the plugin to finish its response with one plugin Close. A plugin Close is terminal. HTTP response end_stream may be followed by one plugin Close; the RPC may also finish at that point. Repeated Close or end_stream, or data after either terminal condition, is invalid.",
-    "completion": "Transport cancellation is propagated. A plugin may finish the RPC without Close only after a complete HTTP response body or a completed WebSocket handshake/response; SSE and L4 require plugin Close for an orderly completion. A client half-close without StreamClose is not an application-level cancellation signal.",
+    "completion": "Transport cancellation is propagated. A plugin may finish the RPC without Close only after a complete HTTP response body or a rejected WebSocket handshake response. An accepted WebSocket, SSE, TCP, and UDP lifecycle requires plugin Close for orderly completion. A client half-close without StreamClose is not an application-level cancellation signal.",
     "backpressure": "Implementations process each frame in order and rely on gRPC flow control; implementations must not buffer an unbounded stream or replay frames after reconnect."
   }
 }

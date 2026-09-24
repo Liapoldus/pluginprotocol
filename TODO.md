@@ -18,34 +18,11 @@ runtime library.
   diagnostics.
 - [ ] Добавить conformance vectors для authorization, GrantBroker redemption,
   error mapping, bounds, malformed/oversized payloads и JSON Schema versions.
-- [ ] Завершить Stream conformance для malformed sequence/mode, cancellation,
-      concurrency, bounded backpressure, idle/max-duration limits и post-start close.
-- [ ] До фиксации универсального Stream state machine согласовать и закрепить:
-  - допустимый порядок Open, HTTP request half-close, response-start,
-    response-end и Close, включая пустые тела, ранний ответ до конца upload,
-    отмену оставшегося request body и поведение при повторном/запоздалом
-    `end_stream`;
-  - означает ли Close после HTTP response chunk с `end_stream=true` только
-    завершение RPC, и допустим ли Close без response-start как единственный
-    способ сообщить ошибку до HTTP headers;
-  - HTTP status-code range и статус/headers/cookie-actions при WebSocket
-    handshake rejection; определить схему `WebSocketHandshakeResult.metadata_json`
-    и запретить выбранный subprotocol при `accepted=false`;
-  - одинаково ли трактуются `StreamOpen.mode` и `context_json.kind`, и какой
-    конкретный gRPC status возвращается для неподдерживаемых mode и переходов;
-  - ограничения SSE field values (`data`, `event`, `id`, `retry`) перед
-    сериализацией; `retry_millis` теперь сохраняет optional presence, включая
-    явный ноль.
-- [ ] Добавить негативные wire/E2E-векторы на перечисленные переходы и metadata
-  validation. Текущий child-process suite проверяет основные HTTP/WebSocket/SSE
-  и L4 happy paths, а также `Data` до Open и неподдержанный WebSocket
-  subprotocol; остальные запрещённые lifecycle-переходы и общий server-side
-  Stream validator ещё не доказаны.
+- [ ] Расширить Stream conformance нагрузочными проверками concurrency,
+      bounded backpressure, idle/max-duration limits и close-race на macOS/Linux.
 
 ## Проверки и релиз
 
-- [ ] Сначала добавлять TS red-tests под tests/, затем минимальную реализацию;
-  production packages не содержат Go test files.
 - [ ] Покрыть deadlines, cancellation, concurrency, bidirectional stream,
   bounded backpressure, close race, replica reconnect/rotation, remote
   GrantBroker и active-dispatch authorization на macOS/Linux.

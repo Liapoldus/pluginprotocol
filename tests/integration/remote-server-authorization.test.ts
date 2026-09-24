@@ -84,6 +84,14 @@ describe("remote plugin server authorization", () => {
     expect(await invoke("control", "stream", "forms.submit")).toBe(false);
   }, 30_000);
 
+  it("validates both Stream directions on the remote mTLS server", async () => {
+    expect(await invokeRaw("control", "dispatch")).toMatchObject({ accepted: true });
+    const inbound = await invokeRaw("data", "stream-invalid-inbound", "forms.submit");
+    const outbound = await invokeRaw("data", "stream-invalid-outbound", "forms.submit");
+    expect(inbound).toMatchObject({ accepted: false, code: "InvalidArgument" });
+    expect(outbound).toMatchObject({ accepted: false, code: "InvalidArgument" });
+  }, 30_000);
+
   it("keeps standard health within the control identity scope", async () => {
     expect(await invoke("control", "health")).toBe(true);
     expect(await invoke("data", "health")).toBe(false);
@@ -98,7 +106,7 @@ async function invoke(identity: "control" | "data" | "other", operation: string,
 	return (await invokeRaw(identity, operation, capability)).accepted === true;
 }
 
-async function invokeRaw(identity: "control" | "data" | "other", operation: string, capability = ""): Promise<{ accepted: boolean; response?: Record<string, unknown> }> {
+async function invokeRaw(identity: "control" | "data" | "other", operation: string, capability = ""): Promise<{ accepted: boolean; code?: string; response?: Record<string, unknown> }> {
   if (!clientFixture) throw new Error("remote authorization client fixture is not built");
   const certificate = credentials[`${identity}Certificate`];
   const key = credentials[`${identity}Key`];

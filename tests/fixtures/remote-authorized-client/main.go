@@ -12,14 +12,19 @@ import (
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"github.com/Liapoldus/pluginprotocol/transport"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var dispatchResponse json.RawMessage
 
 func main() {
-	accepted := run() == nil
-	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"accepted": accepted, "response": dispatchResponse})
+	err := run()
+	code := ""
+	if grpcStatus, ok := status.FromError(err); ok {
+		code = grpcStatus.Code().String()
+	}
+	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"accepted": err == nil, "code": code, "response": dispatchResponse})
 }
 
 func run() error {
@@ -67,10 +72,21 @@ func run() error {
 			dispatchResponse, err = protojson.Marshal(result)
 		}
 	case "stream":
+		fallthrough
+	case "stream-invalid-inbound", "stream-invalid-outbound":
 		var stream grpc.BidiStreamingClient[pluginv1.StreamMessage, pluginv1.StreamMessage]
 		stream, err = client.Stream(ctx)
 		if err == nil {
-			err = stream.Send(&pluginv1.StreamMessage{Capability: os.Args[8], Body: &pluginv1.StreamMessage_Open{Open: &pluginv1.StreamOpen{Mode: pluginv1.InvocationMode_INVOCATION_MODE_TCP.Enum()}}})
+			connectionID := "remote-stream-1"
+			if os.Args[7] == "stream-invalid-outbound" {
+				connectionID = "remote-invalid-outbound"
+			} else if os.Args[7] == "stream-invalid-inbound" {
+				connectionID = "remote-invalid-inbound"
+			}
+			err = stream.Send(&pluginv1.StreamMessage{Capability: os.Args[8], Body: &pluginv1.StreamMessage_Open{Open: &pluginv1.StreamOpen{Mode: pluginv1.InvocationMode_INVOCATION_MODE_TCP.Enum(), Transport: pluginv1.StreamTransport_STREAM_TRANSPORT_TCP, ConnectionId: connectionID, ContextJson: []byte(`{"kind":"tcp","source":"127.0.0.1:1001","destination":"127.0.0.1:2002"}`)}}})
+			if err == nil && os.Args[7] == "stream-invalid-inbound" {
+				err = stream.Send(&pluginv1.StreamMessage{Capability: os.Args[8], Body: &pluginv1.StreamMessage_Data{Data: &pluginv1.StreamData{Direction: pluginv1.StreamDirection_STREAM_DIRECTION_RESPONSE}}})
+			}
 			if err == nil {
 				_, err = stream.Recv()
 			}

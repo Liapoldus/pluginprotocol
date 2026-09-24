@@ -45,12 +45,15 @@ describe("v1 Stream server-side lifecycle validation", () => {
       l4: expect.stringContaining("each datagram uses a separate Stream"),
       close: expect.stringContaining("Repeated Close"),
     });
+    expect(contract.status).toMatchObject({ invalidMessage: "INVALID_ARGUMENT", limitExceeded: "RESOURCE_EXHAUSTED" });
   });
 
   it.each([
     ["message before Open", (stream: ReturnType<PluginServiceClient["stream"]>) => { stream.write({ capability: "forms.live", httpRequestChunk: { payload: new Uint8Array([1]) } }); }],
     ["mode and context kind mismatch", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_HTTP_STREAM, { version: 1, kind: "sse", method: "GET", path: "/events", requestId: "request-1" }); }],
-    ["request chunk after request end_stream", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_HTTP_STREAM, httpContext()); stream.write({ capability: "forms.live", httpRequestChunk: { endStream: true } }); stream.write({ capability: "forms.live", httpRequestChunk: { payload: new Uint8Array([1]) } }); }],
+    ["missing required context field", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_HTTP_STREAM, { version: 1, kind: "http", method: "POST", path: "/upload" }); }],
+    ["unknown context field", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_HTTP_STREAM, { ...httpContext(), unexpected: true }); }],
+    ["request chunk after request end_stream", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_HTTP_STREAM, httpContext()); stream.write({ capability: "forms.live", httpRequestChunk: { payload: new Uint8Array(), endStream: true } }); stream.write({ capability: "forms.live", httpRequestChunk: { payload: new Uint8Array([1]) } }); }],
     ["repeated client Close", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_TCP, l4Context("tcp"), StreamTransport.STREAM_TRANSPORT_TCP); stream.write({ capability: "forms.live", close: { code: StreamCloseCode.STREAM_CLOSE_CODE_NORMAL } }); stream.write({ capability: "forms.live", close: { code: StreamCloseCode.STREAM_CLOSE_CODE_NORMAL } }); }],
   ])("rejects %s on inbound frames", async (_name, writeInvalid) => {
     const stream = client.stream();
@@ -64,16 +67,32 @@ describe("v1 Stream server-side lifecycle validation", () => {
     ["HTTP response chunk before response-start", "http-chunk-before-start", InvocationMode.INVOCATION_MODE_HTTP_STREAM, httpContext()],
     ["duplicate HTTP response-start", "http-double-start", InvocationMode.INVOCATION_MODE_HTTP_STREAM, httpContext()],
     ["HTTP response chunk after end_stream", "http-after-end", InvocationMode.INVOCATION_MODE_HTTP_STREAM, httpContext()],
+    ["incomplete HTTP response at RPC completion", "http-incomplete", InvocationMode.INVOCATION_MODE_HTTP_STREAM, httpContext()],
     ["WebSocket rejection with subprotocol", "ws-rejected-subprotocol", InvocationMode.INVOCATION_MODE_WEBSOCKET, wsContext()],
     ["unoffered WebSocket subprotocol", "ws-unoffered-subprotocol", InvocationMode.INVOCATION_MODE_WEBSOCKET, wsContext()],
-    ["oversized SSE data field", "sse-large-data", InvocationMode.INVOCATION_MODE_SSE, sseContext()],
+    ["accepted WebSocket without a terminal Close", "websocket-accepted-no-close", InvocationMode.INVOCATION_MODE_WEBSOCKET, wsContext()],
+    ["SSE without a terminal Close", "sse-no-close", InvocationMode.INVOCATION_MODE_SSE, sseContext()],
+    ["repeated plugin Close", "sse-double-close", InvocationMode.INVOCATION_MODE_SSE, sseContext()],
     ["newline in SSE event field", "sse-line-in-event", InvocationMode.INVOCATION_MODE_SSE, sseContext()],
   ])("rejects %s on outbound frames", async (_name, scenario, mode, context) => {
     expect(await runScenario(scenario, mode, context)).toBe(grpcStatus.INVALID_ARGUMENT);
   });
 
+  it.each([
+    ["SSE data", "sse-large-data"],
+    ["SSE event", "sse-large-event"],
+    ["SSE id", "sse-large-id"],
+    ["SSE retry", "sse-retry-too-large"],
+  ])("rejects an over-limit %s field with RESOURCE_EXHAUSTED", async (_name, scenario) => {
+    expect(await runScenario(scenario, InvocationMode.INVOCATION_MODE_SSE, sseContext())).toBe(grpcStatus.RESOURCE_EXHAUSTED);
+  });
+
   it("allows multiline SSE data and a single terminal Close", async () => {
     expect(await runScenario("sse-valid", InvocationMode.INVOCATION_MODE_SSE, sseContext())).toBe(grpcStatus.OK);
+  });
+
+  it("allows a complete HTTP response to finish without an extra Close", async () => {
+    expect(await runScenario("http-complete-no-close", InvocationMode.INVOCATION_MODE_HTTP_STREAM, httpContext())).toBe(grpcStatus.OK);
   });
 
   it("uses limits from the protocol contract", () => {
@@ -83,10 +102,20 @@ describe("v1 Stream server-side lifecycle validation", () => {
     expect(limits.limits.sseIDBytes).toBeGreaterThan(0);
     expect(limits.limits.sseRetryMillis).toBeGreaterThan(0);
   });
+
+  it("rejects open contexts above the contract byte limit", async () => {
+    const stream = client.stream();
+    const terminal = waitForTerminal(stream);
+    const base = JSON.stringify(l4Context("tcp"));
+    const oversized = base.slice(0, -1) + `,"padding":"${"x".repeat(limits.limits.contextBytes)}"}`;
+    stream.write({ capability: "forms.live", open: { transport: StreamTransport.STREAM_TRANSPORT_TCP, connectionId: "oversized-context", contextJson: new TextEncoder().encode(oversized) } });
+    stream.end();
+    expect(await terminal).toBe(grpcStatus.RESOURCE_EXHAUSTED);
+  });
 });
 
-function open(stream: ReturnType<PluginServiceClient["stream"]>, mode: InvocationMode, context: unknown, transport = StreamTransport.STREAM_TRANSPORT_UNSPECIFIED): void {
-  stream.write({ capability: "forms.live", open: { mode, transport, connectionId: "stream-1", contextJson: new TextEncoder().encode(JSON.stringify(context)) } });
+function open(stream: ReturnType<PluginServiceClient["stream"]>, mode: InvocationMode, context: unknown, transport = StreamTransport.STREAM_TRANSPORT_UNSPECIFIED, connectionId = "stream-1"): void {
+  stream.write({ capability: "forms.live", open: { mode, transport, connectionId, contextJson: new TextEncoder().encode(JSON.stringify(context)) } });
 }
 
 function httpContext() { return { version: 1, kind: "http", method: "POST", path: "/upload", requestId: "request-1" }; }
@@ -97,7 +126,7 @@ function l4Context(kind: "tcp" | "udp") { return { kind, source: "127.0.0.1:1001
 async function runScenario(scenario: string, mode: InvocationMode, context: unknown): Promise<number> {
   const stream = client.stream();
   const terminal = waitForTerminal(stream);
-  open(stream, mode, { ...context as object, scenario }, mode === InvocationMode.INVOCATION_MODE_TCP ? StreamTransport.STREAM_TRANSPORT_TCP : StreamTransport.STREAM_TRANSPORT_UNSPECIFIED);
+  open(stream, mode, context, mode === InvocationMode.INVOCATION_MODE_TCP ? StreamTransport.STREAM_TRANSPORT_TCP : StreamTransport.STREAM_TRANSPORT_UNSPECIFIED, scenario);
   stream.end();
   return terminal;
 }

@@ -166,7 +166,7 @@ func (*fixture) Stream(stream grpc.BidiStreamingServer[pluginv1.StreamMessage, p
 					}
 				}
 				if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_WebsocketHandshake{
-					WebsocketHandshake: &pluginv1.WebSocketHandshakeResult{Accepted: websocketAccepted, Subprotocol: map[bool]string{true: "forms.v1"}[websocketAccepted]},
+					WebsocketHandshake: &pluginv1.WebSocketHandshakeResult{Accepted: websocketAccepted, Subprotocol: map[bool]string{true: "forms.v1"}[websocketAccepted], MetadataJson: []byte(`{"version":1}`)},
 				}}); err != nil {
 					return err
 				}
@@ -206,7 +206,7 @@ func (*fixture) Stream(stream grpc.BidiStreamingServer[pluginv1.StreamMessage, p
 			}
 			if !responseStarted {
 				if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_HttpResponseStart{
-					HttpResponseStart: &pluginv1.HttpResponseStart{StatusCode: 200, MetadataJson: []byte(`{"headers":{"content-type":"application/octet-stream"}}`)},
+					HttpResponseStart: &pluginv1.HttpResponseStart{StatusCode: 200, MetadataJson: []byte(`{"version":1,"headers":{"content-type":"application/octet-stream"}}`)},
 				}}); err != nil {
 					return err
 				}
