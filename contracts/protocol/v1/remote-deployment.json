@@ -15,17 +15,64 @@
         "properties": {
           "address": { "type": "fixed-host-port", "discovery": false },
           "tls": {
-            "required": ["serverName", "ca", "clientCertificate", "clientKey"],
+            "required": ["serverName", "expectedServerIdentity", "ca", "gatewayControlIdentity", "caddyDataIdentity"],
             "properties": {
               "serverName": { "type": "dns-name-or-ip-san" },
+              "expectedServerIdentity": {
+                "type": "unique-uri-san-per-replica",
+                "format": "urn:liapoldus:plugin:<instance-id>:replica:<replica-id>",
+                "logicalInstanceMustMatch": true,
+                "replicaIdMustBeNonEmpty": true,
+                "oneIdentityPerLiveReplica": true
+              },
               "ca": { "type": "external-file-reference" },
-              "clientCertificate": { "type": "external-file-reference" },
-              "clientKey": { "type": "external-secret-file-reference" }
+              "gatewayControlIdentity": {
+                "required": ["identity", "clientCertificate", "clientKey", "allowedRPCs"],
+                "properties": {
+                  "identity": { "type": "exact-uri-san", "format": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:control" },
+                  "clientCertificate": { "type": "external-file-reference" },
+                  "clientKey": { "type": "external-secret-file-reference", "minimumPermissions": "owner-read-only" },
+                  "allowedRPCs": ["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "grpc.health.v1"]
+                }
+              },
+              "caddyDataIdentity": {
+                "required": ["identity", "clientCertificate", "clientKey", "allowedRPCs", "capabilityScope"],
+                "properties": {
+                  "identity": { "type": "exact-uri-san", "format": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:data" },
+                  "clientCertificate": { "type": "external-file-reference" },
+                  "clientKey": { "type": "external-secret-file-reference", "minimumPermissions": "owner-read-only" },
+                  "allowedRPCs": ["Call", "Stream"],
+                  "capabilityScope": {
+                    "source": "active-dispatch-generation",
+                    "enforcePerCall": true,
+                    "emptySetDenied": true
+                  }
+                }
+              }
             }
           }
         }
       },
       "channelSecurity": "tls-mutual-authentication-required",
+      "pluginAuthorization": {
+        "gatewayControl": {
+          "identityFormat": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:control",
+          "allowedRPCs": ["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "grpc.health.v1"]
+        },
+        "caddyData": {
+          "identityFormat": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:data",
+          "allowedRPCs": ["Call", "Stream"],
+          "capabilityScope": "only capabilities in the active dispatch generation for this plugin instance"
+        },
+        "unlistedIdentityOrRPC": "deny"
+      },
+      "serviceReadiness": {
+        "readyReplicasMustAgreeOn": ["protocolVersion", "manifestDigest", "settingsDigest"],
+        "handshakeOnEveryNewConnection": true,
+        "unreadyReplica": "exclude from readiness",
+        "unknownUnaryCallResult": "never replay",
+        "activeStreamReconnect": "close; do not migrate"
+      },
       "restartOwner": "external",
       "fallback": "none"
     }
@@ -34,8 +81,16 @@
   "capabilities": { "unary": "Call with versioned JSON payload", "stream": "bidirectional Stream" },
   "grantBroker": {
     "remoteTransport": "TLS with mutual authentication",
+    "clientIdentity": "same unique remote plugin replica URI SAN used for its gRPC connection",
+    "serverIdentity": "configured Gateway deployment URI SAN, validated with the external trust bundle",
     "redemption": "call-scoped and bound to plugin identity, capability, purpose, scope, and expiry",
     "publiclyExposed": false
+  },
+  "certificateRotation": {
+    "owner": "external CA/operator",
+    "gatewayCa": false,
+    "procedure": "Install overlapping trust roots, issue replacement identity, update protected credential mount, restart the plugin workload, verify handshake, then remove the old trust root.",
+    "secretDelivery": "file/secret mount; never inline in protocol payload or manifest"
   },
   "invariants": [
     "Remote mode не запускает и не перезапускает удалённый процесс.",

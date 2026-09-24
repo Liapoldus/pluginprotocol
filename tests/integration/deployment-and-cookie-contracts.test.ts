@@ -12,7 +12,7 @@ describe("protocol v1 remote deployment and HTTP cookie contracts", () => {
     expect(deployment.protocolVersion).toBe("liapoldus.plugin.v1");
     expect(deployment.modes.remote.endpoint.required).toEqual(expect.arrayContaining(["address", "tls"]));
     expect(deployment.modes.remote.endpoint.properties.tls.required).toEqual(
-      expect.arrayContaining(["serverName", "ca", "clientCertificate", "clientKey"]),
+      expect.arrayContaining(["serverName", "ca", "gatewayControlIdentity", "caddyDataIdentity"]),
     );
     expect(deployment.modes.remote.fallback).toBe("none");
     expect(deployment.modes.remote.processOwner).toBe("external");
