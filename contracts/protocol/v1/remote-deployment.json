@@ -91,7 +91,11 @@
     "remoteTransport": "TLS with mutual authentication",
     "clientIdentity": "same unique remote plugin replica URI SAN used for its gRPC connection",
     "serverIdentity": "configured Gateway deployment URI SAN, validated with the external trust bundle",
+    "tlsMinimumVersion": "TLS 1.3",
+    "identityAuthorization": "exact pre-registered plugin replica URI SAN from the verified TLS peer certificate",
+    "identityRequestField": false,
     "redemption": "call-scoped and bound to plugin identity, capability, purpose, scope, and expiry",
+    "secretMaterial": "RedeemGrantResponse.secret only",
     "publiclyExposed": false
   },
   "certificateRotation": {

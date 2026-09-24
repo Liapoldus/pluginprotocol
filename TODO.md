@@ -12,6 +12,12 @@ runtime library.
 - [ ] Завершить typed local/remote launch contract без plugin-specific имён и
   Gateway route policies: endpoint фиксирован, remote transport требует TLS,
   межмашинный production требует mTLS.
+- [x] Реализовать remote GrantBroker callback transport: TLS 1.3, проверка CA,
+  DNS/IP SAN и точного Gateway URI SAN на клиенте; обязательный проверенный
+  client certificate с единственным URI SAN и allow-list проверкой на сервере;
+  передавать подтверждённую identity в handler context. Сохранить loopback API,
+  не допускать insecure fallback и отдавать секрет только через typed
+  `RedeemGrantResponse`. Gateway остаётся владельцем per-call grant policy.
 - [ ] Сохранить gRPC control RPCs, standard health, generic JSON Call, bidi
   Stream lifecycle для HTTP streaming, WebSocket, SSE, TCP и UDP, а также
   call-scoped grant redemption без dual-stack legacy TCP.

@@ -2,6 +2,8 @@ package transport
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"net"
 	"os"
@@ -9,7 +11,9 @@ import (
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -23,6 +27,26 @@ const GrantBrokerEndpointEnvironment = "LIAPOLDUS_GRANT_BROKER_ENDPOINT"
 type GrantClient struct {
 	connection *grpc.ClientConn
 	service    pluginv1.GrantBrokerClient
+}
+
+// RemoteGrantTLSOptions binds a remote broker channel to the plugin replica's
+// externally issued client identity as well as the Gateway server identity.
+type RemoteGrantTLSOptions struct {
+	ServerName             string
+	ExpectedServerIdentity string
+	ClientIdentityURI      string
+	RootCAs                *x509.CertPool
+	ClientCertificate      tls.Certificate
+}
+
+// RemoteGrantServerOptions configures the Gateway's private remote callback.
+// AllowsClientIdentity must consult the Gateway's pre-registered replica
+// identities; a nil or permissive-by-default policy is rejected.
+type RemoteGrantServerOptions struct {
+	TLSCertificate       tls.Certificate
+	ClientRoots          *x509.CertPool
+	ServerIdentityURI    string
+	AllowsClientIdentity func(string) bool
 }
 
 // DialGrantBrokerContext connects to a Gateway grant-broker loopback endpoint.
@@ -45,6 +69,30 @@ func DialGrantBrokerContext(ctx context.Context, endpoint string) (*GrantClient,
 // broker endpoint from the launch contract.
 func DialGrantBrokerFromEnvironmentContext(ctx context.Context) (*GrantClient, error) {
 	return DialGrantBrokerContext(ctx, os.Getenv(GrantBrokerEndpointEnvironment))
+}
+
+// DialRemoteGrantBrokerContext connects to the Gateway callback using TLS 1.3
+// with CA, DNS/IP SAN, exact Gateway URI SAN, and plugin replica certificate
+// validation. There is intentionally no insecure fallback.
+func DialRemoteGrantBrokerContext(ctx context.Context, endpoint string, options RemoteGrantTLSOptions) (*GrantClient, error) {
+	remoteOptions := RemoteTLSOptions{
+		ServerName:             options.ServerName,
+		ExpectedServerIdentity: options.ExpectedServerIdentity,
+		RootCAs:                options.RootCAs,
+		ClientCertificate:      options.ClientCertificate,
+	}
+	if !isRemoteTCPEndpoint(endpoint) || !validRemoteTLSOptions(remoteOptions) || !validRemoteIdentity(options.ClientIdentityURI) || !certificateHasURI(options.ClientCertificate, options.ClientIdentityURI) {
+		return nil, ErrInvalidRemoteTLS
+	}
+	connection, err := grpc.DialContext(ctx, endpoint,
+		grpc.WithTransportCredentials(credentials.NewTLS(remoteTLSConfig(remoteOptions))),
+		grpc.WithBlock(),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(DefaultMaxMessageBytes), grpc.MaxCallSendMsgSize(DefaultMaxMessageBytes)),
+	)
+	if err != nil {
+		return nil, classifyRPCError(ctx, err)
+	}
+	return &GrantClient{connection: connection, service: pluginv1.NewGrantBrokerClient(connection)}, nil
 }
 
 func (c *GrantClient) Close() error { return c.connection.Close() }
@@ -74,6 +122,74 @@ func NewGrantBrokerServer(service pluginv1.GrantBrokerServer) *GrantServer {
 	)
 	pluginv1.RegisterGrantBrokerServer(server, grantBrokerAdapter{service: service})
 	return &GrantServer{server: server}
+}
+
+// NewRemoteGrantBrokerServer creates a TLS 1.3 callback server. It requires a
+// verified client certificate, pins its own URI SAN, and authorizes only
+// replica identities accepted by the supplied allow-list policy.
+func NewRemoteGrantBrokerServer(service pluginv1.GrantBrokerServer, options RemoteGrantServerOptions) (*GrantServer, error) {
+	if service == nil || len(options.TLSCertificate.Certificate) == 0 || options.TLSCertificate.PrivateKey == nil || options.ClientRoots == nil || !validRemoteIdentity(options.ServerIdentityURI) || options.AllowsClientIdentity == nil || !certificateHasURI(options.TLSCertificate, options.ServerIdentityURI) {
+		return nil, ErrInvalidRemoteTLS
+	}
+	server := grpc.NewServer(
+		grpc.Creds(credentials.NewTLS(&tls.Config{
+			MinVersion:   tls.VersionTLS13,
+			Certificates: []tls.Certificate{cloneTLSCertificate(options.TLSCertificate)},
+			ClientAuth:   tls.RequireAndVerifyClientCert,
+			ClientCAs:    options.ClientRoots.Clone(),
+		})),
+		grpc.MaxRecvMsgSize(DefaultMaxMessageBytes),
+		grpc.MaxSendMsgSize(DefaultMaxMessageBytes),
+		grpc.UnaryInterceptor(remoteGrantIdentityInterceptor(options.AllowsClientIdentity)),
+	)
+	pluginv1.RegisterGrantBrokerServer(server, grantBrokerAdapter{service: service})
+	return &GrantServer{server: server}, nil
+}
+
+type remoteGrantIdentityKey struct{}
+
+// RemoteGrantClientIdentity returns the URI SAN authenticated for a remote
+// broker redemption. It is populated only by NewRemoteGrantBrokerServer after
+// certificate-chain and allow-list validation.
+func RemoteGrantClientIdentity(ctx context.Context) (string, bool) {
+	identity, ok := ctx.Value(remoteGrantIdentityKey{}).(string)
+	return identity, ok && identity != ""
+}
+
+func remoteGrantIdentityInterceptor(allowsIdentity func(string) bool) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, request any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		if info.FullMethod != pluginv1.GrantBroker_RedeemGrant_FullMethodName {
+			return nil, status.Error(codes.PermissionDenied, "")
+		}
+		remotePeer, ok := peer.FromContext(ctx)
+		if !ok {
+			return nil, status.Error(codes.PermissionDenied, "")
+		}
+		tlsInfo, ok := remotePeer.AuthInfo.(credentials.TLSInfo)
+		if !ok || len(tlsInfo.State.VerifiedChains) == 0 || len(tlsInfo.State.PeerCertificates) == 0 {
+			return nil, status.Error(codes.PermissionDenied, "")
+		}
+		identities := tlsInfo.State.PeerCertificates[0].URIs
+		if len(identities) != 1 {
+			return nil, status.Error(codes.PermissionDenied, "")
+		}
+		authenticatedIdentity := identities[0].String()
+		if !validRemoteIdentity(authenticatedIdentity) || !allowsIdentity(authenticatedIdentity) {
+			return nil, status.Error(codes.PermissionDenied, "")
+		}
+		return handler(context.WithValue(ctx, remoteGrantIdentityKey{}, authenticatedIdentity), request)
+	}
+}
+
+func certificateHasURI(certificate tls.Certificate, expected string) bool {
+	if len(certificate.Certificate) == 0 {
+		return false
+	}
+	leaf, err := x509.ParseCertificate(certificate.Certificate[0])
+	if err != nil {
+		return false
+	}
+	return certificateContainsURI(leaf, expected)
 }
 
 func (s *GrantServer) Serve(listener net.Listener) error { return s.server.Serve(listener) }

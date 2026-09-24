@@ -82,24 +82,7 @@ func DialRemoteContext(ctx context.Context, endpoint string, options RemoteTLSOp
 	if !isRemoteTCPEndpoint(endpoint) || !validRemoteTLSOptions(options) {
 		return nil, ErrInvalidRemoteTLS
 	}
-	expectedIdentity := options.ExpectedServerIdentity
-	configuration := &tls.Config{
-		MinVersion:   tls.VersionTLS13,
-		ServerName:   options.ServerName,
-		RootCAs:      options.RootCAs,
-		Certificates: []tls.Certificate{options.ClientCertificate},
-		VerifyConnection: func(state tls.ConnectionState) error {
-			if len(state.PeerCertificates) == 0 {
-				return ErrInvalidRemoteTLS
-			}
-			for _, identity := range state.PeerCertificates[0].URIs {
-				if identity.String() == expectedIdentity {
-					return nil
-				}
-			}
-			return ErrInvalidRemoteTLS
-		},
-	}
+	configuration := remoteTLSConfig(options)
 	connection, err := grpc.DialContext(ctx, endpoint,
 		grpc.WithTransportCredentials(credentials.NewTLS(configuration)),
 		grpc.WithBlock(),
@@ -113,6 +96,27 @@ func DialRemoteContext(ctx context.Context, endpoint string, options RemoteTLSOp
 		service:    pluginv1.NewPluginServiceClient(connection),
 		health:     grpc_health_v1.NewHealthClient(connection),
 	}, nil
+}
+
+func remoteTLSConfig(options RemoteTLSOptions) *tls.Config {
+	expectedIdentity := options.ExpectedServerIdentity
+	return &tls.Config{
+		MinVersion:   tls.VersionTLS13,
+		ServerName:   options.ServerName,
+		RootCAs:      options.RootCAs.Clone(),
+		Certificates: []tls.Certificate{cloneTLSCertificate(options.ClientCertificate)},
+		VerifyConnection: func(state tls.ConnectionState) error {
+			if len(state.PeerCertificates) == 0 {
+				return ErrInvalidRemoteTLS
+			}
+			for _, identity := range state.PeerCertificates[0].URIs {
+				if identity.String() == expectedIdentity {
+					return nil
+				}
+			}
+			return ErrInvalidRemoteTLS
+		},
+	}
 }
 
 func validRemoteTLSOptions(options RemoteTLSOptions) bool {
