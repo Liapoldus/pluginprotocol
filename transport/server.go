@@ -26,6 +26,18 @@ type ServerOptions struct {
 // NewServer registers the v1 plugin service, standard health service, and
 // reflection service used by loopback-only grpcurl diagnostics.
 func NewServer(service pluginv1.PluginServiceServer, options ServerOptions) *grpc.Server {
+	maxMessageBytes, maxStreamMessageBytes := messageLimits(options)
+	server := grpc.NewServer(
+		grpc.MaxRecvMsgSize(maxMessageBytes),
+		grpc.MaxSendMsgSize(maxMessageBytes),
+		grpc.StreamInterceptor(limitStreamMessages(maxStreamMessageBytes)),
+	)
+	registerServices(server, service)
+	reflection.Register(server)
+	return server
+}
+
+func messageLimits(options ServerOptions) (int, int) {
 	maxMessageBytes := options.MaxMessageBytes
 	if maxMessageBytes <= 0 {
 		maxMessageBytes = DefaultMaxMessageBytes
@@ -34,18 +46,15 @@ func NewServer(service pluginv1.PluginServiceServer, options ServerOptions) *grp
 	if maxStreamMessageBytes <= 0 {
 		maxStreamMessageBytes = MaxStreamMessageBytes
 	}
-	server := grpc.NewServer(
-		grpc.MaxRecvMsgSize(maxMessageBytes),
-		grpc.MaxSendMsgSize(maxMessageBytes),
-		grpc.StreamInterceptor(limitStreamMessages(maxStreamMessageBytes)),
-	)
+	return maxMessageBytes, maxStreamMessageBytes
+}
+
+func registerServices(server *grpc.Server, service pluginv1.PluginServiceServer) {
 	pluginv1.RegisterPluginServiceServer(server, service)
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(pluginv1.PluginService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
-	reflection.Register(server)
-	return server
 }
 
 // ListenLoopback opens only the endpoint supplied by Gateway at process start.
