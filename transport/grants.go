@@ -40,8 +40,9 @@ type RemoteGrantTLSOptions struct {
 }
 
 // RemoteGrantServerOptions configures the Gateway's private remote callback.
-// AllowsClientIdentity must consult the Gateway's pre-registered replica
-// identities; a nil or permissive-by-default policy is rejected.
+// AllowsClientIdentity must enforce the Gateway's pre-registered replica
+// identity allow-list. The server rejects a missing callback; its strictness
+// is the responsibility of the Gateway-supplied policy.
 type RemoteGrantServerOptions struct {
 	TLSCertificate       tls.Certificate
 	ClientRoots          *x509.CertPool
