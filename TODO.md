@@ -7,17 +7,9 @@ runtime library.
 
 ## Transport и launch contract
 
-- [ ] Сохранять единый namespace/package liapoldus.plugin.v1 и единый
-  опубликованный источник protobuf, JSON schemas и vectors в этом repository.
 - [ ] Завершить typed local/remote launch contract без plugin-specific имён и
   Gateway route policies: endpoint фиксирован, remote transport требует TLS,
   межмашинный production требует mTLS.
-- [ ] Сохранить gRPC control RPCs, standard health, generic JSON Call, bidi
-  Stream lifecycle для HTTP streaming, WebSocket, SSE, TCP и UDP, а также
-  call-scoped grant redemption без dual-stack legacy TCP.
-- [ ] Проверять выбранный mode в Gateway/Caddy до активации dispatch snapshot.
-- [ ] Согласовать transport/API изменения только в этом repository; core,
-  Constructor и отдельные plugins импортируют опубликованный protocol API.
 
 ## Request/response и capability contracts
 
@@ -45,16 +37,10 @@ runtime library.
     сериализацией; `retry_millis` теперь сохраняет optional presence, включая
     явный ноль.
 - [ ] Добавить негативные wire/E2E-векторы на перечисленные переходы и metadata
-  validation; текущий child-process fixture проверяет только happy path и один
-  `Data` до Open, поэтому не доказывает эти правила или production stream
-  validator.
-- [ ] Сохранить manifest, settings, HTTP actions, admin-surface/admin-UI
-  contracts в versioned schemas; не копировать их в Gateway docs/core.
-- [ ] Добавить conformance для mixed local/remote deployments, replica
-  identity mapping, uniform Service rollout, reconnect после Pod restart,
-  не-replay side-effecting Call и закрытия in-flight Stream.
-- [ ] Не вводить Gateway/Caddyfile syntax в общий protocol contract; protocol
-  описывает transport/capability boundary и не знает product deployment UI.
+  validation. Текущий child-process suite проверяет основные HTTP/WebSocket/SSE
+  и L4 happy paths, а также `Data` до Open и неподдержанный WebSocket
+  subprotocol; остальные запрещённые lifecycle-переходы и общий server-side
+  Stream validator ещё не доказаны.
 
 ## Проверки и релиз
 
