@@ -52,10 +52,17 @@ enum StreamCloseCode {
   STREAM_CLOSE_CODE_ERROR = 2;
 }
 
+enum WebSocketMessageKind {
+  WEBSOCKET_MESSAGE_KIND_UNSPECIFIED = 0;
+  WEBSOCKET_MESSAGE_KIND_TEXT = 1;
+  WEBSOCKET_MESSAGE_KIND_BINARY = 2;
+}
+
 message StreamOpen {
   StreamTransport transport = 1;
   string connection_id = 2;
   bytes context_json = 3;
+  optional InvocationMode mode = 4;
 }
 
 message StreamData {
@@ -67,6 +74,40 @@ message StreamClose {
   StreamCloseCode code = 1;
 }
 
+message HttpRequestChunk {
+  bytes payload = 1;
+  bool end_stream = 2;
+}
+
+message HttpResponseStart {
+  uint32 status_code = 1;
+  bytes metadata_json = 2;
+}
+
+message HttpResponseChunk {
+  bytes payload = 1;
+  bool end_stream = 2;
+}
+
+message WebSocketHandshakeResult {
+  bool accepted = 1;
+  string subprotocol = 2;
+  bytes metadata_json = 3;
+}
+
+message WebSocketMessage {
+  WebSocketMessageKind kind = 1;
+  bytes payload = 2;
+  StreamDirection direction = 3;
+}
+
+message SseEvent {
+  string data = 1;
+  string event = 2;
+  string id = 3;
+  optional uint32 retry_millis = 4;
+}
+
 message StreamMessage {
   string capability = 1;
   oneof body {
@@ -76,5 +117,11 @@ message StreamMessage {
     StreamOpen open = 4;
     StreamData data = 5;
     StreamClose close = 6;
+    HttpRequestChunk http_request_chunk = 7;
+    HttpResponseStart http_response_start = 8;
+    HttpResponseChunk http_response_chunk = 9;
+    WebSocketHandshakeResult websocket_handshake = 10;
+    WebSocketMessage websocket_message = 11;
+    SseEvent sse_event = 12;
   }
 }

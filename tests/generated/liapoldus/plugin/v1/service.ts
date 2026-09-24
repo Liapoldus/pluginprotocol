@@ -25,6 +25,9 @@ import {
   ConfigApplyResult,
   ConfigSchema,
   ConfigSchemaRequest,
+  InvocationMode,
+  invocationModeFromJSON,
+  invocationModeToJSON,
   Manifest,
   ManifestRequest,
   ShutdownRequest,
@@ -151,6 +154,45 @@ export function streamCloseCodeToJSON(object: StreamCloseCode): string {
   }
 }
 
+export enum WebSocketMessageKind {
+  WEBSOCKET_MESSAGE_KIND_UNSPECIFIED = 0,
+  WEBSOCKET_MESSAGE_KIND_TEXT = 1,
+  WEBSOCKET_MESSAGE_KIND_BINARY = 2,
+  UNRECOGNIZED = -1,
+}
+
+export function webSocketMessageKindFromJSON(object: any): WebSocketMessageKind {
+  switch (object) {
+    case 0:
+    case "WEBSOCKET_MESSAGE_KIND_UNSPECIFIED":
+      return WebSocketMessageKind.WEBSOCKET_MESSAGE_KIND_UNSPECIFIED;
+    case 1:
+    case "WEBSOCKET_MESSAGE_KIND_TEXT":
+      return WebSocketMessageKind.WEBSOCKET_MESSAGE_KIND_TEXT;
+    case 2:
+    case "WEBSOCKET_MESSAGE_KIND_BINARY":
+      return WebSocketMessageKind.WEBSOCKET_MESSAGE_KIND_BINARY;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return WebSocketMessageKind.UNRECOGNIZED;
+  }
+}
+
+export function webSocketMessageKindToJSON(object: WebSocketMessageKind): string {
+  switch (object) {
+    case WebSocketMessageKind.WEBSOCKET_MESSAGE_KIND_UNSPECIFIED:
+      return "WEBSOCKET_MESSAGE_KIND_UNSPECIFIED";
+    case WebSocketMessageKind.WEBSOCKET_MESSAGE_KIND_TEXT:
+      return "WEBSOCKET_MESSAGE_KIND_TEXT";
+    case WebSocketMessageKind.WEBSOCKET_MESSAGE_KIND_BINARY:
+      return "WEBSOCKET_MESSAGE_KIND_BINARY";
+    case WebSocketMessageKind.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export interface CallRequest {
   capability: string;
   payload: Uint8Array;
@@ -178,6 +220,7 @@ export interface StreamOpen {
   transport: StreamTransport;
   connectionId: string;
   contextJson: Uint8Array;
+  mode?: InvocationMode | undefined;
 }
 
 export interface StreamData {
@@ -189,6 +232,40 @@ export interface StreamClose {
   code: StreamCloseCode;
 }
 
+export interface HttpRequestChunk {
+  payload: Uint8Array;
+  endStream: boolean;
+}
+
+export interface HttpResponseStart {
+  statusCode: number;
+  metadataJson: Uint8Array;
+}
+
+export interface HttpResponseChunk {
+  payload: Uint8Array;
+  endStream: boolean;
+}
+
+export interface WebSocketHandshakeResult {
+  accepted: boolean;
+  subprotocol: string;
+  metadataJson: Uint8Array;
+}
+
+export interface WebSocketMessage {
+  kind: WebSocketMessageKind;
+  payload: Uint8Array;
+  direction: StreamDirection;
+}
+
+export interface SseEvent {
+  data: string;
+  event: string;
+  id: string;
+  retryMillis?: number | undefined;
+}
+
 export interface StreamMessage {
   capability: string;
   /** Deprecated untyped payload. Use data for L4 bytes. */
@@ -197,6 +274,12 @@ export interface StreamMessage {
   open?: StreamOpen | undefined;
   data?: StreamData | undefined;
   close?: StreamClose | undefined;
+  httpRequestChunk?: HttpRequestChunk | undefined;
+  httpResponseStart?: HttpResponseStart | undefined;
+  httpResponseChunk?: HttpResponseChunk | undefined;
+  websocketHandshake?: WebSocketHandshakeResult | undefined;
+  websocketMessage?: WebSocketMessage | undefined;
+  sseEvent?: SseEvent | undefined;
 }
 
 function createBaseCallRequest(): CallRequest {
@@ -618,7 +701,7 @@ export const PluginEvent_FieldsEntry: MessageFns<PluginEvent_FieldsEntry> = {
 };
 
 function createBaseStreamOpen(): StreamOpen {
-  return { transport: 0, connectionId: "", contextJson: new Uint8Array(0) };
+  return { transport: 0, connectionId: "", contextJson: new Uint8Array(0), mode: undefined };
 }
 
 export const StreamOpen: MessageFns<StreamOpen> = {
@@ -631,6 +714,9 @@ export const StreamOpen: MessageFns<StreamOpen> = {
     }
     if (message.contextJson.length !== 0) {
       writer.uint32(26).bytes(message.contextJson);
+    }
+    if (message.mode !== undefined) {
+      writer.uint32(32).int32(message.mode);
     }
     return writer;
   },
@@ -672,6 +758,14 @@ export const StreamOpen: MessageFns<StreamOpen> = {
             message.contextJson = reader.bytes();
             continue;
           }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.mode = reader.int32() as any;
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -697,6 +791,7 @@ export const StreamOpen: MessageFns<StreamOpen> = {
         : isSet(object.context_json)
         ? bytesFromBase64(object.context_json)
         : new Uint8Array(0),
+      mode: isSet(object.mode) ? invocationModeFromJSON(object.mode) : undefined,
     };
   },
 
@@ -711,6 +806,9 @@ export const StreamOpen: MessageFns<StreamOpen> = {
     if (message.contextJson.length !== 0) {
       obj.contextJson = base64FromBytes(message.contextJson);
     }
+    if (message.mode !== undefined) {
+      obj.mode = invocationModeToJSON(message.mode);
+    }
     return obj;
   },
 
@@ -722,6 +820,7 @@ export const StreamOpen: MessageFns<StreamOpen> = {
     message.transport = object.transport ?? 0;
     message.connectionId = object.connectionId ?? "";
     message.contextJson = object.contextJson ?? new Uint8Array(0);
+    message.mode = object.mode ?? undefined;
     return message;
   },
 };
@@ -878,8 +977,619 @@ export const StreamClose: MessageFns<StreamClose> = {
   },
 };
 
+function createBaseHttpRequestChunk(): HttpRequestChunk {
+  return { payload: new Uint8Array(0), endStream: false };
+}
+
+export const HttpRequestChunk: MessageFns<HttpRequestChunk> = {
+  encode(message: HttpRequestChunk, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.payload.length !== 0) {
+      writer.uint32(10).bytes(message.payload);
+    }
+    if (message.endStream !== false) {
+      writer.uint32(16).bool(message.endStream);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HttpRequestChunk {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHttpRequestChunk();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.payload = reader.bytes();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.endStream = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HttpRequestChunk {
+    return {
+      payload: isSet(object.payload) ? bytesFromBase64(object.payload) : new Uint8Array(0),
+      endStream: isSet(object.endStream)
+        ? globalThis.Boolean(object.endStream)
+        : isSet(object.end_stream)
+        ? globalThis.Boolean(object.end_stream)
+        : false,
+    };
+  },
+
+  toJSON(message: HttpRequestChunk): unknown {
+    const obj: any = {};
+    if (message.payload.length !== 0) {
+      obj.payload = base64FromBytes(message.payload);
+    }
+    if (message.endStream !== false) {
+      obj.endStream = message.endStream;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<HttpRequestChunk>, I>>(base?: I): HttpRequestChunk {
+    return HttpRequestChunk.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<HttpRequestChunk>, I>>(object: I): HttpRequestChunk {
+    const message = createBaseHttpRequestChunk();
+    message.payload = object.payload ?? new Uint8Array(0);
+    message.endStream = object.endStream ?? false;
+    return message;
+  },
+};
+
+function createBaseHttpResponseStart(): HttpResponseStart {
+  return { statusCode: 0, metadataJson: new Uint8Array(0) };
+}
+
+export const HttpResponseStart: MessageFns<HttpResponseStart> = {
+  encode(message: HttpResponseStart, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.statusCode !== 0) {
+      writer.uint32(8).uint32(message.statusCode);
+    }
+    if (message.metadataJson.length !== 0) {
+      writer.uint32(18).bytes(message.metadataJson);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HttpResponseStart {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHttpResponseStart();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.statusCode = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.metadataJson = reader.bytes();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HttpResponseStart {
+    return {
+      statusCode: isSet(object.statusCode)
+        ? globalThis.Number(object.statusCode)
+        : isSet(object.status_code)
+        ? globalThis.Number(object.status_code)
+        : 0,
+      metadataJson: isSet(object.metadataJson)
+        ? bytesFromBase64(object.metadataJson)
+        : isSet(object.metadata_json)
+        ? bytesFromBase64(object.metadata_json)
+        : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: HttpResponseStart): unknown {
+    const obj: any = {};
+    if (message.statusCode !== 0) {
+      obj.statusCode = Math.round(message.statusCode);
+    }
+    if (message.metadataJson.length !== 0) {
+      obj.metadataJson = base64FromBytes(message.metadataJson);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<HttpResponseStart>, I>>(base?: I): HttpResponseStart {
+    return HttpResponseStart.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<HttpResponseStart>, I>>(object: I): HttpResponseStart {
+    const message = createBaseHttpResponseStart();
+    message.statusCode = object.statusCode ?? 0;
+    message.metadataJson = object.metadataJson ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+function createBaseHttpResponseChunk(): HttpResponseChunk {
+  return { payload: new Uint8Array(0), endStream: false };
+}
+
+export const HttpResponseChunk: MessageFns<HttpResponseChunk> = {
+  encode(message: HttpResponseChunk, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.payload.length !== 0) {
+      writer.uint32(10).bytes(message.payload);
+    }
+    if (message.endStream !== false) {
+      writer.uint32(16).bool(message.endStream);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HttpResponseChunk {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHttpResponseChunk();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.payload = reader.bytes();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.endStream = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HttpResponseChunk {
+    return {
+      payload: isSet(object.payload) ? bytesFromBase64(object.payload) : new Uint8Array(0),
+      endStream: isSet(object.endStream)
+        ? globalThis.Boolean(object.endStream)
+        : isSet(object.end_stream)
+        ? globalThis.Boolean(object.end_stream)
+        : false,
+    };
+  },
+
+  toJSON(message: HttpResponseChunk): unknown {
+    const obj: any = {};
+    if (message.payload.length !== 0) {
+      obj.payload = base64FromBytes(message.payload);
+    }
+    if (message.endStream !== false) {
+      obj.endStream = message.endStream;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<HttpResponseChunk>, I>>(base?: I): HttpResponseChunk {
+    return HttpResponseChunk.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<HttpResponseChunk>, I>>(object: I): HttpResponseChunk {
+    const message = createBaseHttpResponseChunk();
+    message.payload = object.payload ?? new Uint8Array(0);
+    message.endStream = object.endStream ?? false;
+    return message;
+  },
+};
+
+function createBaseWebSocketHandshakeResult(): WebSocketHandshakeResult {
+  return { accepted: false, subprotocol: "", metadataJson: new Uint8Array(0) };
+}
+
+export const WebSocketHandshakeResult: MessageFns<WebSocketHandshakeResult> = {
+  encode(message: WebSocketHandshakeResult, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.accepted !== false) {
+      writer.uint32(8).bool(message.accepted);
+    }
+    if (message.subprotocol !== "") {
+      writer.uint32(18).string(message.subprotocol);
+    }
+    if (message.metadataJson.length !== 0) {
+      writer.uint32(26).bytes(message.metadataJson);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WebSocketHandshakeResult {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWebSocketHandshakeResult();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.accepted = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.subprotocol = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.metadataJson = reader.bytes();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WebSocketHandshakeResult {
+    return {
+      accepted: isSet(object.accepted) ? globalThis.Boolean(object.accepted) : false,
+      subprotocol: isSet(object.subprotocol) ? globalThis.String(object.subprotocol) : "",
+      metadataJson: isSet(object.metadataJson)
+        ? bytesFromBase64(object.metadataJson)
+        : isSet(object.metadata_json)
+        ? bytesFromBase64(object.metadata_json)
+        : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: WebSocketHandshakeResult): unknown {
+    const obj: any = {};
+    if (message.accepted !== false) {
+      obj.accepted = message.accepted;
+    }
+    if (message.subprotocol !== "") {
+      obj.subprotocol = message.subprotocol;
+    }
+    if (message.metadataJson.length !== 0) {
+      obj.metadataJson = base64FromBytes(message.metadataJson);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<WebSocketHandshakeResult>, I>>(base?: I): WebSocketHandshakeResult {
+    return WebSocketHandshakeResult.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<WebSocketHandshakeResult>, I>>(object: I): WebSocketHandshakeResult {
+    const message = createBaseWebSocketHandshakeResult();
+    message.accepted = object.accepted ?? false;
+    message.subprotocol = object.subprotocol ?? "";
+    message.metadataJson = object.metadataJson ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+function createBaseWebSocketMessage(): WebSocketMessage {
+  return { kind: 0, payload: new Uint8Array(0), direction: 0 };
+}
+
+export const WebSocketMessage: MessageFns<WebSocketMessage> = {
+  encode(message: WebSocketMessage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.kind !== 0) {
+      writer.uint32(8).int32(message.kind);
+    }
+    if (message.payload.length !== 0) {
+      writer.uint32(18).bytes(message.payload);
+    }
+    if (message.direction !== 0) {
+      writer.uint32(24).int32(message.direction);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WebSocketMessage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWebSocketMessage();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.kind = reader.int32() as any;
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.payload = reader.bytes();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.direction = reader.int32() as any;
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WebSocketMessage {
+    return {
+      kind: isSet(object.kind) ? webSocketMessageKindFromJSON(object.kind) : 0,
+      payload: isSet(object.payload) ? bytesFromBase64(object.payload) : new Uint8Array(0),
+      direction: isSet(object.direction) ? streamDirectionFromJSON(object.direction) : 0,
+    };
+  },
+
+  toJSON(message: WebSocketMessage): unknown {
+    const obj: any = {};
+    if (message.kind !== 0) {
+      obj.kind = webSocketMessageKindToJSON(message.kind);
+    }
+    if (message.payload.length !== 0) {
+      obj.payload = base64FromBytes(message.payload);
+    }
+    if (message.direction !== 0) {
+      obj.direction = streamDirectionToJSON(message.direction);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<WebSocketMessage>, I>>(base?: I): WebSocketMessage {
+    return WebSocketMessage.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<WebSocketMessage>, I>>(object: I): WebSocketMessage {
+    const message = createBaseWebSocketMessage();
+    message.kind = object.kind ?? 0;
+    message.payload = object.payload ?? new Uint8Array(0);
+    message.direction = object.direction ?? 0;
+    return message;
+  },
+};
+
+function createBaseSseEvent(): SseEvent {
+  return { data: "", event: "", id: "", retryMillis: undefined };
+}
+
+export const SseEvent: MessageFns<SseEvent> = {
+  encode(message: SseEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.data !== "") {
+      writer.uint32(10).string(message.data);
+    }
+    if (message.event !== "") {
+      writer.uint32(18).string(message.event);
+    }
+    if (message.id !== "") {
+      writer.uint32(26).string(message.id);
+    }
+    if (message.retryMillis !== undefined) {
+      writer.uint32(32).uint32(message.retryMillis);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SseEvent {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSseEvent();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.data = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.event = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.id = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.retryMillis = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SseEvent {
+    return {
+      data: isSet(object.data) ? globalThis.String(object.data) : "",
+      event: isSet(object.event) ? globalThis.String(object.event) : "",
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      retryMillis: isSet(object.retryMillis)
+        ? globalThis.Number(object.retryMillis)
+        : isSet(object.retry_millis)
+        ? globalThis.Number(object.retry_millis)
+        : undefined,
+    };
+  },
+
+  toJSON(message: SseEvent): unknown {
+    const obj: any = {};
+    if (message.data !== "") {
+      obj.data = message.data;
+    }
+    if (message.event !== "") {
+      obj.event = message.event;
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.retryMillis !== undefined) {
+      obj.retryMillis = Math.round(message.retryMillis);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SseEvent>, I>>(base?: I): SseEvent {
+    return SseEvent.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SseEvent>, I>>(object: I): SseEvent {
+    const message = createBaseSseEvent();
+    message.data = object.data ?? "";
+    message.event = object.event ?? "";
+    message.id = object.id ?? "";
+    message.retryMillis = object.retryMillis ?? undefined;
+    return message;
+  },
+};
+
 function createBaseStreamMessage(): StreamMessage {
-  return { capability: "", payload: undefined, event: undefined, open: undefined, data: undefined, close: undefined };
+  return {
+    capability: "",
+    payload: undefined,
+    event: undefined,
+    open: undefined,
+    data: undefined,
+    close: undefined,
+    httpRequestChunk: undefined,
+    httpResponseStart: undefined,
+    httpResponseChunk: undefined,
+    websocketHandshake: undefined,
+    websocketMessage: undefined,
+    sseEvent: undefined,
+  };
 }
 
 export const StreamMessage: MessageFns<StreamMessage> = {
@@ -901,6 +1611,24 @@ export const StreamMessage: MessageFns<StreamMessage> = {
     }
     if (message.close !== undefined) {
       StreamClose.encode(message.close, writer.uint32(50).fork()).join();
+    }
+    if (message.httpRequestChunk !== undefined) {
+      HttpRequestChunk.encode(message.httpRequestChunk, writer.uint32(58).fork()).join();
+    }
+    if (message.httpResponseStart !== undefined) {
+      HttpResponseStart.encode(message.httpResponseStart, writer.uint32(66).fork()).join();
+    }
+    if (message.httpResponseChunk !== undefined) {
+      HttpResponseChunk.encode(message.httpResponseChunk, writer.uint32(74).fork()).join();
+    }
+    if (message.websocketHandshake !== undefined) {
+      WebSocketHandshakeResult.encode(message.websocketHandshake, writer.uint32(82).fork()).join();
+    }
+    if (message.websocketMessage !== undefined) {
+      WebSocketMessage.encode(message.websocketMessage, writer.uint32(90).fork()).join();
+    }
+    if (message.sseEvent !== undefined) {
+      SseEvent.encode(message.sseEvent, writer.uint32(98).fork()).join();
     }
     return writer;
   },
@@ -966,6 +1694,54 @@ export const StreamMessage: MessageFns<StreamMessage> = {
             message.close = StreamClose.decode(reader, reader.uint32());
             continue;
           }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.httpRequestChunk = HttpRequestChunk.decode(reader, reader.uint32());
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.httpResponseStart = HttpResponseStart.decode(reader, reader.uint32());
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.httpResponseChunk = HttpResponseChunk.decode(reader, reader.uint32());
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.websocketHandshake = WebSocketHandshakeResult.decode(reader, reader.uint32());
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.websocketMessage = WebSocketMessage.decode(reader, reader.uint32());
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.sseEvent = SseEvent.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -986,6 +1762,36 @@ export const StreamMessage: MessageFns<StreamMessage> = {
       open: isSet(object.open) ? StreamOpen.fromJSON(object.open) : undefined,
       data: isSet(object.data) ? StreamData.fromJSON(object.data) : undefined,
       close: isSet(object.close) ? StreamClose.fromJSON(object.close) : undefined,
+      httpRequestChunk: isSet(object.httpRequestChunk)
+        ? HttpRequestChunk.fromJSON(object.httpRequestChunk)
+        : isSet(object.http_request_chunk)
+        ? HttpRequestChunk.fromJSON(object.http_request_chunk)
+        : undefined,
+      httpResponseStart: isSet(object.httpResponseStart)
+        ? HttpResponseStart.fromJSON(object.httpResponseStart)
+        : isSet(object.http_response_start)
+        ? HttpResponseStart.fromJSON(object.http_response_start)
+        : undefined,
+      httpResponseChunk: isSet(object.httpResponseChunk)
+        ? HttpResponseChunk.fromJSON(object.httpResponseChunk)
+        : isSet(object.http_response_chunk)
+        ? HttpResponseChunk.fromJSON(object.http_response_chunk)
+        : undefined,
+      websocketHandshake: isSet(object.websocketHandshake)
+        ? WebSocketHandshakeResult.fromJSON(object.websocketHandshake)
+        : isSet(object.websocket_handshake)
+        ? WebSocketHandshakeResult.fromJSON(object.websocket_handshake)
+        : undefined,
+      websocketMessage: isSet(object.websocketMessage)
+        ? WebSocketMessage.fromJSON(object.websocketMessage)
+        : isSet(object.websocket_message)
+        ? WebSocketMessage.fromJSON(object.websocket_message)
+        : undefined,
+      sseEvent: isSet(object.sseEvent)
+        ? SseEvent.fromJSON(object.sseEvent)
+        : isSet(object.sse_event)
+        ? SseEvent.fromJSON(object.sse_event)
+        : undefined,
     };
   },
 
@@ -1009,6 +1815,24 @@ export const StreamMessage: MessageFns<StreamMessage> = {
     if (message.close !== undefined) {
       obj.close = StreamClose.toJSON(message.close);
     }
+    if (message.httpRequestChunk !== undefined) {
+      obj.httpRequestChunk = HttpRequestChunk.toJSON(message.httpRequestChunk);
+    }
+    if (message.httpResponseStart !== undefined) {
+      obj.httpResponseStart = HttpResponseStart.toJSON(message.httpResponseStart);
+    }
+    if (message.httpResponseChunk !== undefined) {
+      obj.httpResponseChunk = HttpResponseChunk.toJSON(message.httpResponseChunk);
+    }
+    if (message.websocketHandshake !== undefined) {
+      obj.websocketHandshake = WebSocketHandshakeResult.toJSON(message.websocketHandshake);
+    }
+    if (message.websocketMessage !== undefined) {
+      obj.websocketMessage = WebSocketMessage.toJSON(message.websocketMessage);
+    }
+    if (message.sseEvent !== undefined) {
+      obj.sseEvent = SseEvent.toJSON(message.sseEvent);
+    }
     return obj;
   },
 
@@ -1030,6 +1854,24 @@ export const StreamMessage: MessageFns<StreamMessage> = {
       : undefined;
     message.close = (object.close !== undefined && object.close !== null)
       ? StreamClose.fromPartial(object.close)
+      : undefined;
+    message.httpRequestChunk = (object.httpRequestChunk !== undefined && object.httpRequestChunk !== null)
+      ? HttpRequestChunk.fromPartial(object.httpRequestChunk)
+      : undefined;
+    message.httpResponseStart = (object.httpResponseStart !== undefined && object.httpResponseStart !== null)
+      ? HttpResponseStart.fromPartial(object.httpResponseStart)
+      : undefined;
+    message.httpResponseChunk = (object.httpResponseChunk !== undefined && object.httpResponseChunk !== null)
+      ? HttpResponseChunk.fromPartial(object.httpResponseChunk)
+      : undefined;
+    message.websocketHandshake = (object.websocketHandshake !== undefined && object.websocketHandshake !== null)
+      ? WebSocketHandshakeResult.fromPartial(object.websocketHandshake)
+      : undefined;
+    message.websocketMessage = (object.websocketMessage !== undefined && object.websocketMessage !== null)
+      ? WebSocketMessage.fromPartial(object.websocketMessage)
+      : undefined;
+    message.sseEvent = (object.sseEvent !== undefined && object.sseEvent !== null)
+      ? SseEvent.fromPartial(object.sseEvent)
       : undefined;
     return message;
   },

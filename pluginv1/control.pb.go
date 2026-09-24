@@ -21,6 +21,67 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type InvocationMode int32
+
+const (
+	InvocationMode_INVOCATION_MODE_UNSPECIFIED InvocationMode = 0
+	InvocationMode_INVOCATION_MODE_CALL        InvocationMode = 1
+	InvocationMode_INVOCATION_MODE_HTTP_STREAM InvocationMode = 2
+	InvocationMode_INVOCATION_MODE_WEBSOCKET   InvocationMode = 3
+	InvocationMode_INVOCATION_MODE_SSE         InvocationMode = 4
+	InvocationMode_INVOCATION_MODE_TCP         InvocationMode = 5
+	InvocationMode_INVOCATION_MODE_UDP         InvocationMode = 6
+)
+
+// Enum value maps for InvocationMode.
+var (
+	InvocationMode_name = map[int32]string{
+		0: "INVOCATION_MODE_UNSPECIFIED",
+		1: "INVOCATION_MODE_CALL",
+		2: "INVOCATION_MODE_HTTP_STREAM",
+		3: "INVOCATION_MODE_WEBSOCKET",
+		4: "INVOCATION_MODE_SSE",
+		5: "INVOCATION_MODE_TCP",
+		6: "INVOCATION_MODE_UDP",
+	}
+	InvocationMode_value = map[string]int32{
+		"INVOCATION_MODE_UNSPECIFIED": 0,
+		"INVOCATION_MODE_CALL":        1,
+		"INVOCATION_MODE_HTTP_STREAM": 2,
+		"INVOCATION_MODE_WEBSOCKET":   3,
+		"INVOCATION_MODE_SSE":         4,
+		"INVOCATION_MODE_TCP":         5,
+		"INVOCATION_MODE_UDP":         6,
+	}
+)
+
+func (x InvocationMode) Enum() *InvocationMode {
+	p := new(InvocationMode)
+	*p = x
+	return p
+}
+
+func (x InvocationMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (InvocationMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_liapoldus_plugin_v1_control_proto_enumTypes[0].Descriptor()
+}
+
+func (InvocationMode) Type() protoreflect.EnumType {
+	return &file_liapoldus_plugin_v1_control_proto_enumTypes[0]
+}
+
+func (x InvocationMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use InvocationMode.Descriptor instead.
+func (InvocationMode) EnumDescriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{0}
+}
+
 type ManifestRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -58,12 +119,13 @@ func (*ManifestRequest) Descriptor() ([]byte, []int) {
 }
 
 type Manifest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Name            string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Capabilities    []string               `protobuf:"bytes,2,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	ProtocolVersion string                 `protobuf:"bytes,3,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                 protoimpl.MessageState  `protogen:"open.v1"`
+	Name                  string                  `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Capabilities          []string                `protobuf:"bytes,2,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	ProtocolVersion       string                  `protobuf:"bytes,3,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	CapabilityDescriptors []*CapabilityDescriptor `protobuf:"bytes,4,rep,name=capability_descriptors,json=capabilityDescriptors,proto3" json:"capability_descriptors,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Manifest) Reset() {
@@ -117,6 +179,65 @@ func (x *Manifest) GetProtocolVersion() string {
 	return ""
 }
 
+func (x *Manifest) GetCapabilityDescriptors() []*CapabilityDescriptor {
+	if x != nil {
+		return x.CapabilityDescriptors
+	}
+	return nil
+}
+
+type CapabilityDescriptor struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Capability    string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
+	Modes         []InvocationMode       `protobuf:"varint,2,rep,packed,name=modes,proto3,enum=liapoldus.plugin.v1.InvocationMode" json:"modes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CapabilityDescriptor) Reset() {
+	*x = CapabilityDescriptor{}
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CapabilityDescriptor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CapabilityDescriptor) ProtoMessage() {}
+
+func (x *CapabilityDescriptor) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CapabilityDescriptor.ProtoReflect.Descriptor instead.
+func (*CapabilityDescriptor) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CapabilityDescriptor) GetCapability() string {
+	if x != nil {
+		return x.Capability
+	}
+	return ""
+}
+
+func (x *CapabilityDescriptor) GetModes() []InvocationMode {
+	if x != nil {
+		return x.Modes
+	}
+	return nil
+}
+
 type ConfigSchemaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -125,7 +246,7 @@ type ConfigSchemaRequest struct {
 
 func (x *ConfigSchemaRequest) Reset() {
 	*x = ConfigSchemaRequest{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[2]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -137,7 +258,7 @@ func (x *ConfigSchemaRequest) String() string {
 func (*ConfigSchemaRequest) ProtoMessage() {}
 
 func (x *ConfigSchemaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[2]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -150,7 +271,7 @@ func (x *ConfigSchemaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSchemaRequest.ProtoReflect.Descriptor instead.
 func (*ConfigSchemaRequest) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{2}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{3}
 }
 
 type ConfigField struct {
@@ -167,7 +288,7 @@ type ConfigField struct {
 
 func (x *ConfigField) Reset() {
 	*x = ConfigField{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[3]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -179,7 +300,7 @@ func (x *ConfigField) String() string {
 func (*ConfigField) ProtoMessage() {}
 
 func (x *ConfigField) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[3]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -192,7 +313,7 @@ func (x *ConfigField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigField.ProtoReflect.Descriptor instead.
 func (*ConfigField) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{3}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ConfigField) GetName() string {
@@ -246,7 +367,7 @@ type ConfigSchema struct {
 
 func (x *ConfigSchema) Reset() {
 	*x = ConfigSchema{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[4]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -258,7 +379,7 @@ func (x *ConfigSchema) String() string {
 func (*ConfigSchema) ProtoMessage() {}
 
 func (x *ConfigSchema) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[4]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -271,7 +392,7 @@ func (x *ConfigSchema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSchema.ProtoReflect.Descriptor instead.
 func (*ConfigSchema) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{4}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ConfigSchema) GetFields() []*ConfigField {
@@ -290,7 +411,7 @@ type ConfigApplyRequest struct {
 
 func (x *ConfigApplyRequest) Reset() {
 	*x = ConfigApplyRequest{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[5]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -302,7 +423,7 @@ func (x *ConfigApplyRequest) String() string {
 func (*ConfigApplyRequest) ProtoMessage() {}
 
 func (x *ConfigApplyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[5]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -315,7 +436,7 @@ func (x *ConfigApplyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigApplyRequest.ProtoReflect.Descriptor instead.
 func (*ConfigApplyRequest) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{5}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ConfigApplyRequest) GetConfig() []byte {
@@ -334,7 +455,7 @@ type ConfigApplyResult struct {
 
 func (x *ConfigApplyResult) Reset() {
 	*x = ConfigApplyResult{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[6]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +467,7 @@ func (x *ConfigApplyResult) String() string {
 func (*ConfigApplyResult) ProtoMessage() {}
 
 func (x *ConfigApplyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[6]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +480,7 @@ func (x *ConfigApplyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigApplyResult.ProtoReflect.Descriptor instead.
 func (*ConfigApplyResult) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{6}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ConfigApplyResult) GetApplied() bool {
@@ -377,7 +498,7 @@ type ShutdownRequest struct {
 
 func (x *ShutdownRequest) Reset() {
 	*x = ShutdownRequest{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[7]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -389,7 +510,7 @@ func (x *ShutdownRequest) String() string {
 func (*ShutdownRequest) ProtoMessage() {}
 
 func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[7]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -402,7 +523,7 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{7}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{8}
 }
 
 type ShutdownResult struct {
@@ -414,7 +535,7 @@ type ShutdownResult struct {
 
 func (x *ShutdownResult) Reset() {
 	*x = ShutdownResult{}
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[8]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -426,7 +547,7 @@ func (x *ShutdownResult) String() string {
 func (*ShutdownResult) ProtoMessage() {}
 
 func (x *ShutdownResult) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[8]
+	mi := &file_liapoldus_plugin_v1_control_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -439,7 +560,7 @@ func (x *ShutdownResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownResult.ProtoReflect.Descriptor instead.
 func (*ShutdownResult) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{8}
+	return file_liapoldus_plugin_v1_control_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ShutdownResult) GetClosed() bool {
@@ -454,11 +575,17 @@ var File_liapoldus_plugin_v1_control_proto protoreflect.FileDescriptor
 const file_liapoldus_plugin_v1_control_proto_rawDesc = "" +
 	"\n" +
 	"!liapoldus/plugin/v1/control.proto\x12\x13liapoldus.plugin.v1\"\x11\n" +
-	"\x0fManifestRequest\"m\n" +
+	"\x0fManifestRequest\"\xcf\x01\n" +
 	"\bManifest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\"\n" +
 	"\fcapabilities\x18\x02 \x03(\tR\fcapabilities\x12)\n" +
-	"\x10protocol_version\x18\x03 \x01(\tR\x0fprotocolVersion\"\x15\n" +
+	"\x10protocol_version\x18\x03 \x01(\tR\x0fprotocolVersion\x12`\n" +
+	"\x16capability_descriptors\x18\x04 \x03(\v2).liapoldus.plugin.v1.CapabilityDescriptorR\x15capabilityDescriptors\"q\n" +
+	"\x14CapabilityDescriptor\x12\x1e\n" +
+	"\n" +
+	"capability\x18\x01 \x01(\tR\n" +
+	"capability\x129\n" +
+	"\x05modes\x18\x02 \x03(\x0e2#.liapoldus.plugin.v1.InvocationModeR\x05modes\"\x15\n" +
 	"\x13ConfigSchemaRequest\"\xb0\x01\n" +
 	"\vConfigField\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
@@ -475,7 +602,15 @@ const file_liapoldus_plugin_v1_control_proto_rawDesc = "" +
 	"\aapplied\x18\x01 \x01(\bR\aapplied\"\x11\n" +
 	"\x0fShutdownRequest\"(\n" +
 	"\x0eShutdownResult\x12\x16\n" +
-	"\x06closed\x18\x01 \x01(\bR\x06closedB7Z5github.com/Liapoldus/pluginprotocol/pluginv1;pluginv1b\x06proto3"
+	"\x06closed\x18\x01 \x01(\bR\x06closed*\xd6\x01\n" +
+	"\x0eInvocationMode\x12\x1f\n" +
+	"\x1bINVOCATION_MODE_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14INVOCATION_MODE_CALL\x10\x01\x12\x1f\n" +
+	"\x1bINVOCATION_MODE_HTTP_STREAM\x10\x02\x12\x1d\n" +
+	"\x19INVOCATION_MODE_WEBSOCKET\x10\x03\x12\x17\n" +
+	"\x13INVOCATION_MODE_SSE\x10\x04\x12\x17\n" +
+	"\x13INVOCATION_MODE_TCP\x10\x05\x12\x17\n" +
+	"\x13INVOCATION_MODE_UDP\x10\x06B7Z5github.com/Liapoldus/pluginprotocol/pluginv1;pluginv1b\x06proto3"
 
 var (
 	file_liapoldus_plugin_v1_control_proto_rawDescOnce sync.Once
@@ -489,25 +624,30 @@ func file_liapoldus_plugin_v1_control_proto_rawDescGZIP() []byte {
 	return file_liapoldus_plugin_v1_control_proto_rawDescData
 }
 
-var file_liapoldus_plugin_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_liapoldus_plugin_v1_control_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_liapoldus_plugin_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_liapoldus_plugin_v1_control_proto_goTypes = []any{
-	(*ManifestRequest)(nil),     // 0: liapoldus.plugin.v1.ManifestRequest
-	(*Manifest)(nil),            // 1: liapoldus.plugin.v1.Manifest
-	(*ConfigSchemaRequest)(nil), // 2: liapoldus.plugin.v1.ConfigSchemaRequest
-	(*ConfigField)(nil),         // 3: liapoldus.plugin.v1.ConfigField
-	(*ConfigSchema)(nil),        // 4: liapoldus.plugin.v1.ConfigSchema
-	(*ConfigApplyRequest)(nil),  // 5: liapoldus.plugin.v1.ConfigApplyRequest
-	(*ConfigApplyResult)(nil),   // 6: liapoldus.plugin.v1.ConfigApplyResult
-	(*ShutdownRequest)(nil),     // 7: liapoldus.plugin.v1.ShutdownRequest
-	(*ShutdownResult)(nil),      // 8: liapoldus.plugin.v1.ShutdownResult
+	(InvocationMode)(0),          // 0: liapoldus.plugin.v1.InvocationMode
+	(*ManifestRequest)(nil),      // 1: liapoldus.plugin.v1.ManifestRequest
+	(*Manifest)(nil),             // 2: liapoldus.plugin.v1.Manifest
+	(*CapabilityDescriptor)(nil), // 3: liapoldus.plugin.v1.CapabilityDescriptor
+	(*ConfigSchemaRequest)(nil),  // 4: liapoldus.plugin.v1.ConfigSchemaRequest
+	(*ConfigField)(nil),          // 5: liapoldus.plugin.v1.ConfigField
+	(*ConfigSchema)(nil),         // 6: liapoldus.plugin.v1.ConfigSchema
+	(*ConfigApplyRequest)(nil),   // 7: liapoldus.plugin.v1.ConfigApplyRequest
+	(*ConfigApplyResult)(nil),    // 8: liapoldus.plugin.v1.ConfigApplyResult
+	(*ShutdownRequest)(nil),      // 9: liapoldus.plugin.v1.ShutdownRequest
+	(*ShutdownResult)(nil),       // 10: liapoldus.plugin.v1.ShutdownResult
 }
 var file_liapoldus_plugin_v1_control_proto_depIdxs = []int32{
-	3, // 0: liapoldus.plugin.v1.ConfigSchema.fields:type_name -> liapoldus.plugin.v1.ConfigField
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 0: liapoldus.plugin.v1.Manifest.capability_descriptors:type_name -> liapoldus.plugin.v1.CapabilityDescriptor
+	0, // 1: liapoldus.plugin.v1.CapabilityDescriptor.modes:type_name -> liapoldus.plugin.v1.InvocationMode
+	5, // 2: liapoldus.plugin.v1.ConfigSchema.fields:type_name -> liapoldus.plugin.v1.ConfigField
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_liapoldus_plugin_v1_control_proto_init() }
@@ -520,13 +660,14 @@ func file_liapoldus_plugin_v1_control_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_liapoldus_plugin_v1_control_proto_rawDesc), len(file_liapoldus_plugin_v1_control_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   9,
+			NumEnums:      1,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_liapoldus_plugin_v1_control_proto_goTypes,
 		DependencyIndexes: file_liapoldus_plugin_v1_control_proto_depIdxs,
+		EnumInfos:         file_liapoldus_plugin_v1_control_proto_enumTypes,
 		MessageInfos:      file_liapoldus_plugin_v1_control_proto_msgTypes,
 	}.Build()
 	File_liapoldus_plugin_v1_control_proto = out.File

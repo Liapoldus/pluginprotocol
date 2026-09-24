@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 type fixture struct {
@@ -51,7 +52,19 @@ func (f *fixture) Manifest(context.Context, *pluginv1.ManifestRequest) (*pluginv
 	return &pluginv1.Manifest{
 		Name:            name,
 		ProtocolVersion: protocolVersion,
-		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow", "forms.delay", "forms.cancelled"},
+		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow", "forms.delay", "forms.cancelled", "peer.session"},
+		CapabilityDescriptors: []*pluginv1.CapabilityDescriptor{
+			{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL}},
+			{Capability: "forms.live", Modes: []pluginv1.InvocationMode{
+				pluginv1.InvocationMode_INVOCATION_MODE_HTTP_STREAM,
+				pluginv1.InvocationMode_INVOCATION_MODE_WEBSOCKET,
+				pluginv1.InvocationMode_INVOCATION_MODE_SSE,
+			}},
+			{Capability: "peer.session", Modes: []pluginv1.InvocationMode{
+				pluginv1.InvocationMode_INVOCATION_MODE_TCP,
+				pluginv1.InvocationMode_INVOCATION_MODE_UDP,
+			}},
+		},
 	}, nil
 }
 
@@ -116,6 +129,9 @@ func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*plu
 
 func (*fixture) Stream(stream grpc.BidiStreamingServer[pluginv1.StreamMessage, pluginv1.StreamMessage]) error {
 	opened := false
+	mode := pluginv1.InvocationMode_INVOCATION_MODE_UNSPECIFIED
+	responseStarted := false
+	websocketAccepted := false
 	for {
 		message, err := stream.Recv()
 		if err != nil {
@@ -129,10 +145,48 @@ func (*fixture) Stream(stream grpc.BidiStreamingServer[pluginv1.StreamMessage, p
 			if opened || body.Open.GetConnectionId() == "" || !json.Valid(body.Open.GetContextJson()) {
 				return status.Error(codes.InvalidArgument, "invalid stream open")
 			}
-			if body.Open.GetTransport() != pluginv1.StreamTransport_STREAM_TRANSPORT_TCP && body.Open.GetTransport() != pluginv1.StreamTransport_STREAM_TRANSPORT_UDP {
-				return status.Error(codes.InvalidArgument, "invalid stream transport")
-			}
 			opened = true
+			mode = body.Open.GetMode()
+			switch body.Open.GetMode() {
+			case pluginv1.InvocationMode_INVOCATION_MODE_HTTP_STREAM:
+				if body.Open.GetTransport() != pluginv1.StreamTransport_STREAM_TRANSPORT_UNSPECIFIED {
+					return status.Error(codes.InvalidArgument, "invalid HTTP stream transport")
+				}
+			case pluginv1.InvocationMode_INVOCATION_MODE_WEBSOCKET:
+				var context struct {
+					OfferedSubprotocols []string `json:"offeredSubprotocols"`
+				}
+				if err := json.Unmarshal(body.Open.GetContextJson(), &context); err != nil {
+					return status.Error(codes.InvalidArgument, "invalid WebSocket context")
+				}
+				for _, offered := range context.OfferedSubprotocols {
+					if offered == "forms.v1" {
+						websocketAccepted = true
+						break
+					}
+				}
+				if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_WebsocketHandshake{
+					WebsocketHandshake: &pluginv1.WebSocketHandshakeResult{Accepted: websocketAccepted, Subprotocol: map[bool]string{true: "forms.v1"}[websocketAccepted]},
+				}}); err != nil {
+					return err
+				}
+			case pluginv1.InvocationMode_INVOCATION_MODE_SSE:
+				if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_SseEvent{
+					SseEvent: &pluginv1.SseEvent{Data: "ready", Event: "forms.ready", Id: "event-1", RetryMillis: proto.Uint32(1500)},
+				}}); err != nil {
+					return err
+				}
+				if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_Close{Close: &pluginv1.StreamClose{Code: pluginv1.StreamCloseCode_STREAM_CLOSE_CODE_NORMAL}}}); err != nil {
+					return err
+				}
+				return nil
+			case pluginv1.InvocationMode_INVOCATION_MODE_UNSPECIFIED:
+				if body.Open.GetTransport() != pluginv1.StreamTransport_STREAM_TRANSPORT_TCP && body.Open.GetTransport() != pluginv1.StreamTransport_STREAM_TRANSPORT_UDP {
+					return status.Error(codes.InvalidArgument, "invalid L4 stream transport")
+				}
+			default:
+				return status.Error(codes.InvalidArgument, "unsupported stream mode")
+			}
 		case *pluginv1.StreamMessage_Data:
 			if !opened || body.Data.GetDirection() != pluginv1.StreamDirection_STREAM_DIRECTION_REQUEST {
 				return status.Error(codes.InvalidArgument, "invalid stream data")
@@ -144,6 +198,38 @@ func (*fixture) Stream(stream grpc.BidiStreamingServer[pluginv1.StreamMessage, p
 					Direction: pluginv1.StreamDirection_STREAM_DIRECTION_RESPONSE,
 				}},
 			}); err != nil {
+				return err
+			}
+		case *pluginv1.StreamMessage_HttpRequestChunk:
+			if !opened || mode != pluginv1.InvocationMode_INVOCATION_MODE_HTTP_STREAM || message.GetCapability() != "forms.live" {
+				return status.Error(codes.InvalidArgument, "invalid HTTP request chunk")
+			}
+			if !responseStarted {
+				if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_HttpResponseStart{
+					HttpResponseStart: &pluginv1.HttpResponseStart{StatusCode: 200, MetadataJson: []byte(`{"headers":{"content-type":"application/octet-stream"}}`)},
+				}}); err != nil {
+					return err
+				}
+				responseStarted = true
+			}
+			if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_HttpResponseChunk{
+				HttpResponseChunk: &pluginv1.HttpResponseChunk{Payload: append([]byte(nil), body.HttpRequestChunk.GetPayload()...), EndStream: body.HttpRequestChunk.GetEndStream()},
+			}}); err != nil {
+				return err
+			}
+			if body.HttpRequestChunk.GetEndStream() {
+				if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_Close{Close: &pluginv1.StreamClose{Code: pluginv1.StreamCloseCode_STREAM_CLOSE_CODE_NORMAL}}}); err != nil {
+					return err
+				}
+				return nil
+			}
+		case *pluginv1.StreamMessage_WebsocketMessage:
+			if !opened || mode != pluginv1.InvocationMode_INVOCATION_MODE_WEBSOCKET || !websocketAccepted || body.WebsocketMessage.GetDirection() != pluginv1.StreamDirection_STREAM_DIRECTION_REQUEST {
+				return status.Error(codes.InvalidArgument, "invalid WebSocket message")
+			}
+			if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_WebsocketMessage{
+				WebsocketMessage: &pluginv1.WebSocketMessage{Kind: body.WebsocketMessage.GetKind(), Payload: append([]byte(nil), body.WebsocketMessage.GetPayload()...), Direction: pluginv1.StreamDirection_STREAM_DIRECTION_RESPONSE},
+			}}); err != nil {
 				return err
 			}
 		case *pluginv1.StreamMessage_Close:

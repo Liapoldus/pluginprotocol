@@ -10,6 +10,22 @@ message Manifest {
   string name = 1;
   repeated string capabilities = 2;
   string protocol_version = 3;
+  repeated CapabilityDescriptor capability_descriptors = 4;
+}
+
+enum InvocationMode {
+  INVOCATION_MODE_UNSPECIFIED = 0;
+  INVOCATION_MODE_CALL = 1;
+  INVOCATION_MODE_HTTP_STREAM = 2;
+  INVOCATION_MODE_WEBSOCKET = 3;
+  INVOCATION_MODE_SSE = 4;
+  INVOCATION_MODE_TCP = 5;
+  INVOCATION_MODE_UDP = 6;
+}
+
+message CapabilityDescriptor {
+  string capability = 1;
+  repeated InvocationMode modes = 2;
 }
 
 message ConfigSchemaRequest {}

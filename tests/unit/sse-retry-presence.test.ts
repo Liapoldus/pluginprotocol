@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { SseEvent } from "../generated/liapoldus/plugin/v1/service.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -13,5 +14,13 @@ describe("v1 SSE retry presence", () => {
     expect(proto).toMatch(/optional\s+uint32\s+retry_millis\s*=\s*4\s*;/);
     expect(generatedGo).toMatch(/RetryMillis\s+\*uint32\s+`protobuf:[^`]*oneof"/);
     expect(generatedTypeScript).toMatch(/export interface SseEvent\s*\{[^}]*retryMillis\?: number/s);
+  });
+
+  it("round-trips omitted retry separately from explicit zero in generated TypeScript", () => {
+    const omitted = SseEvent.decode(SseEvent.encode(SseEvent.create({ data: "event" })).finish());
+    const immediate = SseEvent.decode(SseEvent.encode(SseEvent.create({ data: "event", retryMillis: 0 })).finish());
+
+    expect(omitted.retryMillis).toBeUndefined();
+    expect(immediate.retryMillis).toBe(0);
   });
 });

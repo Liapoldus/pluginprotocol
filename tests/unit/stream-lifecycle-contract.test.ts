@@ -18,9 +18,9 @@ describe("pluginprotocol v1 L4 stream lifecycle", () => {
     expect(proto).toMatch(/oneof body\s*\{[^}]*StreamOpen open\s*=\s*4;[^}]*StreamData data\s*=\s*5;[^}]*StreamClose close\s*=\s*6;/s);
     expect(proto).toContain("bytes payload = 2;");
     expect(proto).toContain("Deprecated untyped payload.");
-    expect(openContextSchema.oneOf).toHaveLength(2);
-    expect(openContextSchema.oneOf.map((context: { properties: { kind: { const: string } } }) => context.properties.kind.const)).toEqual(["tcp", "udp"]);
-    const propertyNames = openContextSchema.oneOf.flatMap((context: { properties: Record<string, unknown> }) => Object.keys(context.properties));
+    expect(openContextSchema.oneOf).toHaveLength(5);
+    expect(openContextSchema.oneOf.map((context: { properties: { kind: { const: string } } }) => context.properties.kind.const)).toEqual(["tcp", "udp", "http", "websocket", "sse"]);
+    const propertyNames = openContextSchema.oneOf.slice(0, 2).flatMap((context: { properties: Record<string, unknown> }) => Object.keys(context.properties));
     expect(propertyNames).not.toEqual(expect.arrayContaining(["socket", "path", "secret", "credential"]));
   });
 });

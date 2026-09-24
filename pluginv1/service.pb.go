@@ -168,6 +168,55 @@ func (StreamCloseCode) EnumDescriptor() ([]byte, []int) {
 	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{2}
 }
 
+type WebSocketMessageKind int32
+
+const (
+	WebSocketMessageKind_WEBSOCKET_MESSAGE_KIND_UNSPECIFIED WebSocketMessageKind = 0
+	WebSocketMessageKind_WEBSOCKET_MESSAGE_KIND_TEXT        WebSocketMessageKind = 1
+	WebSocketMessageKind_WEBSOCKET_MESSAGE_KIND_BINARY      WebSocketMessageKind = 2
+)
+
+// Enum value maps for WebSocketMessageKind.
+var (
+	WebSocketMessageKind_name = map[int32]string{
+		0: "WEBSOCKET_MESSAGE_KIND_UNSPECIFIED",
+		1: "WEBSOCKET_MESSAGE_KIND_TEXT",
+		2: "WEBSOCKET_MESSAGE_KIND_BINARY",
+	}
+	WebSocketMessageKind_value = map[string]int32{
+		"WEBSOCKET_MESSAGE_KIND_UNSPECIFIED": 0,
+		"WEBSOCKET_MESSAGE_KIND_TEXT":        1,
+		"WEBSOCKET_MESSAGE_KIND_BINARY":      2,
+	}
+)
+
+func (x WebSocketMessageKind) Enum() *WebSocketMessageKind {
+	p := new(WebSocketMessageKind)
+	*p = x
+	return p
+}
+
+func (x WebSocketMessageKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WebSocketMessageKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_liapoldus_plugin_v1_service_proto_enumTypes[3].Descriptor()
+}
+
+func (WebSocketMessageKind) Type() protoreflect.EnumType {
+	return &file_liapoldus_plugin_v1_service_proto_enumTypes[3]
+}
+
+func (x WebSocketMessageKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WebSocketMessageKind.Descriptor instead.
+func (WebSocketMessageKind) EnumDescriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{3}
+}
+
 type CallRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Capability    string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
@@ -353,6 +402,7 @@ type StreamOpen struct {
 	Transport     StreamTransport        `protobuf:"varint,1,opt,name=transport,proto3,enum=liapoldus.plugin.v1.StreamTransport" json:"transport,omitempty"`
 	ConnectionId  string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	ContextJson   []byte                 `protobuf:"bytes,3,opt,name=context_json,json=contextJson,proto3" json:"context_json,omitempty"`
+	Mode          *InvocationMode        `protobuf:"varint,4,opt,name=mode,proto3,enum=liapoldus.plugin.v1.InvocationMode,oneof" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -406,6 +456,13 @@ func (x *StreamOpen) GetContextJson() []byte {
 		return x.ContextJson
 	}
 	return nil
+}
+
+func (x *StreamOpen) GetMode() InvocationMode {
+	if x != nil && x.Mode != nil {
+		return *x.Mode
+	}
+	return InvocationMode_INVOCATION_MODE_UNSPECIFIED
 }
 
 type StreamData struct {
@@ -504,6 +561,350 @@ func (x *StreamClose) GetCode() StreamCloseCode {
 	return StreamCloseCode_STREAM_CLOSE_CODE_NORMAL
 }
 
+type HttpRequestChunk struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	EndStream     bool                   `protobuf:"varint,2,opt,name=end_stream,json=endStream,proto3" json:"end_stream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HttpRequestChunk) Reset() {
+	*x = HttpRequestChunk{}
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HttpRequestChunk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HttpRequestChunk) ProtoMessage() {}
+
+func (x *HttpRequestChunk) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HttpRequestChunk.ProtoReflect.Descriptor instead.
+func (*HttpRequestChunk) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *HttpRequestChunk) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *HttpRequestChunk) GetEndStream() bool {
+	if x != nil {
+		return x.EndStream
+	}
+	return false
+}
+
+type HttpResponseStart struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StatusCode    uint32                 `protobuf:"varint,1,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
+	MetadataJson  []byte                 `protobuf:"bytes,2,opt,name=metadata_json,json=metadataJson,proto3" json:"metadata_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HttpResponseStart) Reset() {
+	*x = HttpResponseStart{}
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HttpResponseStart) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HttpResponseStart) ProtoMessage() {}
+
+func (x *HttpResponseStart) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HttpResponseStart.ProtoReflect.Descriptor instead.
+func (*HttpResponseStart) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *HttpResponseStart) GetStatusCode() uint32 {
+	if x != nil {
+		return x.StatusCode
+	}
+	return 0
+}
+
+func (x *HttpResponseStart) GetMetadataJson() []byte {
+	if x != nil {
+		return x.MetadataJson
+	}
+	return nil
+}
+
+type HttpResponseChunk struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	EndStream     bool                   `protobuf:"varint,2,opt,name=end_stream,json=endStream,proto3" json:"end_stream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HttpResponseChunk) Reset() {
+	*x = HttpResponseChunk{}
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HttpResponseChunk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HttpResponseChunk) ProtoMessage() {}
+
+func (x *HttpResponseChunk) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HttpResponseChunk.ProtoReflect.Descriptor instead.
+func (*HttpResponseChunk) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *HttpResponseChunk) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *HttpResponseChunk) GetEndStream() bool {
+	if x != nil {
+		return x.EndStream
+	}
+	return false
+}
+
+type WebSocketHandshakeResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Accepted      bool                   `protobuf:"varint,1,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	Subprotocol   string                 `protobuf:"bytes,2,opt,name=subprotocol,proto3" json:"subprotocol,omitempty"`
+	MetadataJson  []byte                 `protobuf:"bytes,3,opt,name=metadata_json,json=metadataJson,proto3" json:"metadata_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WebSocketHandshakeResult) Reset() {
+	*x = WebSocketHandshakeResult{}
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WebSocketHandshakeResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WebSocketHandshakeResult) ProtoMessage() {}
+
+func (x *WebSocketHandshakeResult) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WebSocketHandshakeResult.ProtoReflect.Descriptor instead.
+func (*WebSocketHandshakeResult) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *WebSocketHandshakeResult) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
+func (x *WebSocketHandshakeResult) GetSubprotocol() string {
+	if x != nil {
+		return x.Subprotocol
+	}
+	return ""
+}
+
+func (x *WebSocketHandshakeResult) GetMetadataJson() []byte {
+	if x != nil {
+		return x.MetadataJson
+	}
+	return nil
+}
+
+type WebSocketMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          WebSocketMessageKind   `protobuf:"varint,1,opt,name=kind,proto3,enum=liapoldus.plugin.v1.WebSocketMessageKind" json:"kind,omitempty"`
+	Payload       []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	Direction     StreamDirection        `protobuf:"varint,3,opt,name=direction,proto3,enum=liapoldus.plugin.v1.StreamDirection" json:"direction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WebSocketMessage) Reset() {
+	*x = WebSocketMessage{}
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WebSocketMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WebSocketMessage) ProtoMessage() {}
+
+func (x *WebSocketMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WebSocketMessage.ProtoReflect.Descriptor instead.
+func (*WebSocketMessage) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *WebSocketMessage) GetKind() WebSocketMessageKind {
+	if x != nil {
+		return x.Kind
+	}
+	return WebSocketMessageKind_WEBSOCKET_MESSAGE_KIND_UNSPECIFIED
+}
+
+func (x *WebSocketMessage) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *WebSocketMessage) GetDirection() StreamDirection {
+	if x != nil {
+		return x.Direction
+	}
+	return StreamDirection_STREAM_DIRECTION_UNSPECIFIED
+}
+
+type SseEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Data          string                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Event         string                 `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"`
+	Id            string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
+	RetryMillis   *uint32                `protobuf:"varint,4,opt,name=retry_millis,json=retryMillis,proto3,oneof" json:"retry_millis,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SseEvent) Reset() {
+	*x = SseEvent{}
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SseEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SseEvent) ProtoMessage() {}
+
+func (x *SseEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SseEvent.ProtoReflect.Descriptor instead.
+func (*SseEvent) Descriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SseEvent) GetData() string {
+	if x != nil {
+		return x.Data
+	}
+	return ""
+}
+
+func (x *SseEvent) GetEvent() string {
+	if x != nil {
+		return x.Event
+	}
+	return ""
+}
+
+func (x *SseEvent) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SseEvent) GetRetryMillis() uint32 {
+	if x != nil && x.RetryMillis != nil {
+		return *x.RetryMillis
+	}
+	return 0
+}
+
 type StreamMessage struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Capability string                 `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
@@ -514,6 +915,12 @@ type StreamMessage struct {
 	//	*StreamMessage_Open
 	//	*StreamMessage_Data
 	//	*StreamMessage_Close
+	//	*StreamMessage_HttpRequestChunk
+	//	*StreamMessage_HttpResponseStart
+	//	*StreamMessage_HttpResponseChunk
+	//	*StreamMessage_WebsocketHandshake
+	//	*StreamMessage_WebsocketMessage
+	//	*StreamMessage_SseEvent
 	Body          isStreamMessage_Body `protobuf_oneof:"body"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -521,7 +928,7 @@ type StreamMessage struct {
 
 func (x *StreamMessage) Reset() {
 	*x = StreamMessage{}
-	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[6]
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -533,7 +940,7 @@ func (x *StreamMessage) String() string {
 func (*StreamMessage) ProtoMessage() {}
 
 func (x *StreamMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[6]
+	mi := &file_liapoldus_plugin_v1_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -546,7 +953,7 @@ func (x *StreamMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamMessage.ProtoReflect.Descriptor instead.
 func (*StreamMessage) Descriptor() ([]byte, []int) {
-	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{6}
+	return file_liapoldus_plugin_v1_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *StreamMessage) GetCapability() string {
@@ -608,6 +1015,60 @@ func (x *StreamMessage) GetClose() *StreamClose {
 	return nil
 }
 
+func (x *StreamMessage) GetHttpRequestChunk() *HttpRequestChunk {
+	if x != nil {
+		if x, ok := x.Body.(*StreamMessage_HttpRequestChunk); ok {
+			return x.HttpRequestChunk
+		}
+	}
+	return nil
+}
+
+func (x *StreamMessage) GetHttpResponseStart() *HttpResponseStart {
+	if x != nil {
+		if x, ok := x.Body.(*StreamMessage_HttpResponseStart); ok {
+			return x.HttpResponseStart
+		}
+	}
+	return nil
+}
+
+func (x *StreamMessage) GetHttpResponseChunk() *HttpResponseChunk {
+	if x != nil {
+		if x, ok := x.Body.(*StreamMessage_HttpResponseChunk); ok {
+			return x.HttpResponseChunk
+		}
+	}
+	return nil
+}
+
+func (x *StreamMessage) GetWebsocketHandshake() *WebSocketHandshakeResult {
+	if x != nil {
+		if x, ok := x.Body.(*StreamMessage_WebsocketHandshake); ok {
+			return x.WebsocketHandshake
+		}
+	}
+	return nil
+}
+
+func (x *StreamMessage) GetWebsocketMessage() *WebSocketMessage {
+	if x != nil {
+		if x, ok := x.Body.(*StreamMessage_WebsocketMessage); ok {
+			return x.WebsocketMessage
+		}
+	}
+	return nil
+}
+
+func (x *StreamMessage) GetSseEvent() *SseEvent {
+	if x != nil {
+		if x, ok := x.Body.(*StreamMessage_SseEvent); ok {
+			return x.SseEvent
+		}
+	}
+	return nil
+}
+
 type isStreamMessage_Body interface {
 	isStreamMessage_Body()
 }
@@ -633,6 +1094,30 @@ type StreamMessage_Close struct {
 	Close *StreamClose `protobuf:"bytes,6,opt,name=close,proto3,oneof"`
 }
 
+type StreamMessage_HttpRequestChunk struct {
+	HttpRequestChunk *HttpRequestChunk `protobuf:"bytes,7,opt,name=http_request_chunk,json=httpRequestChunk,proto3,oneof"`
+}
+
+type StreamMessage_HttpResponseStart struct {
+	HttpResponseStart *HttpResponseStart `protobuf:"bytes,8,opt,name=http_response_start,json=httpResponseStart,proto3,oneof"`
+}
+
+type StreamMessage_HttpResponseChunk struct {
+	HttpResponseChunk *HttpResponseChunk `protobuf:"bytes,9,opt,name=http_response_chunk,json=httpResponseChunk,proto3,oneof"`
+}
+
+type StreamMessage_WebsocketHandshake struct {
+	WebsocketHandshake *WebSocketHandshakeResult `protobuf:"bytes,10,opt,name=websocket_handshake,json=websocketHandshake,proto3,oneof"`
+}
+
+type StreamMessage_WebsocketMessage struct {
+	WebsocketMessage *WebSocketMessage `protobuf:"bytes,11,opt,name=websocket_message,json=websocketMessage,proto3,oneof"`
+}
+
+type StreamMessage_SseEvent struct {
+	SseEvent *SseEvent `protobuf:"bytes,12,opt,name=sse_event,json=sseEvent,proto3,oneof"`
+}
+
 func (*StreamMessage_Payload) isStreamMessage_Body() {}
 
 func (*StreamMessage_Event) isStreamMessage_Body() {}
@@ -642,6 +1127,18 @@ func (*StreamMessage_Open) isStreamMessage_Body() {}
 func (*StreamMessage_Data) isStreamMessage_Body() {}
 
 func (*StreamMessage_Close) isStreamMessage_Body() {}
+
+func (*StreamMessage_HttpRequestChunk) isStreamMessage_Body() {}
+
+func (*StreamMessage_HttpResponseStart) isStreamMessage_Body() {}
+
+func (*StreamMessage_HttpResponseChunk) isStreamMessage_Body() {}
+
+func (*StreamMessage_WebsocketHandshake) isStreamMessage_Body() {}
+
+func (*StreamMessage_WebsocketMessage) isStreamMessage_Body() {}
+
+func (*StreamMessage_SseEvent) isStreamMessage_Body() {}
 
 var File_liapoldus_plugin_v1_service_proto protoreflect.FileDescriptor
 
@@ -664,18 +1161,46 @@ const file_liapoldus_plugin_v1_service_proto_rawDesc = "" +
 	"\x06fields\x18\x03 \x03(\v2,.liapoldus.plugin.v1.PluginEvent.FieldsEntryR\x06fields\x1a9\n" +
 	"\vFieldsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x98\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdf\x01\n" +
 	"\n" +
 	"StreamOpen\x12B\n" +
 	"\ttransport\x18\x01 \x01(\x0e2$.liapoldus.plugin.v1.StreamTransportR\ttransport\x12#\n" +
 	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12!\n" +
-	"\fcontext_json\x18\x03 \x01(\fR\vcontextJson\"j\n" +
+	"\fcontext_json\x18\x03 \x01(\fR\vcontextJson\x12<\n" +
+	"\x04mode\x18\x04 \x01(\x0e2#.liapoldus.plugin.v1.InvocationModeH\x00R\x04mode\x88\x01\x01B\a\n" +
+	"\x05_mode\"j\n" +
 	"\n" +
 	"StreamData\x12\x18\n" +
 	"\apayload\x18\x01 \x01(\fR\apayload\x12B\n" +
 	"\tdirection\x18\x02 \x01(\x0e2$.liapoldus.plugin.v1.StreamDirectionR\tdirection\"G\n" +
 	"\vStreamClose\x128\n" +
-	"\x04code\x18\x01 \x01(\x0e2$.liapoldus.plugin.v1.StreamCloseCodeR\x04code\"\xb5\x02\n" +
+	"\x04code\x18\x01 \x01(\x0e2$.liapoldus.plugin.v1.StreamCloseCodeR\x04code\"K\n" +
+	"\x10HttpRequestChunk\x12\x18\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\x12\x1d\n" +
+	"\n" +
+	"end_stream\x18\x02 \x01(\bR\tendStream\"Y\n" +
+	"\x11HttpResponseStart\x12\x1f\n" +
+	"\vstatus_code\x18\x01 \x01(\rR\n" +
+	"statusCode\x12#\n" +
+	"\rmetadata_json\x18\x02 \x01(\fR\fmetadataJson\"L\n" +
+	"\x11HttpResponseChunk\x12\x18\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\x12\x1d\n" +
+	"\n" +
+	"end_stream\x18\x02 \x01(\bR\tendStream\"}\n" +
+	"\x18WebSocketHandshakeResult\x12\x1a\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted\x12 \n" +
+	"\vsubprotocol\x18\x02 \x01(\tR\vsubprotocol\x12#\n" +
+	"\rmetadata_json\x18\x03 \x01(\fR\fmetadataJson\"\xaf\x01\n" +
+	"\x10WebSocketMessage\x12=\n" +
+	"\x04kind\x18\x01 \x01(\x0e2).liapoldus.plugin.v1.WebSocketMessageKindR\x04kind\x12\x18\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\x12B\n" +
+	"\tdirection\x18\x03 \x01(\x0e2$.liapoldus.plugin.v1.StreamDirectionR\tdirection\"}\n" +
+	"\bSseEvent\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\tR\x04data\x12\x14\n" +
+	"\x05event\x18\x02 \x01(\tR\x05event\x12\x0e\n" +
+	"\x02id\x18\x03 \x01(\tR\x02id\x12&\n" +
+	"\fretry_millis\x18\x04 \x01(\rH\x00R\vretryMillis\x88\x01\x01B\x0f\n" +
+	"\r_retry_millis\"\xb6\x06\n" +
 	"\rStreamMessage\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +
@@ -684,7 +1209,14 @@ const file_liapoldus_plugin_v1_service_proto_rawDesc = "" +
 	"\x05event\x18\x03 \x01(\v2 .liapoldus.plugin.v1.PluginEventH\x00R\x05event\x125\n" +
 	"\x04open\x18\x04 \x01(\v2\x1f.liapoldus.plugin.v1.StreamOpenH\x00R\x04open\x125\n" +
 	"\x04data\x18\x05 \x01(\v2\x1f.liapoldus.plugin.v1.StreamDataH\x00R\x04data\x128\n" +
-	"\x05close\x18\x06 \x01(\v2 .liapoldus.plugin.v1.StreamCloseH\x00R\x05closeB\x06\n" +
+	"\x05close\x18\x06 \x01(\v2 .liapoldus.plugin.v1.StreamCloseH\x00R\x05close\x12U\n" +
+	"\x12http_request_chunk\x18\a \x01(\v2%.liapoldus.plugin.v1.HttpRequestChunkH\x00R\x10httpRequestChunk\x12X\n" +
+	"\x13http_response_start\x18\b \x01(\v2&.liapoldus.plugin.v1.HttpResponseStartH\x00R\x11httpResponseStart\x12X\n" +
+	"\x13http_response_chunk\x18\t \x01(\v2&.liapoldus.plugin.v1.HttpResponseChunkH\x00R\x11httpResponseChunk\x12`\n" +
+	"\x13websocket_handshake\x18\n" +
+	" \x01(\v2-.liapoldus.plugin.v1.WebSocketHandshakeResultH\x00R\x12websocketHandshake\x12T\n" +
+	"\x11websocket_message\x18\v \x01(\v2%.liapoldus.plugin.v1.WebSocketMessageH\x00R\x10websocketMessage\x12<\n" +
+	"\tsse_event\x18\f \x01(\v2\x1d.liapoldus.plugin.v1.SseEventH\x00R\bsseEventB\x06\n" +
 	"\x04body*g\n" +
 	"\x0fStreamTransport\x12 \n" +
 	"\x1cSTREAM_TRANSPORT_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -697,7 +1229,11 @@ const file_liapoldus_plugin_v1_service_proto_rawDesc = "" +
 	"\x0fStreamCloseCode\x12\x1c\n" +
 	"\x18STREAM_CLOSE_CODE_NORMAL\x10\x00\x12\x1a\n" +
 	"\x16STREAM_CLOSE_CODE_DROP\x10\x01\x12\x1b\n" +
-	"\x17STREAM_CLOSE_CODE_ERROR\x10\x022\x97\x04\n" +
+	"\x17STREAM_CLOSE_CODE_ERROR\x10\x02*\x82\x01\n" +
+	"\x14WebSocketMessageKind\x12&\n" +
+	"\"WEBSOCKET_MESSAGE_KIND_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bWEBSOCKET_MESSAGE_KIND_TEXT\x10\x01\x12!\n" +
+	"\x1dWEBSOCKET_MESSAGE_KIND_BINARY\x10\x022\x97\x04\n" +
 	"\rPluginService\x12O\n" +
 	"\bManifest\x12$.liapoldus.plugin.v1.ManifestRequest\x1a\x1d.liapoldus.plugin.v1.Manifest\x12[\n" +
 	"\fConfigSchema\x12(.liapoldus.plugin.v1.ConfigSchemaRequest\x1a!.liapoldus.plugin.v1.ConfigSchema\x12^\n" +
@@ -718,57 +1254,74 @@ func file_liapoldus_plugin_v1_service_proto_rawDescGZIP() []byte {
 	return file_liapoldus_plugin_v1_service_proto_rawDescData
 }
 
-var file_liapoldus_plugin_v1_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_liapoldus_plugin_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_liapoldus_plugin_v1_service_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_liapoldus_plugin_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_liapoldus_plugin_v1_service_proto_goTypes = []any{
-	(StreamTransport)(0),        // 0: liapoldus.plugin.v1.StreamTransport
-	(StreamDirection)(0),        // 1: liapoldus.plugin.v1.StreamDirection
-	(StreamCloseCode)(0),        // 2: liapoldus.plugin.v1.StreamCloseCode
-	(*CallRequest)(nil),         // 3: liapoldus.plugin.v1.CallRequest
-	(*CallResponse)(nil),        // 4: liapoldus.plugin.v1.CallResponse
-	(*PluginEvent)(nil),         // 5: liapoldus.plugin.v1.PluginEvent
-	(*StreamOpen)(nil),          // 6: liapoldus.plugin.v1.StreamOpen
-	(*StreamData)(nil),          // 7: liapoldus.plugin.v1.StreamData
-	(*StreamClose)(nil),         // 8: liapoldus.plugin.v1.StreamClose
-	(*StreamMessage)(nil),       // 9: liapoldus.plugin.v1.StreamMessage
-	nil,                         // 10: liapoldus.plugin.v1.PluginEvent.FieldsEntry
-	(*ActiveGrant)(nil),         // 11: liapoldus.plugin.v1.ActiveGrant
-	(*ManifestRequest)(nil),     // 12: liapoldus.plugin.v1.ManifestRequest
-	(*ConfigSchemaRequest)(nil), // 13: liapoldus.plugin.v1.ConfigSchemaRequest
-	(*ConfigApplyRequest)(nil),  // 14: liapoldus.plugin.v1.ConfigApplyRequest
-	(*ShutdownRequest)(nil),     // 15: liapoldus.plugin.v1.ShutdownRequest
-	(*Manifest)(nil),            // 16: liapoldus.plugin.v1.Manifest
-	(*ConfigSchema)(nil),        // 17: liapoldus.plugin.v1.ConfigSchema
-	(*ConfigApplyResult)(nil),   // 18: liapoldus.plugin.v1.ConfigApplyResult
-	(*ShutdownResult)(nil),      // 19: liapoldus.plugin.v1.ShutdownResult
+	(StreamTransport)(0),             // 0: liapoldus.plugin.v1.StreamTransport
+	(StreamDirection)(0),             // 1: liapoldus.plugin.v1.StreamDirection
+	(StreamCloseCode)(0),             // 2: liapoldus.plugin.v1.StreamCloseCode
+	(WebSocketMessageKind)(0),        // 3: liapoldus.plugin.v1.WebSocketMessageKind
+	(*CallRequest)(nil),              // 4: liapoldus.plugin.v1.CallRequest
+	(*CallResponse)(nil),             // 5: liapoldus.plugin.v1.CallResponse
+	(*PluginEvent)(nil),              // 6: liapoldus.plugin.v1.PluginEvent
+	(*StreamOpen)(nil),               // 7: liapoldus.plugin.v1.StreamOpen
+	(*StreamData)(nil),               // 8: liapoldus.plugin.v1.StreamData
+	(*StreamClose)(nil),              // 9: liapoldus.plugin.v1.StreamClose
+	(*HttpRequestChunk)(nil),         // 10: liapoldus.plugin.v1.HttpRequestChunk
+	(*HttpResponseStart)(nil),        // 11: liapoldus.plugin.v1.HttpResponseStart
+	(*HttpResponseChunk)(nil),        // 12: liapoldus.plugin.v1.HttpResponseChunk
+	(*WebSocketHandshakeResult)(nil), // 13: liapoldus.plugin.v1.WebSocketHandshakeResult
+	(*WebSocketMessage)(nil),         // 14: liapoldus.plugin.v1.WebSocketMessage
+	(*SseEvent)(nil),                 // 15: liapoldus.plugin.v1.SseEvent
+	(*StreamMessage)(nil),            // 16: liapoldus.plugin.v1.StreamMessage
+	nil,                              // 17: liapoldus.plugin.v1.PluginEvent.FieldsEntry
+	(*ActiveGrant)(nil),              // 18: liapoldus.plugin.v1.ActiveGrant
+	(InvocationMode)(0),              // 19: liapoldus.plugin.v1.InvocationMode
+	(*ManifestRequest)(nil),          // 20: liapoldus.plugin.v1.ManifestRequest
+	(*ConfigSchemaRequest)(nil),      // 21: liapoldus.plugin.v1.ConfigSchemaRequest
+	(*ConfigApplyRequest)(nil),       // 22: liapoldus.plugin.v1.ConfigApplyRequest
+	(*ShutdownRequest)(nil),          // 23: liapoldus.plugin.v1.ShutdownRequest
+	(*Manifest)(nil),                 // 24: liapoldus.plugin.v1.Manifest
+	(*ConfigSchema)(nil),             // 25: liapoldus.plugin.v1.ConfigSchema
+	(*ConfigApplyResult)(nil),        // 26: liapoldus.plugin.v1.ConfigApplyResult
+	(*ShutdownResult)(nil),           // 27: liapoldus.plugin.v1.ShutdownResult
 }
 var file_liapoldus_plugin_v1_service_proto_depIdxs = []int32{
-	11, // 0: liapoldus.plugin.v1.CallRequest.grants:type_name -> liapoldus.plugin.v1.ActiveGrant
-	10, // 1: liapoldus.plugin.v1.PluginEvent.fields:type_name -> liapoldus.plugin.v1.PluginEvent.FieldsEntry
+	18, // 0: liapoldus.plugin.v1.CallRequest.grants:type_name -> liapoldus.plugin.v1.ActiveGrant
+	17, // 1: liapoldus.plugin.v1.PluginEvent.fields:type_name -> liapoldus.plugin.v1.PluginEvent.FieldsEntry
 	0,  // 2: liapoldus.plugin.v1.StreamOpen.transport:type_name -> liapoldus.plugin.v1.StreamTransport
-	1,  // 3: liapoldus.plugin.v1.StreamData.direction:type_name -> liapoldus.plugin.v1.StreamDirection
-	2,  // 4: liapoldus.plugin.v1.StreamClose.code:type_name -> liapoldus.plugin.v1.StreamCloseCode
-	5,  // 5: liapoldus.plugin.v1.StreamMessage.event:type_name -> liapoldus.plugin.v1.PluginEvent
-	6,  // 6: liapoldus.plugin.v1.StreamMessage.open:type_name -> liapoldus.plugin.v1.StreamOpen
-	7,  // 7: liapoldus.plugin.v1.StreamMessage.data:type_name -> liapoldus.plugin.v1.StreamData
-	8,  // 8: liapoldus.plugin.v1.StreamMessage.close:type_name -> liapoldus.plugin.v1.StreamClose
-	12, // 9: liapoldus.plugin.v1.PluginService.Manifest:input_type -> liapoldus.plugin.v1.ManifestRequest
-	13, // 10: liapoldus.plugin.v1.PluginService.ConfigSchema:input_type -> liapoldus.plugin.v1.ConfigSchemaRequest
-	14, // 11: liapoldus.plugin.v1.PluginService.ConfigApply:input_type -> liapoldus.plugin.v1.ConfigApplyRequest
-	15, // 12: liapoldus.plugin.v1.PluginService.Shutdown:input_type -> liapoldus.plugin.v1.ShutdownRequest
-	3,  // 13: liapoldus.plugin.v1.PluginService.Call:input_type -> liapoldus.plugin.v1.CallRequest
-	9,  // 14: liapoldus.plugin.v1.PluginService.Stream:input_type -> liapoldus.plugin.v1.StreamMessage
-	16, // 15: liapoldus.plugin.v1.PluginService.Manifest:output_type -> liapoldus.plugin.v1.Manifest
-	17, // 16: liapoldus.plugin.v1.PluginService.ConfigSchema:output_type -> liapoldus.plugin.v1.ConfigSchema
-	18, // 17: liapoldus.plugin.v1.PluginService.ConfigApply:output_type -> liapoldus.plugin.v1.ConfigApplyResult
-	19, // 18: liapoldus.plugin.v1.PluginService.Shutdown:output_type -> liapoldus.plugin.v1.ShutdownResult
-	4,  // 19: liapoldus.plugin.v1.PluginService.Call:output_type -> liapoldus.plugin.v1.CallResponse
-	9,  // 20: liapoldus.plugin.v1.PluginService.Stream:output_type -> liapoldus.plugin.v1.StreamMessage
-	15, // [15:21] is the sub-list for method output_type
-	9,  // [9:15] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	19, // 3: liapoldus.plugin.v1.StreamOpen.mode:type_name -> liapoldus.plugin.v1.InvocationMode
+	1,  // 4: liapoldus.plugin.v1.StreamData.direction:type_name -> liapoldus.plugin.v1.StreamDirection
+	2,  // 5: liapoldus.plugin.v1.StreamClose.code:type_name -> liapoldus.plugin.v1.StreamCloseCode
+	3,  // 6: liapoldus.plugin.v1.WebSocketMessage.kind:type_name -> liapoldus.plugin.v1.WebSocketMessageKind
+	1,  // 7: liapoldus.plugin.v1.WebSocketMessage.direction:type_name -> liapoldus.plugin.v1.StreamDirection
+	6,  // 8: liapoldus.plugin.v1.StreamMessage.event:type_name -> liapoldus.plugin.v1.PluginEvent
+	7,  // 9: liapoldus.plugin.v1.StreamMessage.open:type_name -> liapoldus.plugin.v1.StreamOpen
+	8,  // 10: liapoldus.plugin.v1.StreamMessage.data:type_name -> liapoldus.plugin.v1.StreamData
+	9,  // 11: liapoldus.plugin.v1.StreamMessage.close:type_name -> liapoldus.plugin.v1.StreamClose
+	10, // 12: liapoldus.plugin.v1.StreamMessage.http_request_chunk:type_name -> liapoldus.plugin.v1.HttpRequestChunk
+	11, // 13: liapoldus.plugin.v1.StreamMessage.http_response_start:type_name -> liapoldus.plugin.v1.HttpResponseStart
+	12, // 14: liapoldus.plugin.v1.StreamMessage.http_response_chunk:type_name -> liapoldus.plugin.v1.HttpResponseChunk
+	13, // 15: liapoldus.plugin.v1.StreamMessage.websocket_handshake:type_name -> liapoldus.plugin.v1.WebSocketHandshakeResult
+	14, // 16: liapoldus.plugin.v1.StreamMessage.websocket_message:type_name -> liapoldus.plugin.v1.WebSocketMessage
+	15, // 17: liapoldus.plugin.v1.StreamMessage.sse_event:type_name -> liapoldus.plugin.v1.SseEvent
+	20, // 18: liapoldus.plugin.v1.PluginService.Manifest:input_type -> liapoldus.plugin.v1.ManifestRequest
+	21, // 19: liapoldus.plugin.v1.PluginService.ConfigSchema:input_type -> liapoldus.plugin.v1.ConfigSchemaRequest
+	22, // 20: liapoldus.plugin.v1.PluginService.ConfigApply:input_type -> liapoldus.plugin.v1.ConfigApplyRequest
+	23, // 21: liapoldus.plugin.v1.PluginService.Shutdown:input_type -> liapoldus.plugin.v1.ShutdownRequest
+	4,  // 22: liapoldus.plugin.v1.PluginService.Call:input_type -> liapoldus.plugin.v1.CallRequest
+	16, // 23: liapoldus.plugin.v1.PluginService.Stream:input_type -> liapoldus.plugin.v1.StreamMessage
+	24, // 24: liapoldus.plugin.v1.PluginService.Manifest:output_type -> liapoldus.plugin.v1.Manifest
+	25, // 25: liapoldus.plugin.v1.PluginService.ConfigSchema:output_type -> liapoldus.plugin.v1.ConfigSchema
+	26, // 26: liapoldus.plugin.v1.PluginService.ConfigApply:output_type -> liapoldus.plugin.v1.ConfigApplyResult
+	27, // 27: liapoldus.plugin.v1.PluginService.Shutdown:output_type -> liapoldus.plugin.v1.ShutdownResult
+	5,  // 28: liapoldus.plugin.v1.PluginService.Call:output_type -> liapoldus.plugin.v1.CallResponse
+	16, // 29: liapoldus.plugin.v1.PluginService.Stream:output_type -> liapoldus.plugin.v1.StreamMessage
+	24, // [24:30] is the sub-list for method output_type
+	18, // [18:24] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_liapoldus_plugin_v1_service_proto_init() }
@@ -778,20 +1331,28 @@ func file_liapoldus_plugin_v1_service_proto_init() {
 	}
 	file_liapoldus_plugin_v1_control_proto_init()
 	file_liapoldus_plugin_v1_grant_proto_init()
-	file_liapoldus_plugin_v1_service_proto_msgTypes[6].OneofWrappers = []any{
+	file_liapoldus_plugin_v1_service_proto_msgTypes[3].OneofWrappers = []any{}
+	file_liapoldus_plugin_v1_service_proto_msgTypes[11].OneofWrappers = []any{}
+	file_liapoldus_plugin_v1_service_proto_msgTypes[12].OneofWrappers = []any{
 		(*StreamMessage_Payload)(nil),
 		(*StreamMessage_Event)(nil),
 		(*StreamMessage_Open)(nil),
 		(*StreamMessage_Data)(nil),
 		(*StreamMessage_Close)(nil),
+		(*StreamMessage_HttpRequestChunk)(nil),
+		(*StreamMessage_HttpResponseStart)(nil),
+		(*StreamMessage_HttpResponseChunk)(nil),
+		(*StreamMessage_WebsocketHandshake)(nil),
+		(*StreamMessage_WebsocketMessage)(nil),
+		(*StreamMessage_SseEvent)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_liapoldus_plugin_v1_service_proto_rawDesc), len(file_liapoldus_plugin_v1_service_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   8,
+			NumEnums:      4,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

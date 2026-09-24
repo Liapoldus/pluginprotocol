@@ -9,6 +9,69 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 
 export const protobufPackage = "liapoldus.plugin.v1";
 
+export enum InvocationMode {
+  INVOCATION_MODE_UNSPECIFIED = 0,
+  INVOCATION_MODE_CALL = 1,
+  INVOCATION_MODE_HTTP_STREAM = 2,
+  INVOCATION_MODE_WEBSOCKET = 3,
+  INVOCATION_MODE_SSE = 4,
+  INVOCATION_MODE_TCP = 5,
+  INVOCATION_MODE_UDP = 6,
+  UNRECOGNIZED = -1,
+}
+
+export function invocationModeFromJSON(object: any): InvocationMode {
+  switch (object) {
+    case 0:
+    case "INVOCATION_MODE_UNSPECIFIED":
+      return InvocationMode.INVOCATION_MODE_UNSPECIFIED;
+    case 1:
+    case "INVOCATION_MODE_CALL":
+      return InvocationMode.INVOCATION_MODE_CALL;
+    case 2:
+    case "INVOCATION_MODE_HTTP_STREAM":
+      return InvocationMode.INVOCATION_MODE_HTTP_STREAM;
+    case 3:
+    case "INVOCATION_MODE_WEBSOCKET":
+      return InvocationMode.INVOCATION_MODE_WEBSOCKET;
+    case 4:
+    case "INVOCATION_MODE_SSE":
+      return InvocationMode.INVOCATION_MODE_SSE;
+    case 5:
+    case "INVOCATION_MODE_TCP":
+      return InvocationMode.INVOCATION_MODE_TCP;
+    case 6:
+    case "INVOCATION_MODE_UDP":
+      return InvocationMode.INVOCATION_MODE_UDP;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return InvocationMode.UNRECOGNIZED;
+  }
+}
+
+export function invocationModeToJSON(object: InvocationMode): string {
+  switch (object) {
+    case InvocationMode.INVOCATION_MODE_UNSPECIFIED:
+      return "INVOCATION_MODE_UNSPECIFIED";
+    case InvocationMode.INVOCATION_MODE_CALL:
+      return "INVOCATION_MODE_CALL";
+    case InvocationMode.INVOCATION_MODE_HTTP_STREAM:
+      return "INVOCATION_MODE_HTTP_STREAM";
+    case InvocationMode.INVOCATION_MODE_WEBSOCKET:
+      return "INVOCATION_MODE_WEBSOCKET";
+    case InvocationMode.INVOCATION_MODE_SSE:
+      return "INVOCATION_MODE_SSE";
+    case InvocationMode.INVOCATION_MODE_TCP:
+      return "INVOCATION_MODE_TCP";
+    case InvocationMode.INVOCATION_MODE_UDP:
+      return "INVOCATION_MODE_UDP";
+    case InvocationMode.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export interface ManifestRequest {
 }
 
@@ -16,6 +79,12 @@ export interface Manifest {
   name: string;
   capabilities: string[];
   protocolVersion: string;
+  capabilityDescriptors: CapabilityDescriptor[];
+}
+
+export interface CapabilityDescriptor {
+  capability: string;
+  modes: InvocationMode[];
 }
 
 export interface ConfigSchemaRequest {
@@ -102,7 +171,7 @@ export const ManifestRequest: MessageFns<ManifestRequest> = {
 };
 
 function createBaseManifest(): Manifest {
-  return { name: "", capabilities: [], protocolVersion: "" };
+  return { name: "", capabilities: [], protocolVersion: "", capabilityDescriptors: [] };
 }
 
 export const Manifest: MessageFns<Manifest> = {
@@ -115,6 +184,9 @@ export const Manifest: MessageFns<Manifest> = {
     }
     if (message.protocolVersion !== "") {
       writer.uint32(26).string(message.protocolVersion);
+    }
+    for (const v of message.capabilityDescriptors) {
+      CapabilityDescriptor.encode(v!, writer.uint32(34).fork()).join();
     }
     return writer;
   },
@@ -156,6 +228,14 @@ export const Manifest: MessageFns<Manifest> = {
             message.protocolVersion = reader.string();
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.capabilityDescriptors.push(CapabilityDescriptor.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -179,6 +259,11 @@ export const Manifest: MessageFns<Manifest> = {
         : isSet(object.protocol_version)
         ? globalThis.String(object.protocol_version)
         : "",
+      capabilityDescriptors: globalThis.Array.isArray(object?.capabilityDescriptors)
+        ? object.capabilityDescriptors.map((e: any) => CapabilityDescriptor.fromJSON(e))
+        : globalThis.Array.isArray(object?.capability_descriptors)
+        ? object.capability_descriptors.map((e: any) => CapabilityDescriptor.fromJSON(e))
+        : [],
     };
   },
 
@@ -193,6 +278,9 @@ export const Manifest: MessageFns<Manifest> = {
     if (message.protocolVersion !== "") {
       obj.protocolVersion = message.protocolVersion;
     }
+    if (message.capabilityDescriptors?.length) {
+      obj.capabilityDescriptors = message.capabilityDescriptors.map((e) => CapabilityDescriptor.toJSON(e));
+    }
     return obj;
   },
 
@@ -204,6 +292,104 @@ export const Manifest: MessageFns<Manifest> = {
     message.name = object.name ?? "";
     message.capabilities = object.capabilities?.map((e) => e) || [];
     message.protocolVersion = object.protocolVersion ?? "";
+    message.capabilityDescriptors = object.capabilityDescriptors?.map((e) => CapabilityDescriptor.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseCapabilityDescriptor(): CapabilityDescriptor {
+  return { capability: "", modes: [] };
+}
+
+export const CapabilityDescriptor: MessageFns<CapabilityDescriptor> = {
+  encode(message: CapabilityDescriptor, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.capability !== "") {
+      writer.uint32(10).string(message.capability);
+    }
+    writer.uint32(18).fork();
+    for (const v of message.modes) {
+      writer.int32(v);
+    }
+    writer.join();
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CapabilityDescriptor {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCapabilityDescriptor();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.capability = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag === 16) {
+              message.modes.push(reader.int32() as any);
+
+              continue;
+            }
+
+            if (tag === 18) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.modes.push(reader.int32() as any);
+              }
+
+              continue;
+            }
+
+            break;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CapabilityDescriptor {
+    return {
+      capability: isSet(object.capability) ? globalThis.String(object.capability) : "",
+      modes: globalThis.Array.isArray(object?.modes) ? object.modes.map((e: any) => invocationModeFromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: CapabilityDescriptor): unknown {
+    const obj: any = {};
+    if (message.capability !== "") {
+      obj.capability = message.capability;
+    }
+    if (message.modes?.length) {
+      obj.modes = message.modes.map((e) => invocationModeToJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CapabilityDescriptor>, I>>(base?: I): CapabilityDescriptor {
+    return CapabilityDescriptor.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CapabilityDescriptor>, I>>(object: I): CapabilityDescriptor {
+    const message = createBaseCapabilityDescriptor();
+    message.capability = object.capability ?? "";
+    message.modes = object.modes?.map((e) => e) || [];
     return message;
   },
 };
