@@ -1,17 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { credentials } from "@grpc/grpc-js";
 import { PluginServiceClient, StreamCloseCode, StreamDirection, StreamTransport } from "../generated/liapoldus/plugin/v1/service.js";
+import { buildGoFixture, startGoFixture, stopChildProcess, type GoFixtureBinary } from "../support/child-process.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
-let child: ChildProcessWithoutNullStreams;
+let child: ChildProcessWithoutNullStreams | undefined;
+let fixture: GoFixtureBinary | undefined;
 let client: PluginServiceClient;
 
 describe("pluginprotocol v1 L4 stream lifecycle", () => {
   beforeAll(async () => {
-    child = spawn("go", ["run", "./tests/fixtures/grpc-plugin"], { cwd: root });
+    fixture = await buildGoFixture(root, "./tests/fixtures/grpc-plugin");
+    child = startGoFixture(fixture.executable, { cwd: root });
     const lines = createInterface({ input: child.stdout });
     const address = await new Promise<string>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("plugin fixture did not become ready")), 30_000);
@@ -26,9 +29,10 @@ describe("pluginprotocol v1 L4 stream lifecycle", () => {
     client = new PluginServiceClient(address, credentials.createInsecure());
   }, 35_000);
 
-  afterAll(() => {
+  afterAll(async () => {
     client?.close();
-    child?.kill();
+    if (child) await stopChildProcess(child);
+    await fixture?.cleanup();
   });
 
   it("carries TCP open, raw directional data, and close as typed messages", async () => {

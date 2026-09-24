@@ -5,9 +5,11 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildGoFixture, startGoFixture, stopChildProcess, type GoFixtureBinary } from "../support/child-process.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 let plugin: ChildProcessWithoutNullStreams;
+let pluginFixture: GoFixtureBinary | undefined;
 let address: string;
 
 interface ClientResult {
@@ -37,7 +39,8 @@ async function runClient(endpoint: string, mode?: string): Promise<string> {
 }
 
 async function startPlugin(environment: NodeJS.ProcessEnv = {}): Promise<{ process: ChildProcessWithoutNullStreams; address: string }> {
-  const child = spawn("go", ["run", "./tests/fixtures/grpc-plugin"], { cwd: root, env: { ...globalThis.process.env, ...environment } });
+  if (!pluginFixture) throw new Error("plugin fixture binary is not built");
+  const child = startGoFixture(pluginFixture.executable, { cwd: root, env: { ...globalThis.process.env, ...environment } });
   const lines = createInterface({ input: child.stdout });
   const address = await new Promise<string>((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error("plugin fixture did not become ready")), 30_000);
@@ -54,12 +57,16 @@ async function startPlugin(environment: NodeJS.ProcessEnv = {}): Promise<{ proce
 
 describe("public Go transport client", () => {
   beforeAll(async () => {
+    pluginFixture = await buildGoFixture(root, "./tests/fixtures/grpc-plugin");
     const fixture = await startPlugin();
     plugin = fixture.process;
     address = fixture.address;
   }, 35_000);
 
-  afterAll(() => plugin?.kill());
+  afterAll(async () => {
+    if (plugin) await stopChildProcess(plugin);
+    await pluginFixture?.cleanup();
+  });
 
   it("performs handshake and JSON capability Call using the v1 transport API", async () => {
     const output = await runClient(address);
@@ -75,7 +82,7 @@ describe("public Go transport client", () => {
       expect(JSON.parse(result).plugin).toBe("fixture");
       expect(await readFile(trace, "utf8")).toBe("manifest\nconfig.schema\nconfig.apply\n");
     } finally {
-      fixture.process.kill();
+      await stopChildProcess(fixture.process);
     }
   });
 
@@ -96,7 +103,7 @@ describe("public Go transport client", () => {
       expect(result.stderr).toContain("plugin protocol violation");
       expect(await readFile(trace, "utf8")).toBe("manifest\n");
     } finally {
-      fixture.process.kill();
+      await stopChildProcess(fixture.process);
     }
   });
 
@@ -113,7 +120,7 @@ describe("public Go transport client", () => {
       expect(result.stderr).toContain("plugin unavailable");
       expect(await readFile(trace, "utf8")).toBe("manifest\nconfig.schema\nconfig.apply\n");
     } finally {
-      fixture.process.kill();
+      await stopChildProcess(fixture.process);
     }
   });
 

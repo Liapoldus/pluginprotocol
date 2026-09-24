@@ -1,14 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { execFile, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { credentials, Metadata, status } from "@grpc/grpc-js";
 import { PluginServiceClient } from "../generated/liapoldus/plugin/v1/service.js";
+import { buildGoFixture, startGoFixture, stopChildProcess, type GoFixtureBinary } from "../support/child-process.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const execFileAsync = promisify(execFile);
-let child: ChildProcessWithoutNullStreams;
+let child: ChildProcessWithoutNullStreams | undefined;
+let fixture: GoFixtureBinary | undefined;
 let client: PluginServiceClient;
 let pluginAddress: string;
 
@@ -18,7 +20,8 @@ function unary<T>(invoke: (callback: (error: Error | null, value?: T) => void) =
 
 describe("gRPC plugin child process", () => {
   beforeAll(async () => {
-    child = spawn("go", ["run", "./tests/fixtures/grpc-plugin"], { cwd: root });
+    fixture = await buildGoFixture(root, "./tests/fixtures/grpc-plugin");
+    child = startGoFixture(fixture.executable, { cwd: root });
     const lines = createInterface({ input: child.stdout });
     const address = await new Promise<string>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("plugin fixture did not become ready")), 30_000);
@@ -34,9 +37,10 @@ describe("gRPC plugin child process", () => {
     pluginAddress = address;
   }, 35_000);
 
-  afterAll(() => {
+  afterAll(async () => {
     client?.close();
-    child?.kill();
+    if (child) await stopChildProcess(child);
+    await fixture?.cleanup();
   });
 
   it("performs typed handshake, keeps capability payload JSON, and streams in both directions", async () => {

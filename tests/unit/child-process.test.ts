@@ -10,7 +10,7 @@ describe("fixture child-process lifecycle", () => {
 
     await stopChildProcess(child);
 
-    expect(child.exitCode).not.toBeNull();
+    expect(child.signalCode).toBe("SIGTERM");
   });
 
   it("does not send a termination signal to an already exited child", async () => {

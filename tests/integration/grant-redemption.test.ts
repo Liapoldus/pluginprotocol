@@ -3,14 +3,17 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { once } from "node:events";
+import { buildGoFixture, startGoFixture, stopChildProcess, type GoFixtureBinary } from "../support/child-process.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 let broker: ChildProcessWithoutNullStreams;
+let brokerFixture: GoFixtureBinary | undefined;
 let address: string;
 
 describe("typed scoped grant redemption", () => {
   beforeAll(async () => {
-    broker = spawn("go", ["run", "./tests/fixtures/grant-broker"], { cwd: root });
+    brokerFixture = await buildGoFixture(root, "./tests/fixtures/grant-broker");
+    broker = startGoFixture(brokerFixture.executable, { cwd: root });
     const lines = createInterface({ input: broker.stdout });
     const [line] = await Promise.race([
       once(lines, "line"),
@@ -19,7 +22,10 @@ describe("typed scoped grant redemption", () => {
     address = String(line);
   }, 35_000);
 
-  afterAll(() => broker?.kill());
+  afterAll(async () => {
+    if (broker) await stopChildProcess(broker);
+    await brokerFixture?.cleanup();
+  });
 
   it("redeems through the typed RPC without printing returned secret bytes", async () => {
     const output = await new Promise<string>((resolve, reject) => {
