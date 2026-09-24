@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const canonicalSchemaURL = "https://github.com/Liapoldus/pluginprotocol/blob/main/";
+const responseMetadataSchemaID = "https://github.com/Liapoldus/pluginprotocol/contracts/protocol/v1/http-stream-response-metadata.schema.json";
 
 type Vector = {
   name: string;
@@ -34,16 +35,12 @@ function addContractSchemas(directory: string, ajv: Ajv2020): void {
   }
 }
 
-function schemaURL(path: string): string {
-  return `${canonicalSchemaURL}${path}`;
-}
-
 describe("HTTP stream JSON conformance vectors", () => {
   it("compiles response-start metadata references against the canonical response-action schema", () => {
     const ajv = new Ajv2020({ strict: false });
     addContractSchemas(`${root}/contracts`, ajv);
 
-    expect(ajv.getSchema(schemaURL("contracts/protocol/v1/http-stream-response-metadata.schema.json"))).toBeDefined();
+    expect(ajv.getSchema(responseMetadataSchemaID)).toBeDefined();
   });
 
   it("includes schema-valid stream-open and HTTP response-start examples", () => {

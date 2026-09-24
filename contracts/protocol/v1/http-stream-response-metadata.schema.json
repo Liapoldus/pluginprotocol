@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/protocol/v1/http-stream-response-metadata.schema.json",
+  "title": "HTTP Stream response-start metadata",
+  "description": "Headers and typed cookie actions validated atomically before Caddy commits response headers. The HTTP status is carried separately in HttpResponseStart.status_code; body bytes use later Stream chunks.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "properties": {
+    "version": { "const": 1 },
+    "headers": { "$ref": "../../http/v1/response-action.schema.json#/properties/headers" },
+    "cookies": { "$ref": "../../http/v1/response-action.schema.json#/properties/cookies" }
+  }
+}

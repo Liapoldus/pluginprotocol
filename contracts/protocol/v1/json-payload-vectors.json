@@ -2,7 +2,8 @@
   {
     "name": "forms-admin-surface-read",
     "capability": "admin.surface.get",
-    "contract": "contracts/forms-db/v1/admin-surface.json",
+    "requestSchema": "contracts/forms-db/v1/admin-surface-request.schema.json",
+    "responseSchema": "contracts/forms-db/v1/admin-surface-response.schema.json",
     "request": { "version": 1 },
     "response": {
       "version": 1,
@@ -13,8 +14,25 @@
   {
     "name": "identity-http-response",
     "capability": "identity.client.callback",
-    "contract": "contracts/identity/v1/http-actions.schema.json",
+    "requestSchema": "contracts/identity/v1/http-request.schema.json",
+    "responseSchema": "contracts/http/v1/response-action.schema.json",
     "request": { "method": "GET", "path": "/identity/callback", "query": "code=fixture" },
     "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "session", "value": "synthetic-test-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }], "body": "" }
+  },
+  {
+    "name": "http-stream-open-context",
+    "capability": "http.stream",
+    "requestSchema": "contracts/protocol/v1/stream-open-context.schema.json",
+    "responseSchema": "contracts/protocol/v1/http-stream-response-metadata.schema.json",
+    "request": { "version": 1, "kind": "http", "method": "POST", "path": "/upload", "headers": { "content-type": "application/octet-stream" }, "requestId": "fixture-stream-open" },
+    "response": { "version": 1, "headers": { "content-type": "application/octet-stream" } }
+  },
+  {
+    "name": "http-stream-response-start",
+    "capability": "http.stream",
+    "requestSchema": "contracts/protocol/v1/stream-open-context.schema.json",
+    "responseSchema": "contracts/protocol/v1/http-stream-response-metadata.schema.json",
+    "request": { "version": 1, "kind": "http", "method": "GET", "path": "/events", "requestId": "fixture-response-start" },
+    "response": { "version": 1, "headers": { "cache-control": "no-cache" }, "cookies": [{ "name": "stream-session", "value": "synthetic-stream-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }] }
   }
 ]
