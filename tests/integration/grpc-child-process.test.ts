@@ -95,7 +95,7 @@ describe("gRPC plugin child process", () => {
       client.call(
         { capability: "forms.slow", payload: new TextEncoder().encode("{}"), grants: [] },
         new Metadata(),
-        { deadline: new Date(Date.now() + 50) },
+        { deadline: new Date(Date.now() + 500) },
         (error) => resolve(error?.code ?? 0),
       );
     });
