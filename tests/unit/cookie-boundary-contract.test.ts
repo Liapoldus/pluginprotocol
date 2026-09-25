@@ -45,6 +45,18 @@ describe("plugin HTTP cookie boundary v1", () => {
     expect(constraints.domain).toEqual({ mustDomainMatchRequestHost: true, rejectPublicSuffix: true });
   });
 
+  it("reuses shared cookie name/value constraints for every inbound HTTP mode", async () => {
+    const stream = await json("contracts/protocol/v1/stream-open-context.schema.json");
+    const cookieBranches = stream.oneOf.filter((branch: any) => branch.properties?.cookies);
+
+    expect(cookieBranches).toHaveLength(3);
+    for (const branch of cookieBranches) {
+      expect(branch.properties.cookies.items.$ref).toBe(
+        "../../http/v1/cookie-pair.schema.json#/$defs/cookiePair",
+      );
+    }
+  });
+
   it("conforms stream request cookies and ordinary/HttpOnly response actions", async () => {
     const vectors = await json("contracts/protocol/v1/json-payload-vectors.json");
     const names = vectors.map((vector: { name: string }) => vector.name);

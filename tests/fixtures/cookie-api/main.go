@@ -63,12 +63,14 @@ func main() {
 			r.Error = err.Error()
 		}
 		r.Headers = headers
+		r.Redacted = err == nil || !contains(r.Error, "secret-value")
 	case "secure-prefix":
 		_, headers, err := protocol.DecodeHTTPResponseAction([]byte(`{"status":200,"cookies":[{"name":"__Secure-session","value":"secret-value","secure":false,"httpOnly":true}]}`), "example.com")
 		if err != nil {
 			r.Error = err.Error()
 		}
 		r.Headers = headers
+		r.Redacted = err == nil || !contains(r.Error, "secret-value")
 	case "domain-valid":
 		_, headers, err := protocol.DecodeHTTPResponseAction([]byte(`{"status":200,"cookies":[{"name":"session","value":"x","domain":"example.com","secure":true,"httpOnly":true}]}`), "www.example.com:8443")
 		if err != nil {
@@ -85,6 +87,13 @@ func main() {
 		r.Redacted = err == nil || !contains(r.Error, "secret-value")
 	case "public-suffix":
 		_, headers, err := protocol.DecodeHTTPResponseAction([]byte(`{"status":200,"cookies":[{"name":"session","value":"secret-value","domain":"co.uk","secure":true,"httpOnly":true}]}`), "www.example.co.uk")
+		if err != nil {
+			r.Error = err.Error()
+		}
+		r.Headers = headers
+		r.Redacted = err == nil || !contains(r.Error, "secret-value")
+	case "public-suffix-bare":
+		_, headers, err := protocol.DecodeHTTPResponseAction([]byte(`{"status":200,"cookies":[{"name":"session","value":"secret-value","domain":"com","secure":true,"httpOnly":true}]}`), "www.example.com")
 		if err != nil {
 			r.Error = err.Error()
 		}
