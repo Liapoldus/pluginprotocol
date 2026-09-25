@@ -27,14 +27,23 @@ runtime library.
   redaction на HTTP, trace, audit и ошибках.
 - [ ] Добавить conformance vectors для authorization, GrantBroker redemption,
   error mapping, bounds, malformed/oversized payloads и JSON Schema versions.
-- [ ] Расширить Stream conformance нагрузочными проверками concurrency,
-      bounded backpressure, idle/max-duration limits и close-race на macOS/Linux.
+- [x] Добавить TypeScript real-child-process conformance для bounded gRPC
+      writable backpressure, сохранения каждого принятого кадра, caller-owned
+      idle timeout/cancellation, gRPC deadline как максимальной длительности,
+      параллельных Stream и Close на фоне in-flight data.
+- [ ] Запустить эту TS conformance suite на macOS и Linux; отдельно подтвердить
+      Gateway-owned per-instance/per-route concurrency, idle-timeout и
+      max-duration policy. Protocol library не задаёт эти deployment limits:
+      вызывающий runtime передаёт deadline в `Stream` и отменяет его при idle.
 
 ## Проверки и релиз
 
-- [ ] Покрыть deadlines, cancellation, concurrency, bidirectional stream,
-  bounded backpressure, close race, replica reconnect/rotation, remote
-  GrantBroker и active-dispatch authorization на macOS/Linux.
+- [x] На локальной macOS покрыть gRPC Stream deadline, cancellation,
+      bidirectional data, concurrent calls, bounded backpressure и orderly
+      close во время данных в `tests/integration/stream-runtime-conformance.test.ts`.
+- [ ] Покрыть replica reconnect/rotation, remote GrantBroker и active-dispatch
+      authorization на macOS/Linux; эти сценарии относятся к runtime
+      integration и не заменяются библиотечными Stream-тестами.
 - [x] Нормализовать legacy L4 `Stream.Open` без явного mode до проверки
   active-dispatch authorization; TCP и UDP проверены remote mTLS E2E.
 - [ ] Для каждого protocol release выполнять make check, go vet ./...,
