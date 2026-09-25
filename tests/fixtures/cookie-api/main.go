@@ -21,6 +21,21 @@ func main() {
 	}
 	var r result
 	switch os.Args[1] {
+	case "parse-cookie-header":
+		pairs, err := protocol.ParseCookieHeader([]string{"theme=dark; session=first", "session=second"})
+		if err != nil {
+			r.Error = err.Error()
+		} else {
+			for _, pair := range pairs {
+				r.Pairs = append(r.Pairs, pair.Name+"="+pair.Value)
+			}
+		}
+	case "parse-cookie-header-invalid":
+		_, err := protocol.ParseCookieHeader([]string{"session=secret-value; malformed"})
+		if err != nil {
+			r.Error = err.Error()
+		}
+		r.Redacted = err == nil || !contains(r.Error, "secret-value")
 	case "typed-actions":
 		_, headers, err := protocol.DecodeHTTPResponseAction([]byte(`{"status":302,"cookies":[{"name":"theme","value":"light","secure":true,"httpOnly":false,"sameSite":"Lax"},{"name":"session","value":"secret-value","path":"/","secure":true,"httpOnly":true,"sameSite":"Lax"}]}`), "www.example.com")
 		if err != nil {

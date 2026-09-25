@@ -14,6 +14,18 @@ function runFixture(scenario: string): { error?: string; headers?: string[]; pai
 }
 
 describe("Go cookie contract API", () => {
+  it("strictly parses header lines while preserving allowed pair order and multiplicity", () => {
+    const result = runFixture("parse-cookie-header");
+    expect(result.error).toBeUndefined();
+    expect(result.pairs).toEqual(["theme=dark", "session=first", "session=second"]);
+  });
+
+  it("rejects malformed inbound Cookie pairs without reflecting secret values", () => {
+    const result = runFixture("parse-cookie-header-invalid");
+    expect(result.error).toBeTruthy();
+    expect(result.redacted).toBe(true);
+  });
+
   it("decodes ordinary and HttpOnly actions as separate Set-Cookie values", () => {
     const result = runFixture("typed-actions");
     expect(result.error).toBeUndefined();
