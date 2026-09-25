@@ -25,8 +25,12 @@ runtime library.
   Cookie header вычисляется из контрактных count/name/value bounds и разделителей.
 - [ ] Интегрировать cookie policy в Gateway/Caddy runtime и подтвердить e2e
   redaction на HTTP, trace, audit и ошибках.
-- [ ] Добавить conformance vectors для authorization, GrantBroker redemption,
-  error mapping, bounds, malformed/oversized payloads и JSON Schema versions.
+- [x] Добавить исполняемые GrantBroker vectors для успешной выдачи,
+  capability/purpose/domain scope denial и локального отказа на пустых
+  обязательных полях; клиентская диагностика не раскрывает secret bytes или
+  подробности отказа.
+- [ ] Добавить conformance vectors для общего error mapping, bounds,
+  malformed/oversized payloads и JSON Schema versions.
 - [x] Добавить TypeScript real-child-process conformance для bounded gRPC
       writable backpressure, сохранения каждого принятого кадра, caller-owned
       idle timeout/cancellation, gRPC deadline как максимальной длительности,

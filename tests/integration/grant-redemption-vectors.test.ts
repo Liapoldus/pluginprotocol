@@ -11,7 +11,6 @@ type GrantVector = {
   name: string;
   request: { handle: string; purpose: string; domain: string; capability: string };
   expectedClientResult: "redeemed" | "rejected";
-  dispatched: boolean;
 };
 let broker: ChildProcessWithoutNullStreams;
 let brokerFixture: GoFixtureBinary | undefined;

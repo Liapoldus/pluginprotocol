@@ -29,7 +29,12 @@ describe("typed scoped grant redemption", () => {
 
   it("redeems through the typed RPC without printing returned secret bytes", async () => {
     const output = await new Promise<string>((resolve, reject) => {
-      const process = spawn("go", ["run", "./tests/fixtures/grant-client", address], { cwd: root });
+      const process = spawn("go", ["run", "./tests/fixtures/grant-client", address, JSON.stringify({
+        handle: "opaque-handle",
+        purpose: "acme-dns01",
+        domain: "example.com",
+        capability: "tls.issue",
+      })], { cwd: root });
       let stdout = "";
       let stderr = "";
       process.stdout.on("data", (chunk) => { stdout += String(chunk); });
@@ -38,7 +43,7 @@ describe("typed scoped grant redemption", () => {
       process.once("exit", (code) => code === 0 ? resolve(stdout) : reject(new Error(stderr)));
     });
 
-    expect(JSON.parse(output)).toEqual({ redeemed: true });
+    expect(JSON.parse(output)).toEqual({ result: "redeemed" });
     expect(output).not.toContain("fixture-secret");
   });
 });

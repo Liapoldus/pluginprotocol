@@ -1,0 +1,72 @@
+[
+  {
+    "name": "authorized-redemption",
+    "request": {
+      "handle": "opaque-handle",
+      "purpose": "acme-dns01",
+      "domain": "example.com",
+      "capability": "tls.issue"
+    },
+    "expectedClientResult": "redeemed"
+  },
+  {
+    "name": "capability-scope-denied",
+    "request": {
+      "handle": "opaque-handle",
+      "purpose": "acme-dns01",
+      "domain": "example.com",
+      "capability": "tls.revoke"
+    },
+    "expectedClientResult": "rejected"
+  },
+  {
+    "name": "purpose-scope-denied",
+    "request": {
+      "handle": "opaque-handle",
+      "purpose": "acme-http01",
+      "domain": "example.com",
+      "capability": "tls.issue"
+    },
+    "expectedClientResult": "rejected"
+  },
+  {
+    "name": "domain-scope-denied",
+    "request": {
+      "handle": "opaque-handle",
+      "purpose": "acme-dns01",
+      "domain": "other.example",
+      "capability": "tls.issue"
+    },
+    "expectedClientResult": "rejected"
+  },
+  {
+    "name": "missing-handle-rejected-locally",
+    "request": {
+      "handle": "",
+      "purpose": "acme-dns01",
+      "domain": "example.com",
+      "capability": "tls.issue"
+    },
+    "expectedClientResult": "rejected"
+  },
+  {
+    "name": "missing-purpose-rejected-locally",
+    "request": {
+      "handle": "opaque-handle",
+      "purpose": "",
+      "domain": "example.com",
+      "capability": "tls.issue"
+    },
+    "expectedClientResult": "rejected"
+  },
+  {
+    "name": "missing-capability-rejected-locally",
+    "request": {
+      "handle": "opaque-handle",
+      "purpose": "acme-dns01",
+      "domain": "example.com",
+      "capability": ""
+    },
+    "expectedClientResult": "rejected"
+  }
+]

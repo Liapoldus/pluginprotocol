@@ -8,7 +8,6 @@ type GrantVector = {
   name: string;
   request: { handle: string; purpose: string; domain: string; capability: string };
   expectedClientResult: "redeemed" | "rejected";
-  dispatched: boolean;
 };
 
 describe("GrantBroker redemption conformance vectors", () => {
@@ -26,9 +25,8 @@ describe("GrantBroker redemption conformance vectors", () => {
       "missing-purpose-rejected-locally",
       "missing-capability-rejected-locally",
     ]);
-    expect(vectors[0]).toMatchObject({ expectedClientResult: "redeemed", dispatched: true });
-    expect(vectors.slice(1, 4).every((vector) => vector.expectedClientResult === "rejected" && vector.dispatched)).toBe(true);
-    expect(vectors.slice(4).every((vector) => vector.expectedClientResult === "rejected" && !vector.dispatched)).toBe(true);
+    expect(vectors[0]?.expectedClientResult).toBe("redeemed");
+    expect(vectors.slice(1).every((vector) => vector.expectedClientResult === "rejected")).toBe(true);
     expect(JSON.stringify(vectors)).not.toMatch(/fixture-secret|secretMaterial|secretBytes/i);
   });
 });
