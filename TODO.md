@@ -17,6 +17,12 @@ runtime library.
   capability, фильтрацию до dispatch, typed ordinary/HttpOnly response actions,
   атомарное отклонение некорректного ответа и запрет раскрытия значений в
   diagnostics; schema/vector conformance добавлен.
+- [x] Добавить публичный Go cookie API с strict JSON/schema decode, scope-aware
+  allow-list filtering, строгим Cookie-header parser, typed ordinary/HttpOnly
+  сериализацией, domain/public-suffix и prefix проверками, atomic response
+  rejection и generic sentinel errors. Реализация читает embedded versioned
+  assets и не копирует schema/semantic limits. Aggregate byte ceiling входного
+  Cookie header вычисляется из контрактных count/name/value bounds и разделителей.
 - [ ] Интегрировать cookie policy в Gateway/Caddy runtime и подтвердить e2e
   redaction на HTTP, trace, audit и ошибках.
 - [ ] Добавить conformance vectors для authorization, GrantBroker redemption,

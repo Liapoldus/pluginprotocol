@@ -9,10 +9,12 @@ import (
 )
 
 type result struct {
-	Error    string   `json:"error,omitempty"`
-	Headers  []string `json:"headers,omitempty"`
-	Pairs    []string `json:"pairs,omitempty"`
-	Redacted bool     `json:"redacted,omitempty"`
+	Error         string   `json:"error,omitempty"`
+	Headers       []string `json:"headers,omitempty"`
+	Pairs         []string `json:"pairs,omitempty"`
+	Redacted      bool     `json:"redacted,omitempty"`
+	OmittedMaxAge bool     `json:"omittedMaxAge,omitempty"`
+	ZeroMaxAge    bool     `json:"zeroMaxAge,omitempty"`
 }
 
 func main() {
@@ -78,6 +80,27 @@ func main() {
 		} else {
 			r.Headers = headers
 		}
+	case "optional-presence":
+		action, headers, err := protocol.DecodeHTTPResponseAction([]byte(`{"status":200,"cookies":[{"name":"session","value":"x","secure":true,"httpOnly":true},{"name":"expired","value":"x","path":"/","maxAge":0,"secure":true,"httpOnly":false}]}`), "example.com")
+		if err != nil {
+			r.Error = err.Error()
+		} else {
+			r.Headers = headers
+			r.OmittedMaxAge = action.Cookies[0].MaxAge == nil
+			r.ZeroMaxAge = action.Cookies[1].MaxAge != nil && *action.Cookies[1].MaxAge == 0
+		}
+	case "set-cookie-header":
+		_, headers, err := protocol.DecodeHTTPResponseAction([]byte(`{"status":200,"headers":{"set-cookie":"session=unsafe"}}`), "example.com")
+		if err != nil {
+			r.Error = err.Error()
+		}
+		r.Headers = headers
+	case "uppercase-set-cookie-header":
+		_, headers, err := protocol.DecodeHTTPResponseAction([]byte(`{"status":200,"headers":{"SET-COOKIE":"session=unsafe"}}`), "example.com")
+		if err != nil {
+			r.Error = err.Error()
+		}
+		r.Headers = headers
 	case "domain-invalid":
 		_, headers, err := protocol.DecodeHTTPResponseAction([]byte(`{"status":200,"cookies":[{"name":"session","value":"secret-value","domain":"attacker.test","secure":true,"httpOnly":true}]}`), "www.example.com")
 		if err != nil {

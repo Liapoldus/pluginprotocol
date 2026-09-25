@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/http/v1/cookie-pair.schema.json",
+  "title": "Входящая HTTP cookie-пара plugin Liapoldus v1",
+  "$defs": {
+    "cookiePair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": {
+          "$ref": "https://github.com/Liapoldus/pluginprotocol/contracts/http/v1/response-action.schema.json#/$defs/cookieAction/properties/name"
+        },
+        "value": {
+          "$ref": "https://github.com/Liapoldus/pluginprotocol/contracts/http/v1/response-action.schema.json#/$defs/cookieAction/properties/value"
+        }
+      }
+    }
+  }
+}

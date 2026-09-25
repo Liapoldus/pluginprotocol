@@ -55,8 +55,10 @@ JSON contracts manifest/settings/HTTP response actions/admin-surface/admin-UI и
 `HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext` сохраняются.
 Общий typed cookie response описан в
 [`response-action.schema.json`](contracts/http/v1/response-action.schema.json);
-политика входящих cookie и правила фильтрации, ошибок и редактирования — в
-[`cookie-policy.schema.json`](contracts/http/v1/cookie-policy.schema.json) и
+входящая cookie-пара — в
+[`cookie-pair.schema.json`](contracts/http/v1/cookie-pair.schema.json), policy
+allow-list — в [`cookie-policy.schema.json`](contracts/http/v1/cookie-policy.schema.json),
+а её runtime semantics — в
 [`cookie-boundary.json`](contracts/http/v1/cookie-boundary.json). Gateway policy
 привязана одновременно к plugin instance и capability и не отправляется
 плагину; в `Call`/`Stream` попадают только явно разрешённые cookie пары.
@@ -71,6 +73,22 @@ Grant handling и redaction остаются ответственностью Ga
 Go-потребители versioned JSON contracts используют `ContractFiles()`, который
 отдаёт read-only `fs.FS` с embedded содержимым каталога `contracts/`; plugin
 модули не копируют capability fixtures локально.
+
+Публичный Go API в корневом `pluginprotocol` пакете предоставляет
+`DecodeCookiePolicy(data []byte) (CookiePolicy, error)`,
+`FilterCookiePairs(policy CookiePolicy, instanceID, capability string, pairs []CookiePair) ([]CookiePair, error)`,
+`ParseCookieHeader(headerValues []string) ([]CookiePair, error)` и
+`DecodeHTTPResponseAction(data []byte, requestHost string) (HTTPResponseAction, []string, error)`.
+Последняя функция возвращает типизированное действие и готовые отдельные
+значения `Set-Cookie` только после атомарной проверки всего ответа; при ошибке
+оба результата пусты. Optional поля представлены указателями, поэтому
+отсутствующее значение отличается от явно переданного. Ошибки
+`ErrInvalidCookiePolicy`, `ErrCookiePolicyScope`, `ErrInvalidCookieRequest` и
+`ErrInvalidHTTPResponseAction` доступны для `errors.Is` и не содержат cookie
+значений. API валидирует данные по embedded JSON Schema/semantic extensions;
+совокупная byte-граница входного `Cookie` header производна от contract limits
+числа пар, длины имени/значения и разделителей, а не задаётся вторым лимитом.
+API не поддерживает локальные копии контрактов или независимые лимиты.
 
 По решению проекта transport breaking change выпускается внутри protocol v1:
 protobuf namespace `liapoldus.plugin.v1`, Go import path

@@ -26,8 +26,8 @@
       "required": ["name", "value", "secure", "httpOnly"],
       "properties": {
         "name": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$" },
-        "value": { "type": "string", "maxLength": 4096, "pattern": "^[^\\r\\n\\u0000-\\u001F\\u007F]*$" },
-        "path": { "type": "string", "maxLength": 1024, "pattern": "^/[^\\r\\n\\u0000]*$" },
+        "value": { "type": "string", "maxLength": 4096, "pattern": "^[\\x20-\\x21\\x23-\\x3A\\x3C-\\x5B\\x5D-\\x7E]*$" },
+        "path": { "type": "string", "maxLength": 1024, "pattern": "^/[\\x20-\\x3A\\x3C-\\x7E]*$" },
         "domain": { "type": "string", "minLength": 1, "maxLength": 253 },
         "expires": { "type": "string", "format": "date-time" },
         "maxAge": { "type": "integer", "minimum": -1, "maximum": 2147483647 },
@@ -44,6 +44,12 @@
     "sameSiteNone": "sameSite=None требует secure=true.",
     "prefixes": "__Host- требует secure=true, path=/ и отсутствующий domain; __Secure- требует secure=true.",
     "domain": "Если domain задан, он должен быть корректным domain-match для host запроса и не должен быть public suffix.",
-    "v1Limits": { "maxActions": 32, "maxSerializedCookieBytes": 4096, "maxSerializedCookieSetBytes": 16384 }
+    "v1Limits": { "maxActions": 32, "maxSerializedCookieBytes": 4096, "maxSerializedCookieSetBytes": 16384 },
+    "cookieConstraints": {
+      "sameSiteRequiresSecure": "None",
+      "securePrefixes": ["__Secure-"],
+      "hostPrefix": { "prefix": "__Host-", "secure": true, "path": "/", "domainAllowed": false },
+      "domain": { "mustDomainMatchRequestHost": true, "rejectPublicSuffix": true }
+    }
   }
 }

@@ -27,6 +27,12 @@ wire-совместимости.
 - Добавлен versioned cookie boundary contract: входной allow-list scoped к паре
   plugin instance/capability, типизированные обычные и HttpOnly response actions,
   атомарное отклонение некорректных действий и обязательная redaction значений.
+- Добавлены Go helpers для strict cookie policy/action decode, строгого парсинга
+  Cookie headers и exact allow-list filtering; optional поля сохраняют
+  absent-versus-explicit semantics, а ошибки не отражают cookie values.
+- Входящие cookie пары повторно используют общий versioned cookie schema;
+  сериализуемость RFC cookie value/path, prefix rules, domain match, public
+  suffix запрет и limits проверяются по embedded contract assets.
 
 ## v1.0.0 — первый стабильный wire-контракт
 
