@@ -237,7 +237,7 @@ func (stream *authorizedPluginStream) RecvMsg(message any) error {
 	if !stream.firstOpenOK {
 		capability := request.GetCapability()
 		open := request.GetOpen()
-		if open == nil || capability == "" || !stream.allows(capability) || stream.dispatch == nil || !stream.dispatch.Allows(capability, open.GetMode()) {
+		if open == nil || capability == "" || !stream.allows(capability) || stream.dispatch == nil || !stream.dispatch.Allows(capability, normalizedStreamMode(open)) {
 			return permissionDenied()
 		}
 		stream.capability = capability

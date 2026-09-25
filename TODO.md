@@ -26,5 +26,7 @@ runtime library.
 - [ ] Покрыть deadlines, cancellation, concurrency, bidirectional stream,
   bounded backpressure, close race, replica reconnect/rotation, remote
   GrantBroker и active-dispatch authorization на macOS/Linux.
+- [x] Нормализовать legacy L4 `Stream.Open` без явного mode до проверки
+  active-dispatch authorization; TCP и UDP проверены remote mTLS E2E.
 - [ ] Для каждого protocol release выполнять make check, go vet ./...,
   go build ./... и generated Go/test TypeScript conformance.

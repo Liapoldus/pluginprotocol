@@ -316,16 +316,9 @@ func validateStreamOpen(open *pluginv1.StreamOpen, contract streamContract) (plu
 	if err := json.Unmarshal(open.GetContextJson(), &context); err != nil || context == nil {
 		return 0, nil, invalidStreamMessage()
 	}
-	mode := open.GetMode()
+	mode := normalizedStreamMode(open)
 	if mode == pluginv1.InvocationMode_INVOCATION_MODE_UNSPECIFIED {
-		switch open.GetTransport() {
-		case pluginv1.StreamTransport_STREAM_TRANSPORT_TCP:
-			mode = pluginv1.InvocationMode_INVOCATION_MODE_TCP
-		case pluginv1.StreamTransport_STREAM_TRANSPORT_UDP:
-			mode = pluginv1.InvocationMode_INVOCATION_MODE_UDP
-		default:
-			return 0, nil, invalidStreamMessage()
-		}
+		return 0, nil, invalidStreamMessage()
 	}
 	expectedKind := contract.Context.ModeKinds[mode.String()]
 	var kind string
@@ -363,6 +356,24 @@ func validateStreamOpen(open *pluginv1.StreamOpen, contract streamContract) (plu
 		return mode, allowed, nil
 	}
 	return mode, map[string]struct{}{}, nil
+}
+
+func normalizedStreamMode(open *pluginv1.StreamOpen) pluginv1.InvocationMode {
+	if open == nil {
+		return pluginv1.InvocationMode_INVOCATION_MODE_UNSPECIFIED
+	}
+	mode := open.GetMode()
+	if mode != pluginv1.InvocationMode_INVOCATION_MODE_UNSPECIFIED {
+		return mode
+	}
+	switch open.GetTransport() {
+	case pluginv1.StreamTransport_STREAM_TRANSPORT_TCP:
+		return pluginv1.InvocationMode_INVOCATION_MODE_TCP
+	case pluginv1.StreamTransport_STREAM_TRANSPORT_UDP:
+		return pluginv1.InvocationMode_INVOCATION_MODE_UDP
+	default:
+		return pluginv1.InvocationMode_INVOCATION_MODE_UNSPECIFIED
+	}
 }
 
 func validContextFields(context map[string]json.RawMessage, kind string, contract streamContract) bool {
