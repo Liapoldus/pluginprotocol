@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
-function runFixture(scenario: string): { error?: string; headers?: string[]; pairs?: string[]; redacted?: boolean } {
+function runFixture(scenario: string): { error?: string; headers?: string[]; pairs?: string[]; redacted?: boolean; omittedMaxAge?: boolean; zeroMaxAge?: boolean } {
   const result = spawnSync("go", ["run", "./tests/fixtures/cookie-api", scenario], {
     cwd: root,
     encoding: "utf8",
@@ -36,7 +36,7 @@ describe("Go cookie contract API", () => {
     expect(result.headers?.[1]).toContain("HttpOnly");
   });
 
-  it.each(["unknown-field", "same-site-none", "host-prefix", "secure-prefix", "domain-invalid", "public-suffix"])(
+  it.each(["unknown-field", "same-site-none", "host-prefix", "secure-prefix", "domain-invalid", "public-suffix", "public-suffix-bare"])(
     "rejects unsafe response action %s without leaking or producing headers",
     (scenario) => {
       const result = runFixture(scenario);
@@ -50,6 +50,14 @@ describe("Go cookie contract API", () => {
     const result = runFixture("domain-valid");
     expect(result.error).toBeUndefined();
     expect(result.headers?.[0]).toContain("Domain=example.com");
+  });
+
+  it("preserves absence separately from explicitly supplied zero-valued optional fields", () => {
+    const result = runFixture("optional-presence");
+    expect(result.error).toBeUndefined();
+    expect(result.omittedMaxAge).toBe(true);
+    expect(result.zeroMaxAge).toBe(true);
+    expect(result.headers?.[1]).toContain("Max-Age=0");
   });
 
   it("rejects every action atomically when any cookie action is invalid", () => {
