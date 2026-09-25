@@ -5,7 +5,7 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { credentials, status as grpcStatus } from "@grpc/grpc-js";
 import { InvocationMode } from "../generated/liapoldus/plugin/v1/control.js";
-import { PluginServiceClient } from "../generated/liapoldus/plugin/v1/service.js";
+import { PluginServiceClient, StreamTransport } from "../generated/liapoldus/plugin/v1/service.js";
 import { buildGoFixture, startGoFixture, stopChildProcess, type GoFixtureBinary } from "../support/child-process.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -15,7 +15,11 @@ let client: PluginServiceClient;
 
 type StreamErrorVector = {
   name: string;
+  rpc: "Stream";
+  direction: "plugin-to-client";
+  invocationMode: "INVOCATION_MODE_SSE";
   fixtureScenario: string;
+  payloadMutation: { field: "event"; limit: "stream-lifecycle.json#/limits/sseEventBytes"; excessBytes: number };
   expectedStatus: "RESOURCE_EXHAUSTED";
 };
 
@@ -46,22 +50,31 @@ describe("executable Stream error vectors", () => {
     expect(vectors.map(({ name }) => name)).toEqual(["sse-event-over-limit"]);
 
     for (const vector of vectors) {
+      expect(vector).toMatchObject({
+        rpc: "Stream",
+        direction: "plugin-to-client",
+        invocationMode: "INVOCATION_MODE_SSE",
+        payloadMutation: { field: "event", limit: "stream-lifecycle.json#/limits/sseEventBytes", excessBytes: 1 },
+      });
+      expect(lifecycle.limits.sseEventBytes).toBeGreaterThan(0);
       expect(vector.expectedStatus).toBe("RESOURCE_EXHAUSTED");
       expect(lifecycle.status.limitExceeded).toBe(vector.expectedStatus);
       const stream = client.stream();
-      const terminal = new Promise<number>((resolve, reject) => {
+      const terminal = new Promise<{ code: number; details?: string }>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error("Stream error vector did not finish")), 5_000);
         stream.on("data", () => undefined);
-        stream.once("error", (error: { code?: number }) => { clearTimeout(timeout); resolve(error.code ?? -1); });
-        stream.once("end", () => { clearTimeout(timeout); resolve(grpcStatus.OK); });
+        stream.once("error", (error: { code?: number; details?: string }) => { clearTimeout(timeout); resolve({ code: error.code ?? -1, details: error.details }); });
+        stream.once("end", () => { clearTimeout(timeout); resolve({ code: grpcStatus.OK }); });
       });
       stream.write({ capability: "forms.live", open: {
+        transport: StreamTransport.STREAM_TRANSPORT_UNSPECIFIED,
         mode: InvocationMode.INVOCATION_MODE_SSE,
         connectionId: vector.fixtureScenario,
         contextJson: new TextEncoder().encode(JSON.stringify({ version: 1, kind: "sse", method: "GET", path: "/events", requestId: "vector-request" })),
       } });
       stream.end();
-      expect(await terminal, vector.name).toBe(grpcStatus.RESOURCE_EXHAUSTED);
+      const result = await terminal;
+      expect(result, `${vector.name}: ${JSON.stringify(result)}`).toMatchObject({ code: grpcStatus.RESOURCE_EXHAUSTED });
     }
   });
 });

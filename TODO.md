@@ -29,8 +29,11 @@ runtime library.
   capability/purpose/domain scope denial и локального отказа на пустых
   обязательных полях; клиентская диагностика не раскрывает secret bytes или
   подробности отказа.
-- [ ] Добавить conformance vectors для общего error mapping, bounds,
-  malformed/oversized payloads и JSON Schema versions.
+- [x] Добавить исполняемый Stream error vector для превышения контрактного
+  лимита SSE `event`: vector связывает mutation с `stream-lifecycle.json`, а
+  real-child-process conformance подтверждает `RESOURCE_EXHAUSTED`.
+- [ ] Расширить conformance vectors общим error mapping, malformed payloads и
+  JSON Schema versions; покрытие oversized пока ограничено SSE `event`.
 - [x] Добавить исполняемые negative vectors для `stream-open-context.schema`
   (missing required requestId, path.maxLength, headers.maxProperties,
   cookies.maxItems); test-runner выводит граничные payloads из действующих

@@ -1,0 +1,15 @@
+[
+  {
+    "name": "sse-event-over-limit",
+    "rpc": "Stream",
+    "direction": "plugin-to-client",
+    "invocationMode": "INVOCATION_MODE_SSE",
+    "fixtureScenario": "sse-large-event",
+    "payloadMutation": {
+      "field": "event",
+      "limit": "stream-lifecycle.json#/limits/sseEventBytes",
+      "excessBytes": 1
+    },
+    "expectedStatus": "RESOURCE_EXHAUSTED"
+  }
+]
