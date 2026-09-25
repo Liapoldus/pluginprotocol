@@ -66,6 +66,14 @@ describe("Go cookie contract API", () => {
     expect(result.headers ?? []).toEqual([]);
   });
 
+  it("rejects Set-Cookie in generic headers in every casing", () => {
+    for (const scenario of ["set-cookie-header", "uppercase-set-cookie-header"]) {
+      const result = runFixture(scenario);
+      expect(result.error).toBeTruthy();
+      expect(result.headers ?? []).toEqual([]);
+    }
+  });
+
   it("filters exact scoped policy names while preserving duplicate pairs and order", () => {
     const result = runFixture("policy-filter");
     expect(result.error).toBeUndefined();
