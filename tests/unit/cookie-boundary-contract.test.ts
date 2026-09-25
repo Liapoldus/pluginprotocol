@@ -1,0 +1,39 @@
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+
+const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
+const json = async (path: string) => JSON.parse(await readFile(join(root, path), "utf8"));
+
+describe("plugin HTTP cookie boundary v1", () => {
+  it("defines an incoming allow-list scoped to one plugin instance and capability", async () => {
+    const schema = await json("contracts/http/v1/cookie-policy.schema.json");
+
+    expect(schema.required).toEqual(expect.arrayContaining(["version", "instanceId", "capability", "allowedNames"]));
+    expect(schema.properties.version.const).toBe(1);
+    expect(schema.properties.allowedNames.uniqueItems).toBe(true);
+    expect(schema["x-liapoldus-semantics"].scope).toEqual(["instanceId", "capability"]);
+    expect(schema["x-liapoldus-semantics"].forwarding).toMatch(/only.*allow-listed/i);
+  });
+
+  it("specifies filtering, atomic rejection, and redaction behavior without logging raw values", async () => {
+    const boundary = await json("contracts/http/v1/cookie-boundary.json");
+
+    expect(boundary.version).toBe(1);
+    expect(boundary.incoming.policyScope).toEqual(["instanceId", "capability"]);
+    expect(boundary.incoming.unlistedCookie).toBe("omit");
+    expect(boundary.outgoing.invalidAction).toBe("reject-entire-response-before-commit");
+    expect(boundary.security.redactValue).toEqual(["logs", "traces", "audit", "errors"]);
+    expect(boundary.errors.invalidCookiePolicy).toBeDefined();
+    expect(boundary.errors.invalidOutgoingAction).toBeDefined();
+  });
+
+  it("conforms stream request cookies and ordinary/HttpOnly response actions", async () => {
+    const vectors = await json("contracts/protocol/v1/json-payload-vectors.json");
+    const names = vectors.map((vector: { name: string }) => vector.name);
+    expect(names).toContain("http-stream-open-context-cookie");
+    expect(names).toContain("http-response-cookie-ordinary");
+    expect(names).toContain("http-response-cookie-httponly");
+  });
+});
