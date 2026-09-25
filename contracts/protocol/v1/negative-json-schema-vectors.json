@@ -1,0 +1,26 @@
+[
+  {
+    "name": "http-stream-context-missing-request-id",
+    "schema": "contracts/protocol/v1/stream-open-context.schema.json",
+    "payload": { "version": 1, "kind": "http", "method": "GET", "path": "/", "requestId": "fixture-request" },
+    "mutation": { "kind": "removeRequired", "property": "requestId" }
+  },
+  {
+    "name": "http-stream-context-path-over-maximum",
+    "schema": "contracts/protocol/v1/stream-open-context.schema.json",
+    "payload": { "version": 1, "kind": "http", "method": "GET", "path": "/", "requestId": "fixture-request" },
+    "mutation": { "kind": "exceedStringMaximum", "property": "path" }
+  },
+  {
+    "name": "http-stream-context-too-many-headers",
+    "schema": "contracts/protocol/v1/stream-open-context.schema.json",
+    "payload": { "version": 1, "kind": "http", "method": "GET", "path": "/", "requestId": "fixture-request", "headers": {} },
+    "mutation": { "kind": "exceedObjectPropertiesMaximum", "property": "headers" }
+  },
+  {
+    "name": "http-stream-context-too-many-cookies",
+    "schema": "contracts/protocol/v1/stream-open-context.schema.json",
+    "payload": { "version": 1, "kind": "http", "method": "GET", "path": "/", "requestId": "fixture-request", "cookies": [] },
+    "mutation": { "kind": "exceedArrayItemsMaximum", "property": "cookies", "item": { "name": "session", "value": "synthetic-cookie" } }
+  }
+]

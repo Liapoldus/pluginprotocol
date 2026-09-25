@@ -10,8 +10,46 @@ const contextSchemaId = "https://github.com/Liapoldus/pluginprotocol/blob/main/c
 type NegativeVector = {
   name: string;
   schema: string;
-  payload: unknown;
+  payload: Record<string, unknown>;
+  mutation:
+    | { kind: "removeRequired"; property: string }
+    | { kind: "exceedStringMaximum"; property: string }
+    | { kind: "exceedObjectPropertiesMaximum"; property: string }
+    | { kind: "exceedArrayItemsMaximum"; property: string; item: unknown };
 };
+
+function streamContextLimit(property: string, keyword: "maxLength" | "maxProperties" | "maxItems"): number {
+  const schema = JSON.parse(readFileSync(`${root}/contracts/protocol/v1/stream-open-context.schema.json`, "utf8"));
+  const httpVariant = schema.oneOf.find((variant: { properties?: { kind?: { const?: string } } }) => variant.properties?.kind?.const === "http");
+  const limit = httpVariant?.properties?.[property]?.[keyword];
+  if (typeof limit !== "number") throw new Error(`missing ${keyword} for ${property}`);
+  return limit;
+}
+
+function applyMutation(vector: NegativeVector): unknown {
+  const payload = structuredClone(vector.payload);
+  switch (vector.mutation.kind) {
+    case "removeRequired":
+      delete payload[vector.mutation.property];
+      break;
+    case "exceedStringMaximum":
+      payload[vector.mutation.property] = "x".repeat(streamContextLimit(vector.mutation.property, "maxLength") + 1);
+      break;
+    case "exceedObjectPropertiesMaximum": {
+      const properties = payload[vector.mutation.property] as Record<string, string>;
+      const count = streamContextLimit(vector.mutation.property, "maxProperties") + 1;
+      for (let index = 0; index < count; index += 1) properties[`x-header-${index}`] = "fixture";
+      break;
+    }
+    case "exceedArrayItemsMaximum": {
+      const items = payload[vector.mutation.property] as unknown[];
+      const count = streamContextLimit(vector.mutation.property, "maxItems") + 1;
+      while (items.length < count) items.push(vector.mutation.item);
+      break;
+    }
+  }
+  return payload;
+}
 
 function loadSchemas(directory: string, ajv: Ajv2020): void {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -45,7 +83,7 @@ describe("negative JSON Schema conformance vectors", () => {
 
     for (const vector of vectors) {
       expect(vector.schema, vector.name).toBe("contracts/protocol/v1/stream-open-context.schema.json");
-      expect(validate!(vector.payload), vector.name).toBe(false);
+      expect(validate!(applyMutation(vector)), vector.name).toBe(false);
     }
   });
 });

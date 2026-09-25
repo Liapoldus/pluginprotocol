@@ -31,6 +31,10 @@ runtime library.
   подробности отказа.
 - [ ] Добавить conformance vectors для общего error mapping, bounds,
   malformed/oversized payloads и JSON Schema versions.
+- [x] Добавить исполняемые negative vectors для `stream-open-context.schema`
+  (missing required requestId, path.maxLength, headers.maxProperties,
+  cookies.maxItems); test-runner выводит граничные payloads из действующих
+  ограничений схемы и подтверждает их отклонение без копирования лимитов.
 - [x] Добавить TypeScript real-child-process conformance для bounded gRPC
       writable backpressure, сохранения каждого принятого кадра, caller-owned
       idle timeout/cancellation, gRPC deadline как максимальной длительности,
