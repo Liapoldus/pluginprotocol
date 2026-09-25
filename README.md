@@ -14,8 +14,10 @@ Remote mode адресуется явным стабильным Service host:po
 связанную с заранее зарегистрированным logical plugin instance. Gateway
 проверяет URI identity и DNS/IP SAN при каждом новом gRPC connection. Ready
 replicas за Service должны обслуживать совместимые protocol, Manifest и
-settings digest; readiness/config apply принадлежат внешнему Docker/Kubernetes
-operator. Ключи передаются только через защищённые file/secret mounts. Ротацию
+settings digest. Запуск workload, process readiness и rollout принадлежат
+внешнему Docker/Kubernetes operator; Gateway выполняет handshake, config apply
+и DispatchApply до включения replica в dispatch. Ключи передаются только через
+защищённые file/secret mounts. Ротацию
 ведёт внешний CA/operator с коротким overlap trust bundle и rolling restart.
 Gateway управляет process только в local mode. Для remote mode Gateway
 переподключается и повторяет handshake после новых connections, но не
@@ -161,9 +163,10 @@ Gateway редактирует protocol diagnostics и не раскрывает
 активной операции и удаляет временные копии после её завершения.
 
 В local mode broker доступен только по переданному loopback endpoint; в remote
-mode нужен отдельный закрытый TLS/mTLS callback endpoint из доверенной plugin
-network. Это не публичный Gateway API. Remote transport для GrantBroker пока не
-реализован. Plugin не должен считать переданный клиентом handle авторизацией:
+mode используется отдельный закрытый TLS/mTLS callback endpoint из доверенной
+plugin network. Это не публичный Gateway API. Библиотека предоставляет remote
+client/server primitives; их интеграция в Gateway deployment остаётся внешней
+задачей. Plugin не должен считать переданный клиентом handle авторизацией:
 он может погасить только handle, прикреплённый Gateway к текущему
 `CallRequest`. Проверка grant и выдача секрета остаются ответственностью
 Gateway; callback не передаёт plugin filesystem paths или владение секретом.
@@ -197,7 +200,7 @@ Protocol tests red-first и TypeScript/Vitest-only. Реализованные �
 покрывают proto service contract, generated stubs, JSON payload vectors,
 child-process handshake, стандартную health-проверку, unary Call, обе стороны
 bidirectional stream, oversized stream message, remote TLS/mTLS client,
-control/data RPC authorization и remote server TLS boundary. Отдельные тесты
-deadlines, cancellation/concurrency/close-race, backpressure, remote GrantBroker,
-credential rotation/reconnect replicas, интеграция типизированной HTTP-cookie
-boundary и macOS/Linux CI остаются в TODO.
+control/data RPC authorization, DispatchApply, remote GrantBroker TLS boundary,
+malformed JSON/schema version и remote server TLS boundary. Тесты credential
+rotation/reconnect replicas и общий protocol error mapping остаются в TODO.
+GitHub Actions запускает полный `make check` на Ubuntu и macOS.

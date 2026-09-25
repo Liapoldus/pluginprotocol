@@ -12,10 +12,6 @@ runtime library.
   передаются отдельными argv entries, env принимает только typed secret file
   references; remote mTLS credentials используют общий
   `file-reference.schema.json`.
-- [ ] Завершить runtime-conformance launch lifecycle: endpoint фиксирован,
-  remote transport требует TLS, межмашинный production требует mTLS; локальные
-  process restart/timeout defaults принадлежат Gateway и не задаются этим
-  протокольным schema contract.
 
 ## Request/response и capability contracts
 
@@ -29,8 +25,6 @@ runtime library.
   rejection и generic sentinel errors. Реализация читает embedded versioned
   assets и не копирует schema/semantic limits. Aggregate byte ceiling входного
   Cookie header вычисляется из контрактных count/name/value bounds и разделителей.
-- [ ] Интегрировать cookie policy в Gateway/Caddy runtime и подтвердить e2e
-  redaction на HTTP, trace, audit и ошибках.
 - [x] Добавить исполняемые GrantBroker vectors для успешной выдачи,
   capability/purpose/domain scope denial и локального отказа на пустых
   обязательных полях; клиентская диагностика не раскрывает secret bytes или
@@ -55,19 +49,20 @@ runtime library.
       writable backpressure, сохранения каждого принятого кадра, caller-owned
       idle timeout/cancellation, gRPC deadline как максимальной длительности,
       параллельных Stream и Close на фоне in-flight data.
-- [ ] Запустить эту TS conformance suite на macOS и Linux; отдельно подтвердить
-      Gateway-owned per-instance/per-route concurrency, idle-timeout и
-      max-duration policy. Protocol library не задаёт эти deployment limits:
-      вызывающий runtime передаёт deadline в `Stream` и отменяет его при idle.
 
 ## Проверки и релиз
 
 - [x] На локальной macOS покрыть gRPC Stream deadline, cancellation,
       bidirectional data, concurrent calls, bounded backpressure и orderly
       close во время данных в `tests/integration/stream-runtime-conformance.test.ts`.
-- [ ] Покрыть replica reconnect/rotation, remote GrantBroker и active-dispatch
-      authorization на macOS/Linux; эти сценарии относятся к runtime
-      integration и не заменяются библиотечными Stream-тестами.
+- [ ] Добавить conformance для remote replica reconnect после подключения к
+      новому TLS endpoint и credential rotation с overlap trust roots;
+      readiness orchestration и rollout остаются ответственностью Gateway и
+      внешнего workload manager.
+- [x] Проверить remote GrantBroker по TLS/mTLS и active-dispatch authorization
+      для control/data identities в real-child-process conformance.
+- [x] Запускать полный `make check` в CI на Ubuntu и macOS; workflow содержит
+      обе платформы в matrix.
 - [x] Зафиксировать typed `DispatchApply` v1: полная atomic capability→mode
       generation на replica, сверка instance/settings/release с её активным
       состоянием, идемпотентный повтор и replica-bound acknowledgement.
