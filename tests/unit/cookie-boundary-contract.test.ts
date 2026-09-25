@@ -35,6 +35,16 @@ describe("plugin HTTP cookie boundary v1", () => {
     expect(boundary.errors.invalidOutgoingAction).toBeDefined();
   });
 
+  it("publishes machine-readable response cookie semantic constraints", async () => {
+    const schema = await json("contracts/http/v1/response-action.schema.json");
+    const constraints = schema["x-liapoldus-semantics"].cookieConstraints;
+
+    expect(constraints.sameSiteRequiresSecure).toBe("None");
+    expect(constraints.securePrefixes).toContain("__Secure-");
+    expect(constraints.hostPrefix).toEqual({ prefix: "__Host-", secure: true, path: "/", domainAllowed: false });
+    expect(constraints.domain).toEqual({ mustDomainMatchRequestHost: true, rejectPublicSuffix: true });
+  });
+
   it("conforms stream request cookies and ordinary/HttpOnly response actions", async () => {
     const vectors = await json("contracts/protocol/v1/json-payload-vectors.json");
     const names = vectors.map((vector: { name: string }) => vector.name);
