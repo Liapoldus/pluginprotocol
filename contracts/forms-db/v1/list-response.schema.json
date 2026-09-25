@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/forms-db/v1/list-response.schema.json",
+  "title": "Ответ forms.list v1",
+  "description": "Страница отправок. Каждый элемент соответствует существующей сериализации Submission; nextCursor равен null, если следующей страницы нет.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items", "nextCursor"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "createdAt", "site", "schemaName", "data"],
+        "properties": {
+          "id": { "type": "string" },
+          "createdAt": { "type": "string" },
+          "site": { "type": "string" },
+          "schemaName": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      }
+    },
+    "nextCursor": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ]
+    }
+  }
+}

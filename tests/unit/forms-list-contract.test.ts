@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const requestPath = `${root}/contracts/forms-db/v1/list-request.schema.json`;
 const responsePath = `${root}/contracts/forms-db/v1/list-response.schema.json`;
+const errorsPath = `${root}/contracts/forms-db/v1/list-errors.json`;
 const vectorsPath = `${root}/contracts/protocol/v1/json-payload-vectors.json`;
 
 function compile(path: string) {
@@ -18,7 +19,9 @@ function compile(path: string) {
 describe("forms.list v1 contract", () => {
   it("validates the documented request fields and optional filter/cursor", () => {
     const validate = compile(requestPath);
+    const schema = JSON.parse(readFileSync(requestPath, "utf8"));
 
+    expect(schema.properties.limit).toMatchObject({ minimum: 1, maximum: 100, default: 50 });
     expect(validate({ site: "portal", schemaName: "contact" })).toBe(true);
     expect(validate({
       site: "portal",
@@ -58,5 +61,18 @@ describe("forms.list v1 contract", () => {
       name: "forms-list-page",
       capability: "forms.list",
     }));
+  });
+
+  it("preserves the documented forms.list error mapping", () => {
+    const errors = JSON.parse(readFileSync(errorsPath, "utf8"));
+    expect(errors).toEqual({
+      $id: "https://github.com/Liapoldus/pluginprotocol/contracts/forms-db/v1/list-errors.json",
+      capability: "forms.list",
+      version: 1,
+      errors: {
+        validation_failed: { http: 422, retryable: false },
+        storage_unavailable: { http: 503, retryable: true },
+      },
+    });
   });
 });

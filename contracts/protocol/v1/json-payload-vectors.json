@@ -12,6 +12,29 @@
     }
   },
   {
+    "name": "forms-list-page",
+    "capability": "forms.list",
+    "requestSchema": "contracts/forms-db/v1/list-request.schema.json",
+    "responseSchema": "contracts/forms-db/v1/list-response.schema.json",
+    "request": {
+      "site": "portal",
+      "schemaName": "contact",
+      "cursor": "opaque-cursor",
+      "limit": 50,
+      "filter": { "field": "email", "equals": "a@example.com" }
+    },
+    "response": {
+      "items": [{
+        "id": "frm_fixture",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "site": "portal",
+        "schemaName": "contact",
+        "data": { "email": "a@example.com" }
+      }],
+      "nextCursor": "opaque-next-cursor"
+    }
+  },
+  {
     "name": "identity-http-response",
     "capability": "identity.client.callback",
     "requestSchema": "contracts/identity/v1/http-request.schema.json",

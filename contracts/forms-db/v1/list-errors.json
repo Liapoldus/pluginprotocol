@@ -1,0 +1,9 @@
+{
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/forms-db/v1/list-errors.json",
+  "capability": "forms.list",
+  "version": 1,
+  "errors": {
+    "validation_failed": { "http": 422, "retryable": false },
+    "storage_unavailable": { "http": 503, "retryable": true }
+  }
+}
