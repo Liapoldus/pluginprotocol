@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 import { describe, expect, it } from "vitest";
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
@@ -52,9 +53,25 @@ describe("plugin HTTP cookie boundary v1", () => {
     expect(cookieBranches).toHaveLength(3);
     for (const branch of cookieBranches) {
       expect(branch.properties.cookies.items.$ref).toBe(
-        "../../http/v1/cookie-pair.schema.json#/$defs/cookiePair",
+        "https://github.com/Liapoldus/pluginprotocol/contracts/http/v1/cookie-pair.schema.json#/$defs/cookiePair",
       );
     }
+  });
+
+  it("validates Set-Cookie values and paths according to the Go HTTP cookie serializer", async () => {
+    const response = await json("contracts/http/v1/response-action.schema.json");
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    addFormats(ajv);
+    const validate = ajv.compile(response);
+    const action = (value: string, path: string) => ({
+      status: 200,
+      cookies: [{ name: "session", value, path, secure: true, httpOnly: true }],
+    });
+
+    expect(validate(action("space and,comma", "/valid path"))).toBe(true);
+    expect(validate(action("semi;colon", "/valid"))).toBe(false);
+    expect(validate(action("valid", "/semi;path"))).toBe(false);
+    expect(validate(action("non-ascii-ø", "/valid"))).toBe(false);
   });
 
   it("conforms stream request cookies and ordinary/HttpOnly response actions", async () => {
