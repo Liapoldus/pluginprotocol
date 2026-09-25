@@ -39,8 +39,26 @@
     "capability": "identity.client.callback",
     "requestSchema": "contracts/identity/v1/http-request.schema.json",
     "responseSchema": "contracts/http/v1/response-action.schema.json",
-    "request": { "method": "GET", "path": "/identity/callback", "query": "code=fixture" },
+    "request": { "method": "GET", "path": "/identity/callback", "query": "code=fixture", "requestId": "fixture-identity-response" },
     "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "session", "value": "synthetic-test-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }], "body": "" }
+  },
+  {
+    "name": "identity-http-request-full-context",
+    "capability": "identity.client.callback",
+    "requestSchema": "contracts/identity/v1/http-request.schema.json",
+    "responseSchema": "contracts/http/v1/response-action.schema.json",
+    "request": {
+      "method": "POST",
+      "path": "/identity/callback",
+      "query": "state=fixture",
+      "headers": { "content-type": "application/octet-stream", "x-request-mode": "interactive" },
+      "cookies": [{ "name": "liap-session", "value": "synthetic-inbound-value" }],
+      "body": "AAECAwQ=",
+      "requestId": "fixture-identity-request",
+      "remoteAddr": "203.0.113.7:43120",
+      "context": { "tenant": "fixture-tenant" }
+    },
+    "response": { "status": 200, "body": "" }
   },
   {
     "name": "http-stream-open-context",
@@ -71,7 +89,7 @@
     "capability": "identity.client.callback",
     "requestSchema": "contracts/identity/v1/http-request.schema.json",
     "responseSchema": "contracts/http/v1/response-action.schema.json",
-    "request": { "method": "GET", "path": "/identity/callback" },
+    "request": { "method": "GET", "path": "/identity/callback", "requestId": "fixture-ordinary-cookie" },
     "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "theme", "value": "synthetic-ordinary-value", "path": "/", "secure": true, "httpOnly": false, "sameSite": "Lax" }] }
   },
   {
@@ -79,7 +97,7 @@
     "capability": "identity.client.callback",
     "requestSchema": "contracts/identity/v1/http-request.schema.json",
     "responseSchema": "contracts/http/v1/response-action.schema.json",
-    "request": { "method": "GET", "path": "/identity/callback" },
+    "request": { "method": "GET", "path": "/identity/callback", "requestId": "fixture-httponly-cookie" },
     "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "liap-session", "value": "synthetic-httponly-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }] }
   }
 ]

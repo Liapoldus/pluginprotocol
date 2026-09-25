@@ -24,6 +24,7 @@ describe("identity HTTP request JSON contract conformance", () => {
         context: { tenant: "fixture-tenant" },
       },
     });
+    expect(Buffer.from(vector!.request.body, "base64").toString("hex")).toBe("0001020304");
 
     const schema = JSON.parse(await readFile(`${root}/contracts/identity/v1/http-request.schema.json`, "utf8"));
     expect(schema.required).toEqual(expect.arrayContaining(["method", "path", "requestId"]));

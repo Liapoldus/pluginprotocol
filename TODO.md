@@ -35,6 +35,10 @@ runtime library.
   (missing required requestId, path.maxLength, headers.maxProperties,
   cookies.maxItems); test-runner выводит граничные payloads из действующих
   ограничений схемы и подтверждает их отклонение без копирования лимитов.
+- [x] Согласовать `identity/v1/http-request.schema.json` с общим Gateway
+  HTTPRequest JSON shape: bounded headers/cookies, base64 body, required
+  requestId, remoteAddr и string-valued context; добавить positive payload
+  conformance vector.
 - [x] Добавить TypeScript real-child-process conformance для bounded gRPC
       writable backpressure, сохранения каждого принятого кадра, caller-owned
       idle timeout/cancellation, gRPC deadline как максимальной длительности,
