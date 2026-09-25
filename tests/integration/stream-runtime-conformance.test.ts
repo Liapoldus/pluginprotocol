@@ -47,6 +47,18 @@ describe("pluginprotocol v1 Stream runtime conformance", () => {
     expect(await terminal).toBe(status.CANCELLED);
   });
 
+  it("lets the caller enforce an idle timeout by cancelling the Stream", async () => {
+    const stream = client.stream();
+    const terminal = terminalCode(stream);
+    openTCP(stream, "idle-timeout");
+    const idleTimer = setTimeout(() => stream.cancel(), 200);
+    try {
+      expect(await terminal).toBe(status.CANCELLED);
+    } finally {
+      clearTimeout(idleTimer);
+    }
+  });
+
   it("signals bounded writable buffering when responses are deliberately not consumed", async () => {
     const stream = client.stream();
     stream.pause();
