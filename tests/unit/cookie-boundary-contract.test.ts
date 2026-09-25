@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import Ajv2020 from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
@@ -15,6 +16,11 @@ describe("plugin HTTP cookie boundary v1", () => {
     expect(schema.properties.allowedNames.uniqueItems).toBe(true);
     expect(schema["x-liapoldus-semantics"].scope).toEqual(["instanceId", "capability"]);
     expect(schema["x-liapoldus-semantics"].forwarding).toMatch(/only.*allow-listed/i);
+
+    const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+    expect(validate({ version: 1, instanceId: "identity-main", capability: "identity.client.callback", allowedNames: ["liap-session"] })).toBe(true);
+    expect(validate({ version: 1, instanceId: "identity-main", capability: "identity.client.callback", allowedNames: ["liap-session", "liap-session"] })).toBe(false);
+    expect(validate({ version: 1, instanceId: "identity-main", capability: "identity.client.callback", allowedNames: ["*"] })).toBe(false);
   });
 
   it("specifies filtering, atomic rejection, and redaction behavior without logging raw values", async () => {

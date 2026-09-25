@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/http/v1/cookie-policy.schema.json",
+  "title": "Политика входящих HTTP cookies для binding plugin Liapoldus v1",
+  "description": "Gateway/Caddy-owned policy. One policy applies to exactly one plugin instance and one capability; it is not sent to the plugin.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "instanceId", "capability", "allowedNames"],
+  "properties": {
+    "version": { "const": 1 },
+    "instanceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "capability": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128 },
+    "allowedNames": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$",
+        "not": { "const": "*" }
+      }
+    }
+  },
+  "x-liapoldus-semantics": {
+    "scope": ["instanceId", "capability"],
+    "nameComparison": "case-sensitive exact match; wildcards and regular expressions are not supported",
+    "forwarding": "Before Call or Stream dispatch, forward only allow-listed request cookies for the selected plugin instance and capability. Omit every other cookie.",
+    "duplicates": "Preserve the order and multiplicity of matching request cookie pairs; plugin code owns interpretation of repeated names.",
+    "empty": "An empty allowedNames list forwards no cookies.",
+    "policyTransport": "This Gateway policy is local configuration and is never included in the plugin payload.",
+    "redaction": "Cookie values are credentials: redact them from logs, traces, audit records, diagnostics, and error messages."
+  }
+}

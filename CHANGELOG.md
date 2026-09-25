@@ -24,6 +24,9 @@ wire-совместимости.
   generation data RPC закрыты; повтор допускается только при полном совпадении.
 - Сырые framing wire-hex vectors удалены и заменены protobuf descriptor и JSON
   payload conformance tests.
+- Добавлен versioned cookie boundary contract: входной allow-list scoped к паре
+  plugin instance/capability, типизированные обычные и HttpOnly response actions,
+  атомарное отклонение некорректных действий и обязательная redaction значений.
 
 ## v1.0.0 — первый стабильный wire-контракт
 

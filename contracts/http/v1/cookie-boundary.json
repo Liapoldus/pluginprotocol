@@ -1,0 +1,46 @@
+{
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/http/v1/cookie-boundary.json",
+  "title": "HTTP cookie boundary v1",
+  "version": 1,
+  "policySchema": "cookie-policy.schema.json",
+  "incoming": {
+    "policyScope": ["instanceId", "capability"],
+    "policyOwner": "gateway",
+    "policySentToPlugin": false,
+    "unlistedCookie": "omit",
+    "nameComparison": "case-sensitive exact match",
+    "duplicateMatchingPairs": "preserve order and multiplicity",
+    "emptyAllowList": "forward no cookies",
+    "invalidPolicy": "reject candidate configuration before activation; do not dispatch with a partial or fallback policy",
+    "invalidRequestCookie": "reject request before plugin dispatch; do not include raw cookie value in the error"
+  },
+  "outgoing": {
+    "schema": "../../http/v1/response-action.schema.json#/$defs/cookieAction",
+    "httpOnly": "The boolean httpOnly field explicitly distinguishes HttpOnly from script-readable cookies; both use the same typed action.",
+    "invalidAction": "reject-entire-response-before-commit",
+    "headerSerialization": "Each valid cookie action becomes one Set-Cookie header; plugins cannot set Set-Cookie through the generic headers map."
+  },
+  "errors": {
+    "invalidCookiePolicy": {
+      "stage": "configuration-validation",
+      "effect": "candidate-not-activated",
+      "valueDisclosure": false
+    },
+    "invalidRequestCookie": {
+      "stage": "before-plugin-dispatch",
+      "effect": "request-rejected",
+      "valueDisclosure": false
+    },
+    "invalidOutgoingAction": {
+      "stage": "before-response-commit",
+      "effect": "entire-response-rejected-without-partial-headers",
+      "valueDisclosure": false
+    }
+  },
+  "security": {
+    "sensitive": true,
+    "redactValue": ["logs", "traces", "audit", "errors"],
+    "redactionScope": "Redact values in both inbound request context and outbound plugin actions; retaining cookie names is allowed only when needed for diagnostics.",
+    "neverReturn": "Never return raw cookie values in protocol errors or transport diagnostics."
+  }
+}

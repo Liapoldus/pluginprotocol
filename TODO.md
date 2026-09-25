@@ -13,9 +13,12 @@ runtime library.
 
 ## Request/response и capability contracts
 
-- [ ] Довести typed request context для allow-listed cookies и response actions
-  для regular/HttpOnly cookies; raw values всегда redacted на protocol/runtime
-  diagnostics.
+- [x] Зафиксировать versioned cookie policy для точной пары plugin instance и
+  capability, фильтрацию до dispatch, typed ordinary/HttpOnly response actions,
+  атомарное отклонение некорректного ответа и запрет раскрытия значений в
+  diagnostics; schema/vector conformance добавлен.
+- [ ] Интегрировать cookie policy в Gateway/Caddy runtime и подтвердить e2e
+  redaction на HTTP, trace, audit и ошибках.
 - [ ] Добавить conformance vectors для authorization, GrantBroker redemption,
   error mapping, bounds, malformed/oversized payloads и JSON Schema versions.
 - [ ] Расширить Stream conformance нагрузочными проверками concurrency,

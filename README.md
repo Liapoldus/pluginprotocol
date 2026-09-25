@@ -55,12 +55,17 @@ JSON contracts manifest/settings/HTTP response actions/admin-surface/admin-UI и
 `HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext` сохраняются.
 Общий typed cookie response описан в
 [`response-action.schema.json`](contracts/http/v1/response-action.schema.json);
+политика входящих cookie и правила фильтрации, ошибок и редактирования — в
+[`cookie-policy.schema.json`](contracts/http/v1/cookie-policy.schema.json) и
+[`cookie-boundary.json`](contracts/http/v1/cookie-boundary.json). Gateway policy
+привязана одновременно к plugin instance и capability и не отправляется
+плагину; в `Call`/`Stream` попадают только явно разрешённые cookie пары.
 потоковые open contexts и response-start metadata описаны в versioned
 [`Stream schemas`](contracts/protocol/v1/stream-open-context.schema.json) и
 [`HTTP response metadata`](contracts/protocol/v1/http-stream-response-metadata.schema.json).
 Gateway/Caddy проверяет cookie allow-list до dispatch и применяет response
-actions атомарно до headers/upgrade; cookie значения редактируются в логах и
-ошибках.
+actions атомарно до headers/upgrade; входящие и исходящие cookie значения
+редактируются в логах, trace, audit, диагностике и ошибках.
 Protocol transport не получает публичный socket, filesystem path или raw secret.
 Grant handling и redaction остаются ответственностью Gateway boundary.
 Go-потребители versioned JSON contracts используют `ContractFiles()`, который

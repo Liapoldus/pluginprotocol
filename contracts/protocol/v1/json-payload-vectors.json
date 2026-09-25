@@ -57,5 +57,29 @@
     "responseSchema": "contracts/protocol/v1/http-stream-response-metadata.schema.json",
     "request": { "version": 1, "kind": "http", "method": "GET", "path": "/events", "requestId": "fixture-response-start" },
     "response": { "version": 1, "headers": { "cache-control": "no-cache" }, "cookies": [{ "name": "stream-session", "value": "synthetic-stream-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }] }
+  },
+  {
+    "name": "http-stream-open-context-cookie",
+    "capability": "identity.client.callback",
+    "requestSchema": "contracts/protocol/v1/stream-open-context.schema.json",
+    "responseSchema": "contracts/protocol/v1/http-stream-response-metadata.schema.json",
+    "request": { "version": 1, "kind": "http", "method": "GET", "path": "/identity/callback", "cookies": [{ "name": "liap-session", "value": "synthetic-inbound-value" }], "requestId": "fixture-cookie-context" },
+    "response": { "version": 1, "headers": {} }
+  },
+  {
+    "name": "http-response-cookie-ordinary",
+    "capability": "identity.client.callback",
+    "requestSchema": "contracts/identity/v1/http-request.schema.json",
+    "responseSchema": "contracts/http/v1/response-action.schema.json",
+    "request": { "method": "GET", "path": "/identity/callback" },
+    "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "theme", "value": "synthetic-ordinary-value", "path": "/", "secure": true, "httpOnly": false, "sameSite": "Lax" }] }
+  },
+  {
+    "name": "http-response-cookie-httponly",
+    "capability": "identity.client.callback",
+    "requestSchema": "contracts/identity/v1/http-request.schema.json",
+    "responseSchema": "contracts/http/v1/response-action.schema.json",
+    "request": { "method": "GET", "path": "/identity/callback" },
+    "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "liap-session", "value": "synthetic-httponly-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }] }
   }
 ]
