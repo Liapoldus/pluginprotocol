@@ -38,8 +38,11 @@ runtime library.
 - [x] Добавить исполняемый Stream error vector для превышения контрактного
   лимита SSE `event`: vector связывает mutation с `stream-lifecycle.json`, а
   real-child-process conformance подтверждает `RESOURCE_EXHAUSTED`.
-- [ ] Расширить conformance vectors общим error mapping, malformed payloads и
-  JSON Schema versions; покрытие oversized пока ограничено SSE `event`.
+- [ ] Расширить conformance vectors общим protocol error mapping; покрытие
+  oversized пока ограничено SSE `event`.
+- [x] Добавить исполняемые vectors для синтаксически некорректного JSON и
+  неподдерживаемой версии payload schema; ожидаемая версия берётся из
+  канонической схемы, новый числовой лимит не вводится.
 - [x] Добавить исполняемые negative vectors для `stream-open-context.schema`
   (missing required requestId, path.maxLength, headers.maxProperties,
   cookies.maxItems); test-runner выводит граничные payloads из действующих

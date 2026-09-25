@@ -1,0 +1,23 @@
+{
+  "malformedJson": [
+    {
+      "name": "http-stream-context-invalid-json-syntax",
+      "schema": "contracts/protocol/v1/stream-open-context.schema.json",
+      "raw": "{\"version\":1,\"kind\":\"http\","
+    }
+  ],
+  "schemaVersionMismatch": [
+    {
+      "name": "http-stream-context-unsupported-schema-version",
+      "schema": "contracts/protocol/v1/stream-open-context.schema.json",
+      "versionProperty": "version",
+      "payload": {
+        "version": 1,
+        "kind": "http",
+        "method": "GET",
+        "path": "/",
+        "requestId": "fixture-version-mismatch"
+      }
+    }
+  ]
+}
