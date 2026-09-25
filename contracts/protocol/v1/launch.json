@@ -1,5 +1,7 @@
 {
   "protocolVersion": "liapoldus.plugin.v1",
+  "localProcessSettingsSchema": "local-launch.schema.json",
+  "fileReferenceSchema": "file-reference.schema.json",
   "endpointEnvironment": "LIAPOLDUS_PLUGIN_ENDPOINT",
   "grantBrokerEndpointEnvironment": "LIAPOLDUS_GRANT_BROKER_ENDPOINT",
   "endpoint": {

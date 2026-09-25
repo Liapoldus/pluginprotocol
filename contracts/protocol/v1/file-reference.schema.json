@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/protocol/v1/file-reference.schema.json",
+  "title": "Plugin v1 external file reference",
+  "description": "Typed reference to a file on the consuming host. The path is a host-local absolute POSIX path; file contents are not part of the protocol payload.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "path"],
+  "properties": {
+    "kind": { "const": "file" },
+    "path": { "type": "string", "pattern": "^/" }
+  }
+}

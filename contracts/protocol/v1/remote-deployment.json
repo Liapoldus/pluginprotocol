@@ -1,6 +1,7 @@
 {
   "protocolVersion": "liapoldus.plugin.v1",
   "transport": "gRPC over HTTP/2 over TCP",
+  "fileReferenceSchema": "file-reference.schema.json",
   "modes": {
     "local": {
       "processOwner": "gateway-supervisor",
@@ -25,13 +26,13 @@
                 "replicaIdMustBeNonEmpty": true,
                 "oneIdentityPerLiveReplica": true
               },
-              "ca": { "type": "external-file-reference" },
+              "ca": { "$ref": "file-reference.schema.json" },
               "gatewayControlIdentity": {
                 "required": ["identity", "clientCertificate", "clientKey", "allowedRPCs"],
                 "properties": {
                   "identity": { "type": "exact-uri-san", "format": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:control" },
-                  "clientCertificate": { "type": "external-file-reference" },
-                  "clientKey": { "type": "external-secret-file-reference", "minimumPermissions": "owner-read-only" },
+                  "clientCertificate": { "$ref": "file-reference.schema.json" },
+                  "clientKey": { "$ref": "file-reference.schema.json", "minimumPermissions": "owner-read-only" },
                   "allowedRPCs": ["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]
                 }
               },
@@ -39,8 +40,8 @@
                 "required": ["identity", "clientCertificate", "clientKey", "allowedRPCs", "capabilityScope"],
                 "properties": {
                   "identity": { "type": "exact-uri-san", "format": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:data" },
-                  "clientCertificate": { "type": "external-file-reference" },
-                  "clientKey": { "type": "external-secret-file-reference", "minimumPermissions": "owner-read-only" },
+                  "clientCertificate": { "$ref": "file-reference.schema.json" },
+                  "clientKey": { "$ref": "file-reference.schema.json", "minimumPermissions": "owner-read-only" },
                   "allowedRPCs": ["Call", "Stream"],
                   "capabilityScope": {
                     "source": "active-dispatch-generation",
@@ -102,7 +103,7 @@
     "owner": "external CA/operator",
     "gatewayCa": false,
     "procedure": "Install overlapping trust roots, issue replacement identity, update protected credential mount, restart the plugin workload, verify handshake, then remove the old trust root.",
-    "secretDelivery": "file/secret mount; never inline in protocol payload or manifest"
+    "secretDelivery": "typed file reference from file-reference.schema.json; never inline in protocol payload or manifest"
   },
   "invariants": [
     "Remote mode не запускает и не перезапускает удалённый процесс.",

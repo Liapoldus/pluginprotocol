@@ -34,8 +34,10 @@ describe("remote v1 mTLS identity separation", () => {
       source: "active-dispatch-generation",
       enforcePerCall: true,
     });
-    expect(control.properties.clientCertificate).not.toBe(data.properties.clientCertificate);
-    expect(control.properties.clientKey).not.toBe(data.properties.clientKey);
+    expect(control.properties.clientCertificate.$ref).toBe("file-reference.schema.json");
+    expect(data.properties.clientCertificate.$ref).toBe("file-reference.schema.json");
+    expect(control.properties.clientKey).toMatchObject({ $ref: "file-reference.schema.json", minimumPermissions: "owner-read-only" });
+    expect(data.properties.clientKey).toMatchObject({ $ref: "file-reference.schema.json", minimumPermissions: "owner-read-only" });
 
     expect(remote.pluginAuthorization.gatewayControl.allowedRPCs).toEqual(control.properties.allowedRPCs);
     expect(remote.pluginAuthorization.caddyData.allowedRPCs).toEqual(data.properties.allowedRPCs);

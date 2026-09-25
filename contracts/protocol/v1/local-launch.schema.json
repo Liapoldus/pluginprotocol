@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/protocol/v1/local-launch.schema.json",
+  "title": "Plugin v1 local process launch settings",
+  "description": "Settings for a locally supervised plugin process. Gateway-specific restart and timeout policy is outside this protocol contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["binary", "args"],
+  "properties": {
+    "binary": {
+      "type": "string",
+      "pattern": "^/",
+      "description": "Absolute path to the plugin executable on the Gateway host."
+    },
+    "args": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Arguments passed to the executable as distinct argv entries."
+    },
+    "env": {
+      "type": "object",
+      "description": "Environment values are external secret references only; inline values are not accepted.",
+      "additionalProperties": {
+        "$ref": "file-reference.schema.json"
+      }
+    }
+  }
+}

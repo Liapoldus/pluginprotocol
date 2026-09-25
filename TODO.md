@@ -7,9 +7,15 @@ runtime library.
 
 ## Transport и launch contract
 
-- [ ] Завершить typed local/remote launch contract без plugin-specific имён и
-  Gateway route policies: endpoint фиксирован, remote transport требует TLS,
-  межмашинный production требует mTLS.
+- [x] Зафиксировать typed local/remote launch configuration без plugin-specific
+  имён и Gateway route policies: локальный binary имеет абсолютный путь, args
+  передаются отдельными argv entries, env принимает только typed secret file
+  references; remote mTLS credentials используют общий
+  `file-reference.schema.json`.
+- [ ] Завершить runtime-conformance launch lifecycle: endpoint фиксирован,
+  remote transport требует TLS, межмашинный production требует mTLS; локальные
+  process restart/timeout defaults принадлежат Gateway и не задаются этим
+  протокольным schema contract.
 
 ## Request/response и capability contracts
 
