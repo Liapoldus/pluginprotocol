@@ -24,7 +24,10 @@ wire/launch contract находится в
 [`remote-deployment.json`](contracts/protocol/v1/remote-deployment.json): он
 задаёт уникальную URI identity каждой plugin replica, раздельные per-instance
 Gateway control и Caddy data identities, разрешённые RPC/capability scopes и
-условия readiness за стабильным Service.
+условия readiness за стабильным Service. Полная семантика установки active
+dispatch generation и replica acknowledgement закреплена в
+[`dispatch-apply.json`](contracts/protocol/v1/dispatch-apply.json); protobuf
+DTO остаются единственным wire-описанием.
 
 Transport API предоставляет `DialRemoteContext` для исходящего TLS/mTLS,
 `RemoteServerInterceptors` для разделения control/data URI identities и

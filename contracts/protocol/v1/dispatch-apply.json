@@ -1,0 +1,62 @@
+{
+  "protocolVersion": "liapoldus.plugin.v1",
+  "rpc": "PluginService.DispatchApply",
+  "purpose": "Install one complete data-plane authorization generation on a connected plugin replica before Gateway activates a matching Caddy dispatch snapshot.",
+  "request": {
+    "required": [
+      "generation",
+      "instanceId",
+      "settingsDigest",
+      "releaseDigest",
+      "capabilities"
+    ],
+    "generation": {
+      "minimum": 1,
+      "scope": "per-replica",
+      "stale": "reject",
+      "sameGenerationSameRequest": "idempotent",
+      "sameGenerationDifferentRequest": "reject",
+      "apply": "atomic-replace"
+    },
+    "instanceId": "must-equal-the-logical-plugin-instance-associated-with-the-authenticated-control-connection",
+    "settingsDigest": "must-equal-the-connected-replica-local-active-settings-digest; compare the opaque value exactly without normalization",
+    "releaseDigest": "must-equal-the-connected-replica-local-running-release-digest; compare the opaque value exactly without normalization",
+    "capabilities": {
+      "meaning": "complete capability-to-invocation-mode authorization set for this generation; not a patch",
+      "entries": "capability names are non-empty and unique; each entry has at least one unique, non-unspecified InvocationMode declared by this replica's Manifest",
+      "emptyCapabilities": "deny-all",
+      "emptyModes": "reject"
+    },
+    "failure": "reject without partially changing the active generation or its authorization scope"
+  },
+  "acknowledgement": {
+    "required": [
+      "generation",
+      "replicaIdentityUri",
+      "manifestDigest",
+      "settingsDigest",
+      "releaseDigest",
+      "dispatchDigest"
+    ],
+    "after": "authorization-generation-is-active-for-this-replica",
+    "replicaIdentityUri": "must-equal-the-verified-remote-plugin-replica-URI-SAN-for-this-connection",
+    "generation": "must-equal-request-generation",
+    "manifestDigest": "must-equal-the-digest-of-the-Manifest-validated-on-this-connection",
+    "settingsDigest": "must-equal-request-settingsDigest",
+    "releaseDigest": "must-equal-request-releaseDigest",
+    "dispatchDigest": "non-empty opaque digest identifying the complete installed capability-to-mode scope; its encoding and canonicalization are implementation-defined in v1 and must not be used as a cross-implementation equality key"
+  },
+  "activationBarrier": "acknowledge-every-ready-replica-before-caddy-activation",
+  "reconnect": "a newly established control connection repeats TLS identity validation and handshake; Gateway reapplies the currently desired generation before the replica becomes Ready",
+  "authorization": {
+    "controlPlane": "Gateway-control identity may call DispatchApply",
+    "dataPlane": "Caddy-data identity may call only Call and Stream, authorized against the acknowledged active generation",
+    "transportFailure": "fail-closed; no insecure downgrade"
+  },
+  "grpcStatus": {
+    "malformedRequestOrScope": "INVALID_ARGUMENT",
+    "authenticatedInstanceOrScopeMismatch": "PERMISSION_DENIED",
+    "staleOrConflictingGeneration": "FAILED_PRECONDITION",
+    "localActiveSettingsOrReleaseMismatch": "FAILED_PRECONDITION"
+  }
+}

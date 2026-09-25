@@ -65,6 +65,11 @@ runtime library.
 - [ ] Покрыть replica reconnect/rotation, remote GrantBroker и active-dispatch
       authorization на macOS/Linux; эти сценарии относятся к runtime
       integration и не заменяются библиотечными Stream-тестами.
+- [x] Зафиксировать typed `DispatchApply` v1: полная atomic capability→mode
+      generation на replica, сверка instance/settings/release с её активным
+      состоянием, идемпотентный повтор и replica-bound acknowledgement.
+      Исполняемый TypeScript vector round-trips typed request/response; Gateway
+      обязан дождаться подтверждения каждой Ready replica до Caddy activation.
 - [x] Нормализовать legacy L4 `Stream.Open` без явного mode до проверки
   active-dispatch authorization; TCP и UDP проверены remote mTLS E2E.
 - [ ] Для каждого protocol release выполнять make check, go vet ./...,

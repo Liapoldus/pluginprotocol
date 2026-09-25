@@ -76,9 +76,10 @@
         "activeStreamReconnect": "close; do not migrate"
       },
       "dispatchApply": {
+        "contract": "dispatch-apply.json",
         "scope": "per-logical-instance-and-replica",
         "settingsAndReleaseDigests": "must-equal-the-replica-local-active-settings-and-running-release-digests",
-        "generation": "strictly-increasing; identical-repeat-is-idempotent; same-generation-different-scope-is-rejected",
+        "generation": "strictly-increasing; identical-repeat-is-idempotent; same-generation-different-request-is-rejected",
         "activationBarrier": "gateway-requires-an-acknowledgement-from-every-ready-replica-before-caddy-activation",
         "acknowledgement": ["generation", "replicaIdentityUri", "manifestDigest", "settingsDigest", "releaseDigest", "dispatchDigest"]
       },

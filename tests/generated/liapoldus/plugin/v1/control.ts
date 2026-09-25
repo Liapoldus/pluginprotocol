@@ -88,8 +88,12 @@ export interface CapabilityDescriptor {
 }
 
 /**
- * DispatchApply installs one immutable data-plane authorization generation.
- * A successful response acknowledges this exact scope for this replica only.
+ * DispatchApply replaces the complete active data-plane authorization scope
+ * for one logical plugin instance on the connected replica. Applying a
+ * request is atomic: on failure, the previous generation remains active.
+ * Generations start at 1 and increase monotonically per replica. An identical
+ * request repeated at the current generation is idempotent; a stale generation
+ * or a different request at the current generation is rejected.
  */
 export interface DispatchApplyRequest {
   generation: number;
@@ -99,11 +103,24 @@ export interface DispatchApplyRequest {
   capabilities: CapabilityDispatchScope[];
 }
 
+/**
+ * Each capability is unique in one request and has one or more unique,
+ * non-unspecified modes declared by the replica's Manifest. An empty
+ * capabilities list installs deny-all for this generation.
+ */
 export interface CapabilityDispatchScope {
   capability: string;
   modes: InvocationMode[];
 }
 
+/**
+ * A successful response is emitted only after this replica has installed the
+ * requested generation. replica_identity_uri identifies the connected remote
+ * replica and must match its URI SAN as verified by the Gateway TLS peer.
+ * Settings and release digests acknowledge the replica-local active values.
+ * dispatch_digest is a non-empty opaque identifier for the installed complete
+ * capability-to-mode scope; v1 does not standardize its encoding.
+ */
 export interface DispatchApplyResponse {
   generation: number;
   replicaIdentityUri: string;

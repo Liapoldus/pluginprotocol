@@ -1,0 +1,22 @@
+{
+  "request": {
+    "generation": 7,
+    "instanceId": "instance-fixture",
+    "settingsDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "releaseDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "capabilities": [
+      {
+        "capability": "example.records.read",
+        "modes": ["INVOCATION_MODE_CALL", "INVOCATION_MODE_HTTP_STREAM"]
+      }
+    ]
+  },
+  "response": {
+    "generation": 7,
+    "replicaIdentityUri": "urn:liapoldus:plugin:instance-fixture:replica:replica-fixture",
+    "manifestDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "settingsDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "releaseDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "dispatchDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }
+}

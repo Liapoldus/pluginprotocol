@@ -16,6 +16,16 @@ describe("DispatchApply v1 canonical contract", () => {
 
     expect(contract.protocolVersion).toBe("liapoldus.plugin.v1");
     expect(contract.rpc).toBe("PluginService.DispatchApply");
+    expect(contract.request.capabilities.meaning).toContain("not a patch");
+    expect(contract.request.capabilities.emptyModes).toBe("reject");
+    expect(contract.acknowledgement.required).toEqual([
+      "generation",
+      "replicaIdentityUri",
+      "manifestDigest",
+      "settingsDigest",
+      "releaseDigest",
+      "dispatchDigest",
+    ]);
     expect(contract.request.required).toEqual([
       "generation",
       "instanceId",
@@ -29,9 +39,9 @@ describe("DispatchApply v1 canonical contract", () => {
       sameGenerationSameRequest: "idempotent",
       sameGenerationDifferentRequest: "reject",
     });
-    expect(contract.request.apply).toBe("atomic-replace");
-    expect(contract.request.emptyCapabilities).toBe("deny-all");
-    expect(contract.acknowledgement.replicaIdentityUri).toBe("must-equal-verified-peer-uri-san");
+    expect(contract.request.generation.apply).toBe("atomic-replace");
+    expect(contract.request.capabilities.emptyCapabilities).toBe("deny-all");
+    expect(contract.acknowledgement.replicaIdentityUri).toBe("must-equal-the-verified-remote-plugin-replica-URI-SAN-for-this-connection");
     expect(contract.acknowledgement.after).toBe("authorization-generation-is-active-for-this-replica");
     expect(contract.activationBarrier).toBe("acknowledge-every-ready-replica-before-caddy-activation");
   });
@@ -48,6 +58,7 @@ describe("DispatchApply v1 canonical contract", () => {
     expect(requestRoundTrip.generation).toBe(responseRoundTrip.generation);
     expect(requestRoundTrip.settingsDigest).toBe(responseRoundTrip.settingsDigest);
     expect(requestRoundTrip.releaseDigest).toBe(responseRoundTrip.releaseDigest);
+    expect(responseRoundTrip.replicaIdentityUri).toContain(`:${requestRoundTrip.instanceId}:replica:`);
     expect(requestRoundTrip.capabilities).toEqual([
       CapabilityDispatchScope.fromJSON({
         capability: "example.records.read",
