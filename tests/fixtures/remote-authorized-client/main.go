@@ -66,7 +66,7 @@ func run() error {
 		result, err = client.Service().DispatchApply(ctx, &pluginv1.DispatchApplyRequest{
 			Generation: 1, InstanceId: "forms", SettingsDigest: settingsDigest,
 			ReleaseDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-			Capabilities:  []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP}}},
+			Capabilities:  []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}},
 		})
 		if err == nil {
 			dispatchResponse, err = protojson.Marshal(result)
@@ -74,16 +74,28 @@ func run() error {
 	case "stream":
 		fallthrough
 	case "stream-invalid-inbound", "stream-invalid-outbound":
+		fallthrough
+	case "stream-omitted-mode-tcp", "stream-omitted-mode-udp":
 		var stream grpc.BidiStreamingClient[pluginv1.StreamMessage, pluginv1.StreamMessage]
 		stream, err = client.Stream(ctx)
 		if err == nil {
 			connectionID := "remote-stream-1"
+			mode := pluginv1.InvocationMode_INVOCATION_MODE_TCP.Enum()
+			transportMode := pluginv1.StreamTransport_STREAM_TRANSPORT_TCP
+			contextJSON := []byte(`{"kind":"tcp","source":"127.0.0.1:1001","destination":"127.0.0.1:2002"}`)
+			if os.Args[7] == "stream-omitted-mode-tcp" || os.Args[7] == "stream-omitted-mode-udp" {
+				mode = nil
+			}
+			if os.Args[7] == "stream-omitted-mode-udp" {
+				transportMode = pluginv1.StreamTransport_STREAM_TRANSPORT_UDP
+				contextJSON = []byte(`{"kind":"udp","source":"127.0.0.1:1001","destination":"127.0.0.1:2002"}`)
+			}
 			if os.Args[7] == "stream-invalid-outbound" {
 				connectionID = "remote-invalid-outbound"
 			} else if os.Args[7] == "stream-invalid-inbound" {
 				connectionID = "remote-invalid-inbound"
 			}
-			err = stream.Send(&pluginv1.StreamMessage{Capability: os.Args[8], Body: &pluginv1.StreamMessage_Open{Open: &pluginv1.StreamOpen{Mode: pluginv1.InvocationMode_INVOCATION_MODE_TCP.Enum(), Transport: pluginv1.StreamTransport_STREAM_TRANSPORT_TCP, ConnectionId: connectionID, ContextJson: []byte(`{"kind":"tcp","source":"127.0.0.1:1001","destination":"127.0.0.1:2002"}`)}}})
+			err = stream.Send(&pluginv1.StreamMessage{Capability: os.Args[8], Body: &pluginv1.StreamMessage_Open{Open: &pluginv1.StreamOpen{Mode: mode, Transport: transportMode, ConnectionId: connectionID, ContextJson: contextJSON}}})
 			if err == nil && os.Args[7] == "stream-invalid-inbound" {
 				err = stream.Send(&pluginv1.StreamMessage{Capability: os.Args[8], Body: &pluginv1.StreamMessage_Data{Data: &pluginv1.StreamData{Direction: pluginv1.StreamDirection_STREAM_DIRECTION_RESPONSE}}})
 			}

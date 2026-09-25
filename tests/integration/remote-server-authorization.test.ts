@@ -84,6 +84,14 @@ describe("remote plugin server authorization", () => {
     expect(await invoke("control", "stream", "forms.submit")).toBe(false);
   }, 30_000);
 
+  it.each([
+    ["TCP", "stream-omitted-mode-tcp"],
+    ["UDP", "stream-omitted-mode-udp"],
+  ])("authorizes a remote %s stream whose legacy mode is inferred from transport", async (_name, operation) => {
+    expect(await invokeRaw("control", "dispatch")).toMatchObject({ accepted: true });
+    expect(await invokeRaw("data", operation, "forms.submit")).toMatchObject({ accepted: true });
+  }, 30_000);
+
   it("validates both Stream directions on the remote mTLS server", async () => {
     expect(await invokeRaw("control", "dispatch")).toMatchObject({ accepted: true });
     const inbound = await invokeRaw("data", "stream-invalid-inbound", "forms.submit");
