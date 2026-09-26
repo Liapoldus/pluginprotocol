@@ -14,4 +14,34 @@ describe("plugin admin surface contract", () => {
     expect(JSON.stringify(schema)).toContain("actions");
     expect(JSON.stringify(schema)).not.toContain("javascript");
   });
+
+  it("renders plugin settings from control RPCs without declaring a capability", async () => {
+    const [uiSource, surfaceSource] = await Promise.all([
+      readFile(`${root}/contracts/admin-ui/v1/schema.json`, "utf8"),
+      readFile(`${root}/contracts/forms-db/v1/admin-surface.json`, "utf8"),
+    ]);
+    const ui = JSON.parse(uiSource) as {
+      page: { source?: { exactlyOneOf?: string[][]; control?: { required?: string[]; properties?: Record<string, { const?: string }> } } };
+      section: { properties?: { fieldsFromControlRpc?: { enum?: string[] } } };
+    };
+    const surface = JSON.parse(surfaceSource) as {
+      requiredCapabilities: string[];
+      pages: Array<Record<string, unknown>>;
+    };
+    const storage = surface.pages.find((page) => page.id === "storage");
+
+    expect(ui.page.source?.exactlyOneOf).toEqual([["capability"], ["control"]]);
+    expect(ui.page.source?.control?.required).toEqual(["settingsSchemaRpc", "settingsApplyRpc"]);
+    expect(ui.page.source?.control?.properties).toEqual({
+      settingsSchemaRpc: { const: "ConfigSchema" },
+      settingsApplyRpc: { const: "ConfigApply" },
+    });
+    expect(ui.section.properties?.fieldsFromControlRpc?.enum).toEqual(["ConfigSchema"]);
+    expect(storage).toMatchObject({
+      control: { settingsSchemaRpc: "ConfigSchema", settingsApplyRpc: "ConfigApply" },
+      sections: [{ id: "settings", kind: "form", fieldsFromControlRpc: "ConfigSchema" }],
+    });
+    expect(storage).not.toHaveProperty("capability");
+    expect(surface.requiredCapabilities).not.toContain("config.schema");
+  });
 });
