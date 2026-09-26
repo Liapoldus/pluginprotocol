@@ -4,10 +4,17 @@ package liapoldus.plugin.v1;
 
 option go_package = "github.com/Liapoldus/pluginprotocol/pluginv1;pluginv1";
 
-// GrantBroker is hosted by Gateway on a private loopback endpoint. Plugins
-// redeem opaque, per-call handles; secret material is never part of Call JSON.
+// GrantBroker is hosted by Gateway on a private endpoint. Plugins redeem
+// opaque call- or config-scoped handles; secret material is never part of
+// capability or configuration JSON.
 service GrantBroker {
   rpc RedeemGrant(RedeemGrantRequest) returns (RedeemGrantResponse);
+}
+
+enum GrantScope {
+  GRANT_SCOPE_UNSPECIFIED = 0;
+  GRANT_SCOPE_CALL = 1;
+  GRANT_SCOPE_CONFIG_APPLY = 2;
 }
 
 message ActiveGrant {
@@ -15,6 +22,10 @@ message ActiveGrant {
   string purpose = 2;
   repeated string domains = 3;
   string capability = 4;
+  GrantScope scope = 5;
+  string instance_id = 6;
+  string settings_revision = 7;
+  string secret_reference = 8;
 }
 
 message RedeemGrantRequest {
@@ -22,6 +33,10 @@ message RedeemGrantRequest {
   string purpose = 2;
   string domain = 3;
   string capability = 4;
+  GrantScope scope = 5;
+  string instance_id = 6;
+  string settings_revision = 7;
+  string secret_reference = 8;
 }
 
 message RedeemGrantResponse {

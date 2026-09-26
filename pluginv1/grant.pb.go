@@ -21,14 +21,67 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GrantScope int32
+
+const (
+	GrantScope_GRANT_SCOPE_UNSPECIFIED  GrantScope = 0
+	GrantScope_GRANT_SCOPE_CALL         GrantScope = 1
+	GrantScope_GRANT_SCOPE_CONFIG_APPLY GrantScope = 2
+)
+
+// Enum value maps for GrantScope.
+var (
+	GrantScope_name = map[int32]string{
+		0: "GRANT_SCOPE_UNSPECIFIED",
+		1: "GRANT_SCOPE_CALL",
+		2: "GRANT_SCOPE_CONFIG_APPLY",
+	}
+	GrantScope_value = map[string]int32{
+		"GRANT_SCOPE_UNSPECIFIED":  0,
+		"GRANT_SCOPE_CALL":         1,
+		"GRANT_SCOPE_CONFIG_APPLY": 2,
+	}
+)
+
+func (x GrantScope) Enum() *GrantScope {
+	p := new(GrantScope)
+	*p = x
+	return p
+}
+
+func (x GrantScope) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GrantScope) Descriptor() protoreflect.EnumDescriptor {
+	return file_liapoldus_plugin_v1_grant_proto_enumTypes[0].Descriptor()
+}
+
+func (GrantScope) Type() protoreflect.EnumType {
+	return &file_liapoldus_plugin_v1_grant_proto_enumTypes[0]
+}
+
+func (x GrantScope) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GrantScope.Descriptor instead.
+func (GrantScope) EnumDescriptor() ([]byte, []int) {
+	return file_liapoldus_plugin_v1_grant_proto_rawDescGZIP(), []int{0}
+}
+
 type ActiveGrant struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Handle        string                 `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
-	Purpose       string                 `protobuf:"bytes,2,opt,name=purpose,proto3" json:"purpose,omitempty"`
-	Domains       []string               `protobuf:"bytes,3,rep,name=domains,proto3" json:"domains,omitempty"`
-	Capability    string                 `protobuf:"bytes,4,opt,name=capability,proto3" json:"capability,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Handle           string                 `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
+	Purpose          string                 `protobuf:"bytes,2,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Domains          []string               `protobuf:"bytes,3,rep,name=domains,proto3" json:"domains,omitempty"`
+	Capability       string                 `protobuf:"bytes,4,opt,name=capability,proto3" json:"capability,omitempty"`
+	Scope            GrantScope             `protobuf:"varint,5,opt,name=scope,proto3,enum=liapoldus.plugin.v1.GrantScope" json:"scope,omitempty"`
+	InstanceId       string                 `protobuf:"bytes,6,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	SettingsRevision string                 `protobuf:"bytes,7,opt,name=settings_revision,json=settingsRevision,proto3" json:"settings_revision,omitempty"`
+	SecretReference  string                 `protobuf:"bytes,8,opt,name=secret_reference,json=secretReference,proto3" json:"secret_reference,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ActiveGrant) Reset() {
@@ -89,14 +142,46 @@ func (x *ActiveGrant) GetCapability() string {
 	return ""
 }
 
+func (x *ActiveGrant) GetScope() GrantScope {
+	if x != nil {
+		return x.Scope
+	}
+	return GrantScope_GRANT_SCOPE_UNSPECIFIED
+}
+
+func (x *ActiveGrant) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
+	}
+	return ""
+}
+
+func (x *ActiveGrant) GetSettingsRevision() string {
+	if x != nil {
+		return x.SettingsRevision
+	}
+	return ""
+}
+
+func (x *ActiveGrant) GetSecretReference() string {
+	if x != nil {
+		return x.SecretReference
+	}
+	return ""
+}
+
 type RedeemGrantRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Handle        string                 `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
-	Purpose       string                 `protobuf:"bytes,2,opt,name=purpose,proto3" json:"purpose,omitempty"`
-	Domain        string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
-	Capability    string                 `protobuf:"bytes,4,opt,name=capability,proto3" json:"capability,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Handle           string                 `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
+	Purpose          string                 `protobuf:"bytes,2,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Domain           string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
+	Capability       string                 `protobuf:"bytes,4,opt,name=capability,proto3" json:"capability,omitempty"`
+	Scope            GrantScope             `protobuf:"varint,5,opt,name=scope,proto3,enum=liapoldus.plugin.v1.GrantScope" json:"scope,omitempty"`
+	InstanceId       string                 `protobuf:"bytes,6,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	SettingsRevision string                 `protobuf:"bytes,7,opt,name=settings_revision,json=settingsRevision,proto3" json:"settings_revision,omitempty"`
+	SecretReference  string                 `protobuf:"bytes,8,opt,name=secret_reference,json=secretReference,proto3" json:"secret_reference,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RedeemGrantRequest) Reset() {
@@ -157,6 +242,34 @@ func (x *RedeemGrantRequest) GetCapability() string {
 	return ""
 }
 
+func (x *RedeemGrantRequest) GetScope() GrantScope {
+	if x != nil {
+		return x.Scope
+	}
+	return GrantScope_GRANT_SCOPE_UNSPECIFIED
+}
+
+func (x *RedeemGrantRequest) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
+	}
+	return ""
+}
+
+func (x *RedeemGrantRequest) GetSettingsRevision() string {
+	if x != nil {
+		return x.SettingsRevision
+	}
+	return ""
+}
+
+func (x *RedeemGrantRequest) GetSecretReference() string {
+	if x != nil {
+		return x.SecretReference
+	}
+	return ""
+}
+
 type RedeemGrantResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Secret        []byte                 `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
@@ -205,23 +318,38 @@ var File_liapoldus_plugin_v1_grant_proto protoreflect.FileDescriptor
 
 const file_liapoldus_plugin_v1_grant_proto_rawDesc = "" +
 	"\n" +
-	"\x1fliapoldus/plugin/v1/grant.proto\x12\x13liapoldus.plugin.v1\"y\n" +
+	"\x1fliapoldus/plugin/v1/grant.proto\x12\x13liapoldus.plugin.v1\"\xa9\x02\n" +
 	"\vActiveGrant\x12\x16\n" +
 	"\x06handle\x18\x01 \x01(\tR\x06handle\x12\x18\n" +
 	"\apurpose\x18\x02 \x01(\tR\apurpose\x12\x18\n" +
 	"\adomains\x18\x03 \x03(\tR\adomains\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x04 \x01(\tR\n" +
-	"capability\"~\n" +
+	"capability\x125\n" +
+	"\x05scope\x18\x05 \x01(\x0e2\x1f.liapoldus.plugin.v1.GrantScopeR\x05scope\x12\x1f\n" +
+	"\vinstance_id\x18\x06 \x01(\tR\n" +
+	"instanceId\x12+\n" +
+	"\x11settings_revision\x18\a \x01(\tR\x10settingsRevision\x12)\n" +
+	"\x10secret_reference\x18\b \x01(\tR\x0fsecretReference\"\xae\x02\n" +
 	"\x12RedeemGrantRequest\x12\x16\n" +
 	"\x06handle\x18\x01 \x01(\tR\x06handle\x12\x18\n" +
 	"\apurpose\x18\x02 \x01(\tR\apurpose\x12\x16\n" +
 	"\x06domain\x18\x03 \x01(\tR\x06domain\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x04 \x01(\tR\n" +
-	"capability\"-\n" +
+	"capability\x125\n" +
+	"\x05scope\x18\x05 \x01(\x0e2\x1f.liapoldus.plugin.v1.GrantScopeR\x05scope\x12\x1f\n" +
+	"\vinstance_id\x18\x06 \x01(\tR\n" +
+	"instanceId\x12+\n" +
+	"\x11settings_revision\x18\a \x01(\tR\x10settingsRevision\x12)\n" +
+	"\x10secret_reference\x18\b \x01(\tR\x0fsecretReference\"-\n" +
 	"\x13RedeemGrantResponse\x12\x16\n" +
-	"\x06secret\x18\x01 \x01(\fR\x06secret2o\n" +
+	"\x06secret\x18\x01 \x01(\fR\x06secret*]\n" +
+	"\n" +
+	"GrantScope\x12\x1b\n" +
+	"\x17GRANT_SCOPE_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10GRANT_SCOPE_CALL\x10\x01\x12\x1c\n" +
+	"\x18GRANT_SCOPE_CONFIG_APPLY\x10\x022o\n" +
 	"\vGrantBroker\x12`\n" +
 	"\vRedeemGrant\x12'.liapoldus.plugin.v1.RedeemGrantRequest\x1a(.liapoldus.plugin.v1.RedeemGrantResponseB7Z5github.com/Liapoldus/pluginprotocol/pluginv1;pluginv1b\x06proto3"
 
@@ -237,20 +365,24 @@ func file_liapoldus_plugin_v1_grant_proto_rawDescGZIP() []byte {
 	return file_liapoldus_plugin_v1_grant_proto_rawDescData
 }
 
+var file_liapoldus_plugin_v1_grant_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_liapoldus_plugin_v1_grant_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_liapoldus_plugin_v1_grant_proto_goTypes = []any{
-	(*ActiveGrant)(nil),         // 0: liapoldus.plugin.v1.ActiveGrant
-	(*RedeemGrantRequest)(nil),  // 1: liapoldus.plugin.v1.RedeemGrantRequest
-	(*RedeemGrantResponse)(nil), // 2: liapoldus.plugin.v1.RedeemGrantResponse
+	(GrantScope)(0),             // 0: liapoldus.plugin.v1.GrantScope
+	(*ActiveGrant)(nil),         // 1: liapoldus.plugin.v1.ActiveGrant
+	(*RedeemGrantRequest)(nil),  // 2: liapoldus.plugin.v1.RedeemGrantRequest
+	(*RedeemGrantResponse)(nil), // 3: liapoldus.plugin.v1.RedeemGrantResponse
 }
 var file_liapoldus_plugin_v1_grant_proto_depIdxs = []int32{
-	1, // 0: liapoldus.plugin.v1.GrantBroker.RedeemGrant:input_type -> liapoldus.plugin.v1.RedeemGrantRequest
-	2, // 1: liapoldus.plugin.v1.GrantBroker.RedeemGrant:output_type -> liapoldus.plugin.v1.RedeemGrantResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: liapoldus.plugin.v1.ActiveGrant.scope:type_name -> liapoldus.plugin.v1.GrantScope
+	0, // 1: liapoldus.plugin.v1.RedeemGrantRequest.scope:type_name -> liapoldus.plugin.v1.GrantScope
+	2, // 2: liapoldus.plugin.v1.GrantBroker.RedeemGrant:input_type -> liapoldus.plugin.v1.RedeemGrantRequest
+	3, // 3: liapoldus.plugin.v1.GrantBroker.RedeemGrant:output_type -> liapoldus.plugin.v1.RedeemGrantResponse
+	3, // [3:4] is the sub-list for method output_type
+	2, // [2:3] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_liapoldus_plugin_v1_grant_proto_init() }
@@ -263,13 +395,14 @@ func file_liapoldus_plugin_v1_grant_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_liapoldus_plugin_v1_grant_proto_rawDesc), len(file_liapoldus_plugin_v1_grant_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_liapoldus_plugin_v1_grant_proto_goTypes,
 		DependencyIndexes: file_liapoldus_plugin_v1_grant_proto_depIdxs,
+		EnumInfos:         file_liapoldus_plugin_v1_grant_proto_enumTypes,
 		MessageInfos:      file_liapoldus_plugin_v1_grant_proto_msgTypes,
 	}.Build()
 	File_liapoldus_plugin_v1_grant_proto = out.File

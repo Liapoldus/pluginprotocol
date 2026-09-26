@@ -20,8 +20,14 @@ JSON contract bodies.
   Kubernetes Service may front multiple replicas; every newly established gRPC
   connection must repeat TLS identity validation and protocol handshake, and
   Ready replicas must agree on protocol version and release/Manifest/settings
-  digests. Gateway does
-  not become a CA; Management and plugin workload trust roots are separate.
+  digests. The versioned remote-listener contract fixes the workload bind and
+  container/target port at `0.0.0.0:50051` for standalone, Docker, and
+  Kubernetes; a Service may expose a different client-facing port. The Go SDK
+  helper `transport.ListenRemoteTLS` applies the contract's TLS 1.3 and
+  required-client-certificate policy. Workload identity supplies the server
+  certificate and a dedicated plugin-workload CA bundle; application config,
+  environment variables, and Bootstrap do not carry TLS key material. Gateway
+  does not become a CA; Management and plugin workload trust roots are separate.
   Invalid/revoked credentials fail closed without insecure downgrade.
 - The v1 transport migration intentionally replaces the old v1.0.0
   length-prefixed TCP framing with gRPC. Keep module import path and protocol
@@ -29,9 +35,16 @@ JSON contract bodies.
   module tag (`v1.1.0`) despite the transport breaking change. Document this
   exception prominently; old framing plugins are not supported and there is no
   dual-stack fallback.
-- Control RPCs: `Manifest`, `ConfigSchema`, `ConfigApply`, `Shutdown`,
-  `DispatchApply`. The latter installs a monotonic per-replica data-plane
-  generation and returns a replica-bound acknowledgement. Health
+- Control RPCs: `Bootstrap`, `Manifest`, `ConfigSchema`, `ConfigApply`,
+  `Shutdown`, `DispatchApply`. Bootstrap contains operational connection
+  information only; Gateway pushes plugin settings via `ConfigApply` before
+  health/readiness, while secrets are available only through scoped
+  `RedeemGrant`. Local processes receive only an executable path, no argv or
+  environment-based application configuration, and accept an inherited
+  loopback listener through `transport.ListenInherited`. `ConfigApply` binds
+  opaque config-secret references to instance/revision-scoped grants. `DispatchApply`
+  installs a monotonic per-replica data-plane generation and returns a
+  replica-bound acknowledgement. Health
   uses standard `grpc.health.v1`. Generic unary `Call` carries a capability name
   and versioned JSON bytes; bidirectional `Stream` carries streaming payloads
   and typed events. Standard reflection is enabled for loopback `grpcurl`

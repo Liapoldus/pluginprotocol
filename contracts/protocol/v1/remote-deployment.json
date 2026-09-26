@@ -11,6 +11,7 @@
     },
     "remote": {
       "processOwner": "external",
+      "listener": { "contract": "remote-listener.json" },
       "endpoint": {
         "required": ["address", "tls"],
         "properties": {
@@ -33,7 +34,7 @@
                   "identity": { "type": "exact-uri-san", "format": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:control" },
                   "clientCertificate": { "$ref": "file-reference.schema.json" },
                   "clientKey": { "$ref": "file-reference.schema.json", "minimumPermissions": "owner-read-only" },
-                  "allowedRPCs": ["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]
+                  "allowedRPCs": ["Bootstrap", "Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]
                 }
               },
               "caddyDataIdentity": {
@@ -59,7 +60,7 @@
       "pluginAuthorization": {
         "gatewayControl": {
           "identityFormat": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:control",
-          "allowedRPCs": ["Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]
+          "allowedRPCs": ["Bootstrap", "Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]
         },
         "caddyData": {
           "identityFormat": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:data",
@@ -71,6 +72,13 @@
       "serviceReadiness": {
         "readyReplicasMustAgreeOn": ["protocolVersion", "manifestDigest", "settingsDigest", "releaseDigest"],
         "handshakeOnEveryNewConnection": true,
+        "configurationDelivery": {
+          "owner": "gateway",
+          "rpc": "ConfigApply",
+          "timing": "after Bootstrap and ConfigSchema, before grpc.health.v1 readiness",
+          "pluginStorage": "in-memory-only",
+          "failure": "replica remains excluded from readiness and dispatch"
+        },
         "unreadyReplica": "exclude from readiness",
         "unknownUnaryCallResult": "never replay",
         "activeStreamReconnect": "close; do not migrate"
@@ -87,9 +95,16 @@
       "fallback": "none"
     }
   },
-  "handshake": ["Manifest", "grpc.health.v1", "ConfigSchema", "ConfigApply"],
+  "bootstrap": {
+    "rpc": "Bootstrap",
+    "fields": ["instance_id", "grant_broker_endpoint"],
+    "applicationConfig": false,
+    "secretMaterial": false
+  },
+  "handshake": ["Bootstrap", "Manifest", "ConfigSchema", "ConfigApply", "grpc.health.v1"],
   "capabilities": { "unary": "Call with versioned JSON payload", "stream": "bidirectional Stream" },
   "grantBroker": {
+    "endpointDelivery": "Bootstrap.grant_broker_endpoint; never process environment",
     "remoteTransport": "TLS with mutual authentication",
     "clientIdentity": "same unique remote plugin replica URI SAN used for its gRPC connection",
     "serverIdentity": "configured Gateway deployment URI SAN, validated with the external trust bundle",

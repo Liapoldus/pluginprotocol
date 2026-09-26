@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"net"
-	"os"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"google.golang.org/grpc"
@@ -19,8 +18,6 @@ import (
 
 var ErrGrantRejected = errors.New("grant redemption rejected")
 var ErrGrantDenied = errors.New("grant redemption denied")
-
-const GrantBrokerEndpointEnvironment = "LIAPOLDUS_GRANT_BROKER_ENDPOINT"
 
 // GrantClient calls the Gateway's private loopback grant broker. It deliberately
 // returns only broker errors, never request values or secret material.
@@ -66,10 +63,19 @@ func DialGrantBrokerContext(ctx context.Context, endpoint string) (*GrantClient,
 	return &GrantClient{connection: connection, service: pluginv1.NewGrantBrokerClient(connection)}, nil
 }
 
-// DialGrantBrokerFromEnvironmentContext reads the Gateway-provided private
-// broker endpoint from the launch contract.
-func DialGrantBrokerFromEnvironmentContext(ctx context.Context) (*GrantClient, error) {
-	return DialGrantBrokerContext(ctx, os.Getenv(GrantBrokerEndpointEnvironment))
+// DialGrantBrokerFromBootstrapContext connects to the operational callback
+// endpoint delivered by Gateway in Bootstrap. Without remote TLS options the
+// endpoint is accepted only when it is a literal loopback address. A remote
+// endpoint requires workload-provided mTLS credentials; private keys are never
+// carried in Bootstrap or application configuration.
+func DialGrantBrokerFromBootstrapContext(ctx context.Context, bootstrap *pluginv1.BootstrapRequest, remoteOptions *RemoteGrantTLSOptions) (*GrantClient, error) {
+	if bootstrap == nil || bootstrap.GetGrantBrokerEndpoint() == "" {
+		return nil, ErrInvalidEndpoint
+	}
+	if remoteOptions != nil {
+		return DialRemoteGrantBrokerContext(ctx, bootstrap.GetGrantBrokerEndpoint(), *remoteOptions)
+	}
+	return DialGrantBrokerContext(ctx, bootstrap.GetGrantBrokerEndpoint())
 }
 
 // DialRemoteGrantBrokerContext connects to the Gateway callback using TLS 1.3
@@ -85,8 +91,12 @@ func DialRemoteGrantBrokerContext(ctx context.Context, endpoint string, options 
 	if !isRemoteTCPEndpoint(endpoint) || !validRemoteTLSOptions(remoteOptions) || !validRemoteIdentity(options.ClientIdentityURI) || !certificateHasURI(options.ClientCertificate, options.ClientIdentityURI) {
 		return nil, ErrInvalidRemoteTLS
 	}
+	tlsConfig, err := remoteTLSConfig(remoteOptions)
+	if err != nil {
+		return nil, ErrInvalidRemoteTLS
+	}
 	connection, err := grpc.DialContext(ctx, endpoint,
-		grpc.WithTransportCredentials(credentials.NewTLS(remoteTLSConfig(remoteOptions))),
+		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
 		grpc.WithBlock(),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(DefaultMaxMessageBytes), grpc.MaxCallSendMsgSize(DefaultMaxMessageBytes)),
 	)
@@ -132,13 +142,12 @@ func NewRemoteGrantBrokerServer(service pluginv1.GrantBrokerServer, options Remo
 	if service == nil || len(options.TLSCertificate.Certificate) == 0 || options.TLSCertificate.PrivateKey == nil || options.ClientRoots == nil || !validRemoteIdentity(options.ServerIdentityURI) || options.AllowsClientIdentity == nil || !certificateHasURI(options.TLSCertificate, options.ServerIdentityURI) {
 		return nil, ErrInvalidRemoteTLS
 	}
+	tlsConfig, err := remoteListenerTLSConfig(options.TLSCertificate, options.ClientRoots)
+	if err != nil {
+		return nil, ErrInvalidRemoteTLS
+	}
 	server := grpc.NewServer(
-		grpc.Creds(credentials.NewTLS(&tls.Config{
-			MinVersion:   tls.VersionTLS13,
-			Certificates: []tls.Certificate{cloneTLSCertificate(options.TLSCertificate)},
-			ClientAuth:   tls.RequireAndVerifyClientCert,
-			ClientCAs:    options.ClientRoots.Clone(),
-		})),
+		grpc.Creds(credentials.NewTLS(tlsConfig)),
 		grpc.MaxRecvMsgSize(DefaultMaxMessageBytes),
 		grpc.MaxSendMsgSize(DefaultMaxMessageBytes),
 		grpc.UnaryInterceptor(remoteGrantIdentityInterceptor(options.AllowsClientIdentity)),
@@ -203,12 +212,31 @@ func (c *GrantClient) Redeem(ctx context.Context, capability, handle, purpose, d
 	if capability == "" || handle == "" || purpose == "" {
 		return nil, ErrGrantRejected
 	}
-	response, err := c.service.RedeemGrant(ctx, &pluginv1.RedeemGrantRequest{
+	return c.redeem(ctx, &pluginv1.RedeemGrantRequest{
 		Handle:     handle,
 		Purpose:    purpose,
 		Domain:     domain,
 		Capability: capability,
+		Scope:      pluginv1.GrantScope_GRANT_SCOPE_CALL,
 	})
+}
+
+// RedeemConfig obtains a secret for the exact active ConfigApply revision.
+// The request is bound to the plugin instance and opaque Gateway-generated
+// secret reference; it cannot be used as a capability-call grant.
+func (c *GrantClient) RedeemConfig(ctx context.Context, grant *pluginv1.ActiveGrant) ([]byte, error) {
+	if grant == nil || grant.GetScope() != pluginv1.GrantScope_GRANT_SCOPE_CONFIG_APPLY || grant.GetHandle() == "" || grant.GetPurpose() == "" || grant.GetInstanceId() == "" || grant.GetSettingsRevision() == "" || grant.GetSecretReference() == "" || grant.GetCapability() != "" || len(grant.GetDomains()) != 0 {
+		return nil, ErrGrantRejected
+	}
+	return c.redeem(ctx, &pluginv1.RedeemGrantRequest{
+		Handle: grant.GetHandle(), Purpose: grant.GetPurpose(), Scope: grant.GetScope(),
+		InstanceId: grant.GetInstanceId(), SettingsRevision: grant.GetSettingsRevision(),
+		SecretReference: grant.GetSecretReference(),
+	})
+}
+
+func (c *GrantClient) redeem(ctx context.Context, request *pluginv1.RedeemGrantRequest) ([]byte, error) {
+	response, err := c.service.RedeemGrant(ctx, request)
 	if err != nil {
 		return nil, ErrGrantRejected
 	}

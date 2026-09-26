@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	PluginService_Bootstrap_FullMethodName     = "/liapoldus.plugin.v1.PluginService/Bootstrap"
 	PluginService_Manifest_FullMethodName      = "/liapoldus.plugin.v1.PluginService/Manifest"
 	PluginService_ConfigSchema_FullMethodName  = "/liapoldus.plugin.v1.PluginService/ConfigSchema"
 	PluginService_ConfigApply_FullMethodName   = "/liapoldus.plugin.v1.PluginService/ConfigApply"
@@ -32,6 +33,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PluginServiceClient interface {
+	Bootstrap(ctx context.Context, in *BootstrapRequest, opts ...grpc.CallOption) (*BootstrapResult, error)
 	Manifest(ctx context.Context, in *ManifestRequest, opts ...grpc.CallOption) (*Manifest, error)
 	ConfigSchema(ctx context.Context, in *ConfigSchemaRequest, opts ...grpc.CallOption) (*ConfigSchema, error)
 	ConfigApply(ctx context.Context, in *ConfigApplyRequest, opts ...grpc.CallOption) (*ConfigApplyResult, error)
@@ -47,6 +49,16 @@ type pluginServiceClient struct {
 
 func NewPluginServiceClient(cc grpc.ClientConnInterface) PluginServiceClient {
 	return &pluginServiceClient{cc}
+}
+
+func (c *pluginServiceClient) Bootstrap(ctx context.Context, in *BootstrapRequest, opts ...grpc.CallOption) (*BootstrapResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BootstrapResult)
+	err := c.cc.Invoke(ctx, PluginService_Bootstrap_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *pluginServiceClient) Manifest(ctx context.Context, in *ManifestRequest, opts ...grpc.CallOption) (*Manifest, error) {
@@ -126,6 +138,7 @@ type PluginService_StreamClient = grpc.BidiStreamingClient[StreamMessage, Stream
 // All implementations must embed UnimplementedPluginServiceServer
 // for forward compatibility.
 type PluginServiceServer interface {
+	Bootstrap(context.Context, *BootstrapRequest) (*BootstrapResult, error)
 	Manifest(context.Context, *ManifestRequest) (*Manifest, error)
 	ConfigSchema(context.Context, *ConfigSchemaRequest) (*ConfigSchema, error)
 	ConfigApply(context.Context, *ConfigApplyRequest) (*ConfigApplyResult, error)
@@ -143,6 +156,9 @@ type PluginServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedPluginServiceServer struct{}
 
+func (UnimplementedPluginServiceServer) Bootstrap(context.Context, *BootstrapRequest) (*BootstrapResult, error) {
+	return nil, status.Error(codes.Unimplemented, "method Bootstrap not implemented")
+}
 func (UnimplementedPluginServiceServer) Manifest(context.Context, *ManifestRequest) (*Manifest, error) {
 	return nil, status.Error(codes.Unimplemented, "method Manifest not implemented")
 }
@@ -183,6 +199,24 @@ func RegisterPluginServiceServer(s grpc.ServiceRegistrar, srv PluginServiceServe
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&PluginService_ServiceDesc, srv)
+}
+
+func _PluginService_Bootstrap_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BootstrapRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PluginServiceServer).Bootstrap(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PluginService_Bootstrap_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PluginServiceServer).Bootstrap(ctx, req.(*BootstrapRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _PluginService_Manifest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -307,6 +341,10 @@ var PluginService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "liapoldus.plugin.v1.PluginService",
 	HandlerType: (*PluginServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Bootstrap",
+			Handler:    _PluginService_Bootstrap_Handler,
+		},
 		{
 			MethodName: "Manifest",
 			Handler:    _PluginService_Manifest_Handler,

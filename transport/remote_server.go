@@ -18,7 +18,9 @@ var ErrInvalidRemoteServerOptions = errors.New("remote plugin server configurati
 // RemoteServerOptions contains externally supplied credentials and the
 // instance-scoped authorization policy for a remote plugin server.
 type RemoteServerOptions struct {
-	TLSCertificate     tls.Certificate
+	TLSCertificate tls.Certificate
+	// ClientRoots must contain only the dedicated plugin-workload identity CA
+	// bundle; Management API/public client roots are not accepted here.
 	ClientRoots        *x509.CertPool
 	Authorization      RemoteAuthorization
 	InstanceID         string
@@ -47,13 +49,12 @@ func NewRemoteServer(service pluginv1.PluginServiceServer, options RemoteServerO
 		return nil, ErrInvalidRemoteServerOptions
 	}
 	maxMessageBytes, maxStreamMessageBytes := messageLimits(options.Limits)
+	tlsConfig, err := remoteListenerTLSConfig(certificate, options.ClientRoots)
+	if err != nil {
+		return nil, ErrInvalidRemoteServerOptions
+	}
 	server := grpc.NewServer(
-		grpc.Creds(credentials.NewTLS(&tls.Config{
-			MinVersion:   tls.VersionTLS13,
-			Certificates: []tls.Certificate{certificate},
-			ClientAuth:   tls.RequireAndVerifyClientCert,
-			ClientCAs:    options.ClientRoots.Clone(),
-		})),
+		grpc.Creds(credentials.NewTLS(tlsConfig)),
 		grpc.MaxRecvMsgSize(maxMessageBytes),
 		grpc.MaxSendMsgSize(maxMessageBytes),
 		grpc.UnaryInterceptor(unaryInterceptor),

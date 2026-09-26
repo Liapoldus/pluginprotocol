@@ -26,8 +26,9 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// GrantBroker is hosted by Gateway on a private loopback endpoint. Plugins
-// redeem opaque, per-call handles; secret material is never part of Call JSON.
+// GrantBroker is hosted by Gateway on a private endpoint. Plugins redeem
+// opaque call- or config-scoped handles; secret material is never part of
+// capability or configuration JSON.
 type GrantBrokerClient interface {
 	RedeemGrant(ctx context.Context, in *RedeemGrantRequest, opts ...grpc.CallOption) (*RedeemGrantResponse, error)
 }
@@ -54,8 +55,9 @@ func (c *grantBrokerClient) RedeemGrant(ctx context.Context, in *RedeemGrantRequ
 // All implementations must embed UnimplementedGrantBrokerServer
 // for forward compatibility.
 //
-// GrantBroker is hosted by Gateway on a private loopback endpoint. Plugins
-// redeem opaque, per-call handles; secret material is never part of Call JSON.
+// GrantBroker is hosted by Gateway on a private endpoint. Plugins redeem
+// opaque call- or config-scoped handles; secret material is never part of
+// capability or configuration JSON.
 type GrantBrokerServer interface {
 	RedeemGrant(context.Context, *RedeemGrantRequest) (*RedeemGrantResponse, error)
 	mustEmbedUnimplementedGrantBrokerServer()

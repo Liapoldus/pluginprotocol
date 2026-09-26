@@ -1,0 +1,18 @@
+{
+  "protocolVersion": "liapoldus.plugin.v1",
+  "transport": "tcp",
+  "bindAddress": "0.0.0.0:50051",
+  "servicePortMayDiffer": true,
+  "deploymentTargets": {
+    "standalone": { "containerPort": 50051 },
+    "docker": { "containerPort": 50051 },
+    "kubernetes": { "targetPort": 50051 }
+  },
+  "security": {
+    "minimumTLSVersion": 772,
+    "clientAuth": 4,
+    "requireVerifiedClientCertificate": true,
+    "trustBundle": "plugin-workload-identities-only",
+    "insecureFallback": false
+  }
+}

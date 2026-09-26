@@ -10,6 +10,16 @@ wire-совместимости.
 - TCP-loopback теперь использует gRPC/HTTP/2 вместо custom 4-byte framing.
 - Control surface включает typed `Manifest`, `ConfigSchema`, `ConfigApply` и
   `Shutdown`; readiness обслуживает standard `grpc.health.v1`.
+- Local launch передаёт только binary path и inherited loopback listener FD;
+  plugin не получает application args/env и не читает application-config files.
+- Remote plugins используют одинаковый TCP bind `0.0.0.0:50051` в standalone,
+  Docker и Kubernetes; `ListenRemoteTLS` применяет versioned listener contract,
+  TLS 1.3, обязательный client certificate и dedicated workload trust bundle.
+- Добавлен operational-only typed `Bootstrap`; Gateway push-ит settings через
+  `ConfigApply` до health/readiness, а plugin хранит active revision in-memory.
+- `ConfigApply` принимает opaque secret-reference IDs и instance/revision-bound
+  `CONFIG_APPLY` grants; source `file:` refs/paths остаются Gateway-owned, raw
+  secret bytes выдаются только через активный scoped GrantBroker redemption.
 - Unary capability dispatch выполняется через единый `Call`; потоковые вызовы
   и события используют bidirectional `Stream`.
 - Declarative capability JSON Schemas, Gateway ownership/grants, JSON boundary

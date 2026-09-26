@@ -1,0 +1,40 @@
+{
+  "protocolVersion": "liapoldus.plugin.v1",
+  "rpc": "PluginService.ConfigApply",
+  "direction": "Gateway-to-plugin push",
+  "request": {
+    "config": "versioned plugin-settings JSON; Gateway secret values are replaced with opaque generated reference IDs",
+    "settingsRevision": "non-empty immutable Gateway revision identifier",
+    "grants": "opaque CONFIG_APPLY-scoped ActiveGrant descriptors"
+  },
+  "secretReferences": {
+    "gatewayInput": "may refer to an external file: secret source",
+    "pluginValue": "opaque Gateway-generated identifier; no path or URI syntax is exposed or standardized",
+    "matching": "ActiveGrant.secret_reference must exactly match the identifier in this settings revision",
+    "resolution": "Gateway resolves the external secret source only when an authorized scoped RedeemGrant is accepted"
+  },
+  "grantScope": {
+    "scope": "GRANT_SCOPE_CONFIG_APPLY",
+    "bindings": ["plugin instance", "settings revision", "secret reference", "purpose"],
+    "lifetime": "only while this ConfigApply operation is active",
+    "crossUse": "cannot be used by Call or Stream capability invocations"
+  },
+  "activation": {
+    "plugin": "validate candidate settings and schema, redeem required config grants, initialize candidate resources, then atomically replace in-memory active settings/resources",
+    "result": "applied=true and settings_revision equal to the request revision only after atomic activation succeeds",
+    "failure": "retain prior active revision/resources and do not report healthy/readiness for the candidate"
+  },
+  "rotation": {
+    "newSettings": "Gateway creates a new immutable revision and new scoped grant handles",
+    "oldHandles": "revoked when the new revision activation succeeds or the plugin instance stops",
+    "oldResources": "closed after atomic swap; old secret values are removed from active memory as soon as practical",
+    "restart": "Gateway re-sends the current revision and newly issued grants before readiness"
+  },
+  "forbidden": [
+    "plaintext secret values in ConfigApply.config or Bootstrap",
+    "external file paths in plugin settings",
+    "plugin pull-config RPCs",
+    "plugin application environment variables or local config files",
+    "logging or returning secret values, grant handles, or source paths"
+  ]
+}

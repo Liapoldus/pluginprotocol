@@ -16,7 +16,7 @@ import (
 
 const MaxStreamMessageBytes = 1 << 20
 
-const EndpointEnvironment = "LIAPOLDUS_PLUGIN_ENDPOINT"
+const InheritedListenerFileDescriptor = 3
 
 type ServerOptions struct {
 	MaxMessageBytes       int
@@ -61,13 +61,26 @@ func registerHealthService(server *grpc.Server) {
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
 }
 
-// ListenLoopback opens only the endpoint supplied by Gateway at process start.
-func ListenLoopback() (net.Listener, error) {
-	endpoint := os.Getenv(EndpointEnvironment)
-	if !isLoopbackEndpoint(endpoint) {
+// ListenInherited returns the loopback TCP listener passed by the Gateway as
+// the first inherited file descriptor (fd 3). It never reads process
+// environment or application configuration. The returned listener owns a
+// duplicate of the inherited descriptor; the original descriptor is closed.
+func ListenInherited() (net.Listener, error) {
+	file := os.NewFile(InheritedListenerFileDescriptor, "liapoldus-plugin-listener")
+	if file == nil {
 		return nil, ErrInvalidEndpoint
 	}
-	return net.Listen("tcp", endpoint)
+	defer file.Close()
+	listener, err := net.FileListener(file)
+	if err != nil {
+		return nil, ErrInvalidEndpoint
+	}
+	tcpAddress, ok := listener.Addr().(*net.TCPAddr)
+	if !ok || tcpAddress.IP == nil || !tcpAddress.IP.IsLoopback() {
+		_ = listener.Close()
+		return nil, ErrInvalidEndpoint
+	}
+	return listener, nil
 }
 
 type boundedServerStream struct {

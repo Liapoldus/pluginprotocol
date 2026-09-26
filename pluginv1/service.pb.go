@@ -1233,8 +1233,9 @@ const file_liapoldus_plugin_v1_service_proto_rawDesc = "" +
 	"\x14WebSocketMessageKind\x12&\n" +
 	"\"WEBSOCKET_MESSAGE_KIND_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bWEBSOCKET_MESSAGE_KIND_TEXT\x10\x01\x12!\n" +
-	"\x1dWEBSOCKET_MESSAGE_KIND_BINARY\x10\x022\xff\x04\n" +
-	"\rPluginService\x12O\n" +
+	"\x1dWEBSOCKET_MESSAGE_KIND_BINARY\x10\x022\xd9\x05\n" +
+	"\rPluginService\x12X\n" +
+	"\tBootstrap\x12%.liapoldus.plugin.v1.BootstrapRequest\x1a$.liapoldus.plugin.v1.BootstrapResult\x12O\n" +
 	"\bManifest\x12$.liapoldus.plugin.v1.ManifestRequest\x1a\x1d.liapoldus.plugin.v1.Manifest\x12[\n" +
 	"\fConfigSchema\x12(.liapoldus.plugin.v1.ConfigSchemaRequest\x1a!.liapoldus.plugin.v1.ConfigSchema\x12^\n" +
 	"\vConfigApply\x12'.liapoldus.plugin.v1.ConfigApplyRequest\x1a&.liapoldus.plugin.v1.ConfigApplyResult\x12U\n" +
@@ -1278,16 +1279,18 @@ var file_liapoldus_plugin_v1_service_proto_goTypes = []any{
 	nil,                              // 17: liapoldus.plugin.v1.PluginEvent.FieldsEntry
 	(*ActiveGrant)(nil),              // 18: liapoldus.plugin.v1.ActiveGrant
 	(InvocationMode)(0),              // 19: liapoldus.plugin.v1.InvocationMode
-	(*ManifestRequest)(nil),          // 20: liapoldus.plugin.v1.ManifestRequest
-	(*ConfigSchemaRequest)(nil),      // 21: liapoldus.plugin.v1.ConfigSchemaRequest
-	(*ConfigApplyRequest)(nil),       // 22: liapoldus.plugin.v1.ConfigApplyRequest
-	(*ShutdownRequest)(nil),          // 23: liapoldus.plugin.v1.ShutdownRequest
-	(*DispatchApplyRequest)(nil),     // 24: liapoldus.plugin.v1.DispatchApplyRequest
-	(*Manifest)(nil),                 // 25: liapoldus.plugin.v1.Manifest
-	(*ConfigSchema)(nil),             // 26: liapoldus.plugin.v1.ConfigSchema
-	(*ConfigApplyResult)(nil),        // 27: liapoldus.plugin.v1.ConfigApplyResult
-	(*ShutdownResult)(nil),           // 28: liapoldus.plugin.v1.ShutdownResult
-	(*DispatchApplyResponse)(nil),    // 29: liapoldus.plugin.v1.DispatchApplyResponse
+	(*BootstrapRequest)(nil),         // 20: liapoldus.plugin.v1.BootstrapRequest
+	(*ManifestRequest)(nil),          // 21: liapoldus.plugin.v1.ManifestRequest
+	(*ConfigSchemaRequest)(nil),      // 22: liapoldus.plugin.v1.ConfigSchemaRequest
+	(*ConfigApplyRequest)(nil),       // 23: liapoldus.plugin.v1.ConfigApplyRequest
+	(*ShutdownRequest)(nil),          // 24: liapoldus.plugin.v1.ShutdownRequest
+	(*DispatchApplyRequest)(nil),     // 25: liapoldus.plugin.v1.DispatchApplyRequest
+	(*BootstrapResult)(nil),          // 26: liapoldus.plugin.v1.BootstrapResult
+	(*Manifest)(nil),                 // 27: liapoldus.plugin.v1.Manifest
+	(*ConfigSchema)(nil),             // 28: liapoldus.plugin.v1.ConfigSchema
+	(*ConfigApplyResult)(nil),        // 29: liapoldus.plugin.v1.ConfigApplyResult
+	(*ShutdownResult)(nil),           // 30: liapoldus.plugin.v1.ShutdownResult
+	(*DispatchApplyResponse)(nil),    // 31: liapoldus.plugin.v1.DispatchApplyResponse
 }
 var file_liapoldus_plugin_v1_service_proto_depIdxs = []int32{
 	18, // 0: liapoldus.plugin.v1.CallRequest.grants:type_name -> liapoldus.plugin.v1.ActiveGrant
@@ -1308,22 +1311,24 @@ var file_liapoldus_plugin_v1_service_proto_depIdxs = []int32{
 	13, // 15: liapoldus.plugin.v1.StreamMessage.websocket_handshake:type_name -> liapoldus.plugin.v1.WebSocketHandshakeResult
 	14, // 16: liapoldus.plugin.v1.StreamMessage.websocket_message:type_name -> liapoldus.plugin.v1.WebSocketMessage
 	15, // 17: liapoldus.plugin.v1.StreamMessage.sse_event:type_name -> liapoldus.plugin.v1.SseEvent
-	20, // 18: liapoldus.plugin.v1.PluginService.Manifest:input_type -> liapoldus.plugin.v1.ManifestRequest
-	21, // 19: liapoldus.plugin.v1.PluginService.ConfigSchema:input_type -> liapoldus.plugin.v1.ConfigSchemaRequest
-	22, // 20: liapoldus.plugin.v1.PluginService.ConfigApply:input_type -> liapoldus.plugin.v1.ConfigApplyRequest
-	23, // 21: liapoldus.plugin.v1.PluginService.Shutdown:input_type -> liapoldus.plugin.v1.ShutdownRequest
-	24, // 22: liapoldus.plugin.v1.PluginService.DispatchApply:input_type -> liapoldus.plugin.v1.DispatchApplyRequest
-	4,  // 23: liapoldus.plugin.v1.PluginService.Call:input_type -> liapoldus.plugin.v1.CallRequest
-	16, // 24: liapoldus.plugin.v1.PluginService.Stream:input_type -> liapoldus.plugin.v1.StreamMessage
-	25, // 25: liapoldus.plugin.v1.PluginService.Manifest:output_type -> liapoldus.plugin.v1.Manifest
-	26, // 26: liapoldus.plugin.v1.PluginService.ConfigSchema:output_type -> liapoldus.plugin.v1.ConfigSchema
-	27, // 27: liapoldus.plugin.v1.PluginService.ConfigApply:output_type -> liapoldus.plugin.v1.ConfigApplyResult
-	28, // 28: liapoldus.plugin.v1.PluginService.Shutdown:output_type -> liapoldus.plugin.v1.ShutdownResult
-	29, // 29: liapoldus.plugin.v1.PluginService.DispatchApply:output_type -> liapoldus.plugin.v1.DispatchApplyResponse
-	5,  // 30: liapoldus.plugin.v1.PluginService.Call:output_type -> liapoldus.plugin.v1.CallResponse
-	16, // 31: liapoldus.plugin.v1.PluginService.Stream:output_type -> liapoldus.plugin.v1.StreamMessage
-	25, // [25:32] is the sub-list for method output_type
-	18, // [18:25] is the sub-list for method input_type
+	20, // 18: liapoldus.plugin.v1.PluginService.Bootstrap:input_type -> liapoldus.plugin.v1.BootstrapRequest
+	21, // 19: liapoldus.plugin.v1.PluginService.Manifest:input_type -> liapoldus.plugin.v1.ManifestRequest
+	22, // 20: liapoldus.plugin.v1.PluginService.ConfigSchema:input_type -> liapoldus.plugin.v1.ConfigSchemaRequest
+	23, // 21: liapoldus.plugin.v1.PluginService.ConfigApply:input_type -> liapoldus.plugin.v1.ConfigApplyRequest
+	24, // 22: liapoldus.plugin.v1.PluginService.Shutdown:input_type -> liapoldus.plugin.v1.ShutdownRequest
+	25, // 23: liapoldus.plugin.v1.PluginService.DispatchApply:input_type -> liapoldus.plugin.v1.DispatchApplyRequest
+	4,  // 24: liapoldus.plugin.v1.PluginService.Call:input_type -> liapoldus.plugin.v1.CallRequest
+	16, // 25: liapoldus.plugin.v1.PluginService.Stream:input_type -> liapoldus.plugin.v1.StreamMessage
+	26, // 26: liapoldus.plugin.v1.PluginService.Bootstrap:output_type -> liapoldus.plugin.v1.BootstrapResult
+	27, // 27: liapoldus.plugin.v1.PluginService.Manifest:output_type -> liapoldus.plugin.v1.Manifest
+	28, // 28: liapoldus.plugin.v1.PluginService.ConfigSchema:output_type -> liapoldus.plugin.v1.ConfigSchema
+	29, // 29: liapoldus.plugin.v1.PluginService.ConfigApply:output_type -> liapoldus.plugin.v1.ConfigApplyResult
+	30, // 30: liapoldus.plugin.v1.PluginService.Shutdown:output_type -> liapoldus.plugin.v1.ShutdownResult
+	31, // 31: liapoldus.plugin.v1.PluginService.DispatchApply:output_type -> liapoldus.plugin.v1.DispatchApplyResponse
+	5,  // 32: liapoldus.plugin.v1.PluginService.Call:output_type -> liapoldus.plugin.v1.CallResponse
+	16, // 33: liapoldus.plugin.v1.PluginService.Stream:output_type -> liapoldus.plugin.v1.StreamMessage
+	26, // [26:34] is the sub-list for method output_type
+	18, // [18:26] is the sub-list for method input_type
 	18, // [18:18] is the sub-list for extension type_name
 	18, // [18:18] is the sub-list for extension extendee
 	0,  // [0:18] is the sub-list for field type_name

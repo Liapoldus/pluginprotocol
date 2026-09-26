@@ -8,6 +8,7 @@ import "liapoldus/plugin/v1/control.proto";
 import "liapoldus/plugin/v1/grant.proto";
 
 service PluginService {
+  rpc Bootstrap(BootstrapRequest) returns (BootstrapResult);
   rpc Manifest(ManifestRequest) returns (.liapoldus.plugin.v1.Manifest);
   rpc ConfigSchema(ConfigSchemaRequest) returns (.liapoldus.plugin.v1.ConfigSchema);
   rpc ConfigApply(ConfigApplyRequest) returns (ConfigApplyResult);

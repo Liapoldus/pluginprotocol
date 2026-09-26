@@ -7,11 +7,24 @@ runtime library.
 
 ## Transport и launch contract
 
-- [x] Зафиксировать typed local/remote launch configuration без plugin-specific
-  имён и Gateway route policies: локальный binary имеет абсолютный путь, args
-  передаются отдельными argv entries, env принимает только typed secret file
-  references; remote mTLS credentials используют общий
-  `file-reference.schema.json`.
+- [x] Закрепить local launch без application args/env/config files: только
+  абсолютный binary path и inherited loopback listener FD; operational
+  bootstrap передаётся typed RPC, настройки Gateway push-ит через `ConfigApply`.
+- [x] Добавить typed `Bootstrap` и SDK `ListenInherited`; удалить env-based
+  discovery plugin listener/GrantBroker endpoints. Bootstrap содержит только
+  instance ID и callback endpoint, не settings и не secret bytes.
+- [x] Закрепить `ConfigApply` readiness ordering и revision acknowledgement:
+  Gateway push-ит конфигурацию, plugin хранит её только in-memory, успешный
+  apply предшествует health/readiness.
+- [x] Добавить config-scoped secret grants: opaque Gateway-generated reference
+  IDs, exact instance/revision/reference binding, `RedeemConfig`, разделение
+  `CALL` и `CONFIG_APPLY`; исходные `file:` references/paths остаются на стороне
+  Gateway и не попадают в plugin protocol.
+- [x] Закрепить единый remote listener `0.0.0.0:50051` для standalone/Docker/
+  Kubernetes и добавить `ListenRemoteTLS`: TLS 1.3, обязательная проверка client
+  certificate, отдельный trust bundle plugin workload identities, no downgrade.
+- [ ] Проверить inherited listener FD E2E на macOS и Linux и config-secret
+  revision rotation/revocation в Gateway conformance.
 
 ## Request/response и capability contracts
 

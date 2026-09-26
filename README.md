@@ -8,8 +8,23 @@ versioned declarative contracts в [`contracts/`](contracts/).
 
 Единый v1 transport — gRPC/HTTP/2 поверх TCP. Local-supervised режим использует
 назначенный `127.0.0.1:<port>` и insecure credentials только на loopback.
+Gateway передаёт уже открытый listener дочернему процессу как inherited file
+descriptor 3; plugin SDK открывает его через `transport.ListenInherited`.
+Local launch contract содержит только абсолютный путь к binary: Gateway не
+передаёт plugin argv или environment variables, а plugin не читает локальные
+application-config files.
 Remote mode адресуется явным стабильным Service host:port и требует TLS с
 проверкой server identity и mTLS; перехода на менее защищённый transport нет.
+Plugin во всех remote-развёртываниях слушает `0.0.0.0:50051` через
+`transport.ListenRemoteTLS`. Этот container/listener port одинаков для
+standalone binary, Docker и Kubernetes; внешний Service может отображать его на
+другой host-facing port, но target container port остаётся `50051`. TLS 1.3,
+проверка клиентского сертификата и отсутствие insecure fallback заданы
+[`remote-listener.json`](contracts/protocol/v1/remote-listener.json).
+Typed `RemoteServerOptions` получает server identity и отдельный CA bundle только
+для plugin workload identities от внешнего workload identity provider; bundle
+Management API или публичных clients использовать нельзя. Ни сертификаты, ни
+private keys не передаются через Bootstrap или application settings.
 Каждая remote workload replica имеет отдельную externally-issued identity,
 связанную с заранее зарегистрированным logical plugin instance. Gateway
 проверяет URI identity и DNS/IP SAN при каждом новом gRPC connection. Ready
@@ -33,15 +48,34 @@ DTO остаются единственным wire-описанием.
 
 Transport API предоставляет `DialRemoteContext` для исходящего TLS/mTLS,
 `RemoteServerInterceptors` для разделения control/data URI identities и
-capability scope, а `NewRemoteServer` — для входящего TLS/mTLS server без
+capability scope, `NewRemoteServer` для TLS/mTLS gRPC server на пользовательском
+listener и `ListenRemoteTLS` для contract-bound стандартного listener без
 reflection. Это протокольные primitives, не готовый remote deployment:
 интеграция в Gateway и active plugins, replica readiness/reconnect, credential
 rotation и remote GrantBroker TLS остаются незавершёнными. `grpc.health.v1`
 обслуживает readiness; reflection доступен только через loopback `NewServer`
 для локальной диагностики и не включается в remote server.
 
-Control RPC — `Manifest`, `ConfigSchema`, `ConfigApply`, `Shutdown`,
-`DispatchApply`; health — стандартный `grpc.health.v1`. Gateway применяет
+Control RPC — `Bootstrap`, `Manifest`, `ConfigSchema`, `ConfigApply`,
+`Shutdown`, `DispatchApply`; health — стандартный `grpc.health.v1`. Bootstrap
+передаёт только operational context (`instance_id` и, если он настроен,
+endpoint GrantBroker); application settings и secret bytes в нём запрещены.
+Gateway хранит settings и вызывает plugin endpoint `ConfigApply`, передавая
+актуальную конфигурацию push-ом. Plugin применяет её атомарно и держит текущую
+версию только в памяти. При запуске/переподключении Gateway выполняет
+Bootstrap → Manifest → ConfigSchema → ConfigApply → health; отказ или ошибка
+ConfigApply исключает instance из readiness и dispatch. Gateway повторяет
+ConfigApply после каждого рестарта/reconnect; plugin не pull-ит конфигурацию.
+`ConfigApply` принимает opaque `settings_revision` и `ActiveGrant` descriptors;
+успех подтверждается только с тем же revision. Config grant scope включает
+instance, revision и secret reference и доступен лишь пока выполняется этот
+apply. Настройки могут содержать только opaque Gateway-generated secret ID:
+Gateway не передаёт plugin исходный `file:` reference или его path, а разрешает
+источник только при scoped redemption. При rotation Gateway выдаёт новый
+revision и новые grants, отзывает старые; plugin атомарно заменяет in-memory
+конфигурацию/ресурсы. Полный контракт —
+[`config-apply.json`](contracts/protocol/v1/config-apply.json).
+Health — стандартный `grpc.health.v1`. Gateway применяет
 монотонное поколение и разрешённые пары capability/mode к каждой remote
 replica. Data RPC закрыты до успешного применения; plugin подтверждает свою
 identity и локальные settings/release digest. Бизнес-вызовы используют единый unary `Call` с
@@ -142,33 +176,36 @@ context должны совпадать; HTTP half-close одноразовый;
 
 ### Ограниченные grants секретов
 
-Gateway выделяет отдельный закрытый TCP-loopback endpoint для типизированного
-callback `GrantBroker.RedeemGrant` и передаёт его через переменную
-`LIAPOLDUS_GRANT_BROKER_ENDPOINT` из launch contract. `CallRequest.grants`
+Gateway выделяет отдельный закрытый callback endpoint для типизированного
+`GrantBroker.RedeemGrant` и сообщает его plugin через typed `Bootstrap` RPC.
+В local mode endpoint доступен только по loopback; remote mode использует
+отдельный mTLS endpoint. Environment variables для callback discovery нет.
+`CallRequest.grants`
 содержит только непрозрачные handles, объявленную цель и allow-list доменов;
 байты секрета не попадают в capability JSON, plugin settings или обычные IPC
 metadata.
 
-Каждый handle выпускается Gateway для одного вызова capability и связывается с
-экземпляром plugin, capability, настроенным секретом, целью и областью доменов.
-Broker принимает погашение только пока вызов активен, только для точных
-capability и цели, а также только для домена из allow-list grant (пустой домен
-допустим, только если grant не ограничивает домены). Запрос погашения повторяет
-имя capability, чтобы Gateway проверил её привязку на границе broker. Gateway
-отзывает handle после завершения, ошибки, отмены или дедлайна вызова. Секрет
+Каждый handle выпускается Gateway для конкретного scope. `CALL` связывает
+экземпляр plugin, capability, настроенный секрет, цель и область доменов;
+`CONFIG_APPLY` связывает instance, settings revision, opaque secret reference и
+purpose. Broker принимает погашение только в соответствующем активном вызове
+или ConfigApply и повторно проверяет scope/bindings; config grant невозможно
+использовать для `Call`/`Stream`, а call grant — для конфигурации. Gateway
+отзывает call handle после завершения, ошибки, отмены или дедлайна; config
+handles ограничены одним apply и отзываются при активации новой revision или
+остановке instance. Секрет
 возвращается только в типизированном `RedeemGrantResponse`; его нельзя
 логировать, переносить в следующий вызов или включать в ошибки/events plugin.
 Gateway редактирует protocol diagnostics и не раскрывает непрозрачный handle в
 логах или пользовательских ошибках. Plugin хранит байты только в течение
 активной операции и удаляет временные копии после её завершения.
 
-В local mode broker доступен только по переданному loopback endpoint; в remote
-mode используется отдельный закрытый TLS/mTLS callback endpoint из доверенной
-plugin network. Это не публичный Gateway API. Библиотека предоставляет remote
-client/server primitives; их интеграция в Gateway deployment остаётся внешней
-задачей. Plugin не должен считать переданный клиентом handle авторизацией:
+SDK открывает loopback broker через `DialGrantBrokerFromBootstrapContext` без
+TLS только для loopback endpoint; удалённый endpoint требует обязательных
+`RemoteGrantTLSOptions` от workload identity provider и не допускает downgrade.
+Это не публичный Gateway API. Plugin не должен считать handle авторизацией:
 он может погасить только handle, прикреплённый Gateway к текущему
-`CallRequest`. Проверка grant и выдача секрета остаются ответственностью
+`CallRequest` либо `ConfigApplyRequest`. Проверка grant и выдача секрета остаются ответственностью
 Gateway; callback не передаёт plugin filesystem paths или владение секретом.
 
 ## Проверки
@@ -182,13 +219,15 @@ go build ./...
 npm test --prefix tests
 ```
 
-Публичный Go transport API расположен в `transport/`: текущий `DialContext`
-принимает только адрес с IP-loopback, `Handshake` выполняет typed control RPCs и
-standard health check, `Call` передаёт JSON capability payload, а `NewServer`
+Публичный Go transport API расположен в `transport/`: `ListenInherited`
+принимает listener от Gateway через fd 3, `DialContext` принимает только адрес
+с IP-loopback, `BootstrapAndHandshake` передаёт operational bootstrap, затем
+Gateway settings через `ConfigApply` и проверяет health только после успешного
+применения конфигурации; `Call` передаёт JSON capability payload, а `NewServer`
 регистрирует plugin service, health и reflection с лимитами сообщений. Плагин
-получает адрес от Supervisor через launch contract
+получает listener от Supervisor согласно launch contract
 [`contracts/protocol/v1/launch.json`](contracts/protocol/v1/launch.json) и может
-открыть его через `transport.ListenLoopback`. Плагин реализует сгенерированный
+принять его через `transport.ListenInherited`. Плагин реализует сгенерированный
 `pluginv1.PluginServiceServer`; Gateway policy, grants и process supervision не
 переносятся в transport library.
 

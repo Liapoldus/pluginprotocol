@@ -1,13 +1,31 @@
 {
   "protocolVersion": "liapoldus.plugin.v1",
   "localProcessSettingsSchema": "local-launch.schema.json",
-  "fileReferenceSchema": "file-reference.schema.json",
-  "endpointEnvironment": "LIAPOLDUS_PLUGIN_ENDPOINT",
-  "grantBrokerEndpointEnvironment": "LIAPOLDUS_GRANT_BROKER_ENDPOINT",
-  "endpoint": {
+  "localProcessSettings": "absolute executable path only; no argv or environment variables",
+  "listener": {
     "transport": "tcp",
     "host": "127.0.0.1",
-    "port": "gateway-assigned-ephemeral-port"
+    "handoff": "inherited-file-descriptor",
+    "descriptorNumber": 3,
+    "sdk": "transport.ListenInherited"
   },
-  "rule": "The plugin must bind only the supplied IPv4 loopback address."
+  "bootstrap": {
+    "rpc": "PluginService.Bootstrap",
+    "purpose": "operational connection information only",
+    "containsApplicationConfig": false,
+    "containsSecretMaterial": false
+  },
+  "configuration": {
+    "owner": "gateway",
+    "storage": "gateway-durable-store",
+    "delivery": "PluginService.ConfigApply push RPC before health/readiness",
+    "pluginRuntimeStorage": "in-memory"
+  },
+  "secrets": {
+    "delivery": "scoped GrantBroker RedeemGrant only",
+    "inBootstrap": false,
+    "inConfigApply": "opaque secret-reference identifiers only",
+    "sourceReferences": "Gateway may resolve configured file: references but never sends their path to the plugin",
+    "pluginReference": "Gateway-generated opaque identifier; plugin must not parse its format"
+  }
 }
