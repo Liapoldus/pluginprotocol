@@ -90,7 +90,7 @@ func (generation *DispatchGeneration) apply(request *pluginv1.DispatchApplyReque
 func validDispatchRequest(request *pluginv1.DispatchApplyRequest, instanceID string, manifest *pluginv1.Manifest, allowsCapability func(string) bool) bool {
 	if request == nil || request.GetGeneration() == 0 || request.GetInstanceId() != instanceID ||
 		!validSHA256Digest(request.GetSettingsDigest()) || !validSHA256Digest(request.GetReleaseDigest()) ||
-		manifest == nil || allowsCapability == nil || len(request.GetCapabilities()) == 0 {
+		manifest == nil || allowsCapability == nil {
 		return false
 	}
 	manifestModes := make(map[string]map[pluginv1.InvocationMode]struct{}, len(manifest.GetCapabilityDescriptors()))
