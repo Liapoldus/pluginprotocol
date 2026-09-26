@@ -108,6 +108,21 @@ describe("remote plugin server authorization", () => {
   it("rejects a certificate bound to another logical plugin instance", async () => {
     expect(await invoke("other", "manifest")).toBe(false);
   }, 20_000);
+
+  it("acknowledges an empty generation as deny-all", async () => {
+    const result = await invokeRaw("control", "dispatch-empty");
+
+    expect(result.accepted).toBe(true);
+    expect(result.response).toMatchObject({
+      generation: "2",
+      replicaIdentityUri: "urn:liapoldus:plugin:forms:replica:pod-1",
+      settingsDigest: expect.stringMatching(/^sha256:/),
+      releaseDigest: expect.stringMatching(/^sha256:/),
+      manifestDigest: expect.stringMatching(/^sha256:/),
+      dispatchDigest: expect.stringMatching(/^sha256:/),
+    });
+    expect(await invoke("data", "call", "forms.submit")).toBe(false);
+  }, 20_000);
 });
 
 async function invoke(identity: "control" | "data" | "other", operation: string, capability = ""): Promise<boolean> {

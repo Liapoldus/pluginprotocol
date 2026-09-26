@@ -57,16 +57,24 @@ func run() error {
 		_, err = client.Service().Manifest(ctx, &pluginv1.ManifestRequest{})
 	case "call":
 		_, err = client.Service().Call(ctx, &pluginv1.CallRequest{Capability: os.Args[8], Payload: []byte(`{}`)})
-	case "dispatch", "dispatch-conflict":
+	case "dispatch", "dispatch-conflict", "dispatch-empty":
 		settingsDigest := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		generation := uint64(1)
 		if os.Args[7] == "dispatch-conflict" {
 			settingsDigest = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 		}
+		if os.Args[7] == "dispatch-empty" {
+			generation = 2
+		}
+		capabilities := []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}}
+		if os.Args[7] == "dispatch-empty" {
+			capabilities = nil
+		}
 		var result *pluginv1.DispatchApplyResponse
 		result, err = client.Service().DispatchApply(ctx, &pluginv1.DispatchApplyRequest{
-			Generation: 1, InstanceId: "forms", SettingsDigest: settingsDigest,
+			Generation: generation, InstanceId: "forms", SettingsDigest: settingsDigest,
 			ReleaseDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-			Capabilities:  []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}},
+			Capabilities: capabilities,
 		})
 		if err == nil {
 			dispatchResponse, err = protojson.Marshal(result)
