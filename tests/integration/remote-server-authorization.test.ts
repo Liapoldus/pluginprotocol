@@ -109,12 +109,32 @@ describe("remote plugin server authorization", () => {
     expect(await invoke("other", "manifest")).toBe(false);
   }, 20_000);
 
+  it("preserves the active scope across monotonic generation retries and rejections", async () => {
+    const first = await invokeRaw("control", "dispatch-next");
+    expect(first.accepted).toBe(true);
+    expect(first.response?.generation).toBe("2");
+
+    const retry = await invokeRaw("control", "dispatch-next");
+    expect(retry.accepted).toBe(true);
+    expect(retry.response).toEqual(first.response);
+
+    const conflict = await invokeRaw("control", "dispatch-next-conflict");
+    expect(conflict).toMatchObject({ accepted: false, code: "FailedPrecondition" });
+
+    const stale = await invokeRaw("control", "dispatch-stale");
+    expect(stale).toMatchObject({ accepted: false, code: "FailedPrecondition" });
+
+    expect(await invoke("data", "call", "forms.submit")).toBe(true);
+    expect((await invokeRaw("data", "stream-omitted-mode-tcp", "forms.submit")).accepted).toBe(true);
+    expect((await invokeRaw("data", "stream-omitted-mode-udp", "forms.submit")).accepted).toBe(false);
+  }, 30_000);
+
   it("acknowledges an empty generation as deny-all", async () => {
     const result = await invokeRaw("control", "dispatch-empty");
 
     expect(result.accepted).toBe(true);
     expect(result.response).toMatchObject({
-      generation: "2",
+      generation: "3",
       replicaIdentityUri: "urn:liapoldus:plugin:forms:replica:pod-1",
       settingsDigest: expect.stringMatching(/^sha256:/),
       releaseDigest: expect.stringMatching(/^sha256:/),

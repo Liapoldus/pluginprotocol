@@ -57,18 +57,25 @@ func run() error {
 		_, err = client.Service().Manifest(ctx, &pluginv1.ManifestRequest{})
 	case "call":
 		_, err = client.Service().Call(ctx, &pluginv1.CallRequest{Capability: os.Args[8], Payload: []byte(`{}`)})
-	case "dispatch", "dispatch-conflict", "dispatch-empty":
+	case "dispatch", "dispatch-conflict", "dispatch-empty", "dispatch-next", "dispatch-next-conflict", "dispatch-stale":
 		settingsDigest := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 		generation := uint64(1)
 		if os.Args[7] == "dispatch-conflict" {
 			settingsDigest = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 		}
-		if os.Args[7] == "dispatch-empty" {
+		if os.Args[7] == "dispatch-next" || os.Args[7] == "dispatch-next-conflict" {
 			generation = 2
+		}
+		if os.Args[7] == "dispatch-empty" {
+			generation = 3
 		}
 		capabilities := []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}}
 		if os.Args[7] == "dispatch-empty" {
 			capabilities = nil
+		} else if os.Args[7] == "dispatch-next" {
+			capabilities = []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP}}}
+		} else if os.Args[7] == "dispatch-next-conflict" || os.Args[7] == "dispatch-stale" {
+			capabilities = []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}}
 		}
 		var result *pluginv1.DispatchApplyResponse
 		result, err = client.Service().DispatchApply(ctx, &pluginv1.DispatchApplyRequest{
