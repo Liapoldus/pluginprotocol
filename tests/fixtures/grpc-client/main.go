@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
@@ -15,6 +16,24 @@ import (
 func run(endpoint, mode string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	if strings.HasPrefix(mode, "grant-") {
+		client, err := transport.DialGrantBrokerContext(ctx, endpoint)
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+		handle := map[string]string{
+			"grant-denied":           "invalid-handle",
+			"grant-empty-secret":     "empty-secret",
+			"grant-nil-response":     "nil-response",
+			"grant-oversized-secret": "oversized-secret",
+		}[mode]
+		_, err = client.Redeem(ctx, "tls.issue", handle, "acme-dns01", "example.com")
+		if errors.Is(err, transport.ErrGrantRejected) {
+			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "grant_rejected"})
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "other"})
+	}
 	client, err := transport.DialContext(ctx, endpoint)
 	if err != nil {
 		return err
@@ -63,6 +82,40 @@ func run(endpoint, mode string) error {
 			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "canceled"})
 		}
 		return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "other"})
+	}
+	if mode == "deadline" {
+		callContext, cancelCall := context.WithTimeout(ctx, 50*time.Millisecond)
+		defer cancelCall()
+		_, err := client.Call(callContext, "forms.slow", []byte(`{}`))
+		if errors.Is(err, context.DeadlineExceeded) {
+			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "deadline_exceeded"})
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "other"})
+	}
+	if mode == "local-invalid-json" {
+		_, err := client.Call(ctx, "forms.submit", []byte("{"))
+		if errors.Is(err, transport.ErrProtocolViolation) {
+			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "protocol_violation"})
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "other"})
+	}
+	if mode == "invalid-response-json" || mode == "call-rejected" || mode == "grpc-unavailable" {
+		capability := map[string]string{
+			"invalid-response-json": "forms.invalid-response",
+			"call-rejected":         "forms.call-rejected",
+			"grpc-unavailable":      "forms.grpc-unavailable",
+		}[mode]
+		_, err := client.Call(ctx, capability, []byte(`{}`))
+		switch {
+		case errors.Is(err, transport.ErrProtocolViolation):
+			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "protocol_violation"})
+		case errors.Is(err, transport.ErrCallRejected):
+			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "call_rejected"})
+		case errors.Is(err, transport.ErrUnavailable):
+			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "unavailable"})
+		default:
+			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "other"})
+		}
 	}
 	response, err := client.Call(ctx, "forms.submit", []byte(`{"value":"hello"}`))
 	if err != nil {

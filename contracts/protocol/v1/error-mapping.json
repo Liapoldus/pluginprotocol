@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/protocol/v1/error-mapping.json",
+  "title": "Plugin protocol v1 error mapping",
+  "description": "Normative mapping of existing Go SDK errors and references to operation-specific gRPC status contracts.",
+  "version": 1,
+  "protocolVersion": "liapoldus.plugin.v1",
+  "operationSpecificStatusContracts": [
+    "stream-lifecycle.json#/status",
+    "dispatch-apply.json#/grpcStatus"
+  ],
+  "sdk": {
+    "PluginServiceClient": {
+      "localCallValidation": "ErrProtocolViolation",
+      "invalidCallResponseJson": "ErrProtocolViolation",
+      "callResponseCode": "ErrCallRejected",
+      "unaryGrpcStatus": {
+        "CANCELLED": "context.Canceled",
+        "DEADLINE_EXCEEDED": "context.DeadlineExceeded",
+        "other": "ErrUnavailable"
+      },
+      "streamFailure": "raw gRPC status is returned to the caller"
+    },
+    "GrantClient": {
+      "rpcFailure": "ErrGrantRejected",
+      "rpcFailureIncludes": [
+        "RPC error",
+        "nil response",
+        "empty secret",
+        "secret larger than the client message limit"
+      ]
+    }
+  },
+  "rules": {
+    "callResponseCode": "A non-empty CallResponse.code is an application-level rejection carried in a successful gRPC response; transport.Client.Call returns ErrCallRejected.",
+    "context": "The public unary Go client preserves caller cancellation and deadline as context.Canceled and context.DeadlineExceeded. Client.Stream returns its raw gRPC status without unary error classification.",
+    "genericClientRpcError": "For PluginService unary client operations, any other gRPC failure maps to ErrUnavailable; operation-specific raw gRPC statuses remain defined by their referenced contracts.",
+    "grantRpcError": "GrantClient does not expose broker status/details or secret bytes through errors; any failed or invalid redemption response maps to ErrGrantRejected.",
+    "redaction": "Errors and diagnostics must not include secret bytes, grant handles, cookie values, or source paths."
+  }
+}

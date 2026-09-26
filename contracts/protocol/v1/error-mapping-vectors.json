@@ -1,0 +1,62 @@
+[
+  {
+    "name": "local-invalid-call-json",
+    "endpoint": "plugin",
+    "clientMode": "local-invalid-json",
+    "expectedClientError": "protocol_violation"
+  },
+  {
+    "name": "invalid-call-response-json",
+    "endpoint": "plugin",
+    "clientMode": "invalid-response-json",
+    "expectedClientError": "protocol_violation"
+  },
+  {
+    "name": "application-call-error-code",
+    "endpoint": "plugin",
+    "clientMode": "call-rejected",
+    "expectedClientError": "call_rejected"
+  },
+  {
+    "name": "other-grpc-status",
+    "endpoint": "plugin",
+    "clientMode": "grpc-unavailable",
+    "expectedClientError": "unavailable"
+  },
+  {
+    "name": "caller-cancellation",
+    "endpoint": "plugin",
+    "clientMode": "cancel",
+    "expectedClientError": "canceled"
+  },
+  {
+    "name": "caller-deadline",
+    "endpoint": "plugin",
+    "clientMode": "deadline",
+    "expectedClientError": "deadline_exceeded"
+  },
+  {
+    "name": "grant-broker-denial",
+    "endpoint": "grant-broker",
+    "clientMode": "grant-denied",
+    "expectedClientError": "grant_rejected"
+  },
+  {
+    "name": "grant-broker-empty-secret",
+    "endpoint": "grant-broker",
+    "clientMode": "grant-empty-secret",
+    "expectedClientError": "grant_rejected"
+  },
+  {
+    "name": "grant-broker-nil-response",
+    "endpoint": "grant-broker",
+    "clientMode": "grant-nil-response",
+    "expectedClientError": "grant_rejected"
+  },
+  {
+    "name": "grant-broker-oversized-secret",
+    "endpoint": "grant-broker",
+    "clientMode": "grant-oversized-secret",
+    "expectedClientError": "grant_rejected"
+  }
+]

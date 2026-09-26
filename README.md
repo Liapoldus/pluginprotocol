@@ -188,24 +188,27 @@ metadata.
 Каждый handle выпускается Gateway для конкретного scope. `CALL` связывает
 экземпляр plugin, capability, настроенный секрет, цель и область доменов;
 `CONFIG_APPLY` связывает instance, settings revision, opaque secret reference и
-purpose. Broker принимает погашение только в соответствующем активном вызове
-или ConfigApply и повторно проверяет scope/bindings; config grant невозможно
+purpose. Broker повторно проверяет scope/bindings; config grant невозможно
 использовать для `Call`/`Stream`, а call grant — для конфигурации. Gateway
-отзывает call handle после завершения, ошибки, отмены или дедлайна; config
-handles ограничены одним apply и отзываются при активации новой revision или
-остановке instance. Секрет
-возвращается только в типизированном `RedeemGrantResponse`; его нельзя
-логировать, переносить в следующий вызов или включать в ошибки/events plugin.
-Gateway редактирует protocol diagnostics и не раскрывает непрозрачный handle в
-логах или пользовательских ошибках. Plugin хранит байты только в течение
-активной операции и удаляет временные копии после её завершения.
+отзывает call handle после завершения, ошибки, отмены или дедлайна. Config
+handles активной revision остаются действительны до успешной активации новой
+revision или остановки instance; отказ candidate activation не отзывает grants
+предыдущей active revision. Plugin хранит разрешённые config-secret bytes
+только в памяти активной revision, атомарно заменяет их после подготовки
+candidate и удаляет заменённые копии как можно скорее. Канонические правила
+указаны в [`config-apply.json`](contracts/protocol/v1/config-apply.json).
+
+Секрет возвращается только в типизированном `RedeemGrantResponse`; его нельзя
+логировать или включать в ошибки/events plugin. Gateway редактирует protocol
+diagnostics и не раскрывает opaque handle в логах или пользовательских ошибках.
 
 SDK открывает loopback broker через `DialGrantBrokerFromBootstrapContext` без
 TLS только для loopback endpoint; удалённый endpoint требует обязательных
 `RemoteGrantTLSOptions` от workload identity provider и не допускает downgrade.
 Это не публичный Gateway API. Plugin не должен считать handle авторизацией:
-он может погасить только handle, прикреплённый Gateway к текущему
-`CallRequest` либо `ConfigApplyRequest`. Проверка grant и выдача секрета остаются ответственностью
+call handle можно погасить только в пределах текущего `CallRequest`, а
+config handle — только для точного instance/revision/reference, прикреплённого к
+активной конфигурации. Проверка grant и выдача секрета остаются ответственностью
 Gateway; callback не передаёт plugin filesystem paths или владение секретом.
 
 ## Проверки
@@ -240,6 +243,8 @@ Protocol tests red-first и TypeScript/Vitest-only. Реализованные �
 child-process handshake, стандартную health-проверку, unary Call, обе стороны
 bidirectional stream, oversized stream message, remote TLS/mTLS client,
 control/data RPC authorization, DispatchApply, remote GrantBroker TLS boundary,
-malformed JSON/schema version и remote server TLS boundary. Тесты credential
-rotation/reconnect replicas и общий protocol error mapping остаются в TODO.
+malformed JSON/schema version, remote server TLS boundary и общую классификацию
+SDK-ошибок по
+[`error-mapping.json`](contracts/protocol/v1/error-mapping.json). Тесты
+credential rotation/reconnect replicas остаются в TODO.
 GitHub Actions запускает полный `make check` на Ubuntu и macOS.

@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
+	"github.com/Liapoldus/pluginprotocol/transport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,6 +18,14 @@ type broker struct {
 }
 
 func (broker) RedeemGrant(_ context.Context, request *pluginv1.RedeemGrantRequest) (*pluginv1.RedeemGrantResponse, error) {
+	switch request.GetHandle() {
+	case "empty-secret":
+		return &pluginv1.RedeemGrantResponse{}, nil
+	case "nil-response":
+		return nil, nil
+	case "oversized-secret":
+		return &pluginv1.RedeemGrantResponse{Secret: make([]byte, transport.DefaultMaxMessageBytes+1)}, nil
+	}
 	validCall := request.GetScope() == pluginv1.GrantScope_GRANT_SCOPE_CALL && request.GetHandle() == "opaque-handle" && request.GetCapability() == "tls.issue" && request.GetPurpose() == "acme-dns01" && request.GetDomain() == "example.com"
 	validConfig := request.GetScope() == pluginv1.GrantScope_GRANT_SCOPE_CONFIG_APPLY && request.GetHandle() == "opaque-config-handle" && request.GetPurpose() == "db-connect" && request.GetInstanceId() == "forms-instance" && request.GetSettingsRevision() == "settings-r7" && request.GetSecretReference() == "opaque-secret-ref"
 	if !validCall && !validConfig {
@@ -30,7 +39,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.MaxSendMsgSize(transport.DefaultMaxMessageBytes + 1<<20))
 	pluginv1.RegisterGrantBrokerServer(server, broker{})
 	fmt.Fprintln(os.Stdout, listener.Addr().String())
 	return server.Serve(listener)

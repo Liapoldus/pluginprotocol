@@ -60,8 +60,10 @@ runtime library.
 - [x] Добавить исполняемый Stream error vector для превышения контрактного
   лимита SSE `event`: vector связывает mutation с `stream-lifecycle.json`, а
   real-child-process conformance подтверждает `RESOURCE_EXHAUSTED`.
-- [ ] Расширить conformance vectors общим protocol error mapping; покрытие
-  oversized пока ограничено SSE `event`.
+- [x] Добавить общий versioned error mapping без дублирования operation-specific
+  gRPC status contracts; executable child-process vectors покрывают локальную
+  ошибку JSON, ошибочный response JSON, application `CallResponse.code`,
+  generic gRPC failure, cancellation/deadline и GrantBroker denial.
 - [x] Добавить исполняемые vectors для синтаксически некорректного JSON и
   неподдерживаемой версии payload schema; ожидаемая версия берётся из
   канонической схемы, новый числовой лимит не вводится.

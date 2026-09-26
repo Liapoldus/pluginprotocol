@@ -93,6 +93,15 @@ func (f *fixture) Shutdown(context.Context, *pluginv1.ShutdownRequest) (*pluginv
 }
 
 func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*pluginv1.CallResponse, error) {
+	if request.GetCapability() == "forms.grpc-unavailable" {
+		return nil, status.Error(codes.Unavailable, "")
+	}
+	if request.GetCapability() == "forms.invalid-response" {
+		return &pluginv1.CallResponse{Payload: []byte("{")}, nil
+	}
+	if request.GetCapability() == "forms.call-rejected" {
+		return &pluginv1.CallResponse{Code: "fixture_rejected"}, nil
+	}
 	if request.GetCapability() == "forms.cancelled" {
 		return &pluginv1.CallResponse{Payload: []byte(fmt.Sprintf("{\"count\":%d,\"deadlineObserved\":%d}", f.cancellations.Load(), f.deadlineObserved.Load()))}, nil
 	}
