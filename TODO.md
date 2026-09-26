@@ -28,6 +28,16 @@ runtime library.
 
 ## Request/response и capability contracts
 
+- [x] Опубликовать `captcha.verify` v1 request/response/error contracts и
+  исполняемые negative vectors; выбор provider и его настройки принадлежат
+  plugin settings, клиент не передаёт provider.
+- [x] Опубликовать `forms.delete` request/response/error contract и negative
+  vectors. Повторное удаление отсутствующей записи возвращает стабильный,
+  non-retryable `not_found` (HTTP 404); клиент может считать желаемое отсутствие
+  достигнутым, но wire-результат не меняется на success.
+- [x] Связать страницу настроек admin UI с control RPC `ConfigSchema` и
+  `ConfigApply`, не объявляя их capability и не отправляя через `Call`.
+
 - [x] Зафиксировать versioned cookie policy для точной пары plugin instance и
   capability, фильтрацию до dispatch, typed ordinary/HttpOnly response actions,
   атомарное отклонение некорректного ответа и запрет раскрытия значений в

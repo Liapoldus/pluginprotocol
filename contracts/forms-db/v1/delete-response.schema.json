@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/forms-db/v1/delete-response.schema.json",
+  "title": "Ответ forms.delete v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["deleted", "id"],
+  "properties": {
+    "deleted": { "const": true },
+    "id": { "type": "string", "minLength": 1 }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/captcha/v1/verify-errors.json",
+  "capability": "captcha.verify",
+  "version": 1,
+  "errors": {
+    "validation_failed": { "http": 422, "retryable": false },
+    "provider_unavailable": { "http": 503, "retryable": true }
+  },
+  "security": "Tokens and provider responses are sensitive: do not log or return them; provider selection and credentials are plugin-owned settings/grants."
+}

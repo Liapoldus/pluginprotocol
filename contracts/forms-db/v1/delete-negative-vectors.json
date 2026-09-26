@@ -1,0 +1,5 @@
+[
+  { "name": "forms-delete-missing-id", "schema": "contracts/forms-db/v1/delete-request.schema.json", "payload": { "site": "portal", "schemaName": "contact" } },
+  { "name": "forms-delete-empty-site", "schema": "contracts/forms-db/v1/delete-request.schema.json", "payload": { "site": "", "schemaName": "contact", "id": "frm_123" } },
+  { "name": "forms-delete-unknown-field", "schema": "contracts/forms-db/v1/delete-request.schema.json", "payload": { "site": "portal", "schemaName": "contact", "id": "frm_123", "force": true } }
+]

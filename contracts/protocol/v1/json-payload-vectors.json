@@ -35,6 +35,22 @@
     }
   },
   {
+    "name": "forms-delete-success",
+    "capability": "forms.delete",
+    "requestSchema": "contracts/forms-db/v1/delete-request.schema.json",
+    "responseSchema": "contracts/forms-db/v1/delete-response.schema.json",
+    "request": { "site": "portal", "schemaName": "contact", "id": "frm_fixture" },
+    "response": { "deleted": true, "id": "frm_fixture" }
+  },
+  {
+    "name": "captcha-verify-valid-token",
+    "capability": "captcha.verify",
+    "requestSchema": "contracts/captcha/v1/verify-request.schema.json",
+    "responseSchema": "contracts/captcha/v1/verify-response.schema.json",
+    "request": { "token": "synthetic-captcha-token" },
+    "response": { "valid": true }
+  },
+  {
     "name": "identity-http-response",
     "capability": "identity.client.callback",
     "requestSchema": "contracts/identity/v1/http-request.schema.json",

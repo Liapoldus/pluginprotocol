@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/forms-db/v1/delete-request.schema.json",
+  "title": "Запрос forms.delete v1",
+  "description": "Удаляет одну отправку формы из точного scope site/schemaName.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["site", "schemaName", "id"],
+  "properties": {
+    "site": { "type": "string", "minLength": 1 },
+    "schemaName": { "type": "string", "minLength": 1 },
+    "id": { "type": "string", "minLength": 1 }
+  }
+}

@@ -33,9 +33,9 @@
     {
       "id": "storage",
       "title": "Storage configuration",
-      "capability": "config.schema",
+      "control": { "settingsSchemaRpc": "ConfigSchema", "settingsApplyRpc": "ConfigApply" },
       "permissions": ["plugins.forms-db.write"],
-      "sections": [{ "id": "settings", "kind": "form", "fields": ["driver", "dsn", "tablePrefix"] }]
+      "sections": [{ "id": "settings", "kind": "form", "fieldsFromControlRpc": "ConfigSchema" }]
     }
   ]
 }

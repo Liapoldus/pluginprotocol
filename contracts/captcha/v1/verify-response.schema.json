@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/captcha/v1/verify-response.schema.json",
+  "title": "Ответ captcha.verify v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["valid"],
+  "properties": {
+    "valid": { "type": "boolean" },
+    "providerCode": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" }
+  }
+}

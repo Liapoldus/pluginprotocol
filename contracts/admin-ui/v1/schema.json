@@ -4,11 +4,22 @@
   "description": "Declarative Constructor surface. It contains no executable payload, URL or public listener declaration.",
   "requiredManifestCapability": "admin.surface.get",
   "page": {
-    "required": ["id", "title", "capability", "sections"],
+    "required": ["id", "title", "sections"],
+    "source": {
+      "exactlyOneOf": [["capability"], ["control"]],
+      "control": {
+        "required": ["settingsSchemaRpc", "settingsApplyRpc"],
+        "properties": {
+          "settingsSchemaRpc": { "const": "ConfigSchema" },
+          "settingsApplyRpc": { "const": "ConfigApply" }
+        }
+      }
+    },
     "properties": {
       "id": { "pattern": "^[a-z][a-z0-9-]{0,62}$" },
       "title": { "type": "string", "maxLength": 120 },
       "capability": { "type": "string" },
+      "control": { "type": "object" },
       "sections": { "type": "array", "maxItems": 32 },
       "permissions": { "type": "array", "items": { "type": "string" } }
     }
@@ -16,7 +27,11 @@
   "section": {
     "required": ["id", "kind"],
     "kinds": ["form", "table", "detail", "metrics", "log"],
-    "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "dataCapability": { "type": "string" }, "fields": { "type": "array" }, "columns": { "type": "array" }, "actions": { "type": "array" } }
+    "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "dataCapability": { "type": "string" }, "fields": { "type": "array" }, "fieldsFromControlRpc": { "enum": ["ConfigSchema"] }, "columns": { "type": "array" }, "actions": { "type": "array" } }
+  },
+  "controlRpcMapping": {
+    "ConfigSchema": "supplies the dynamic field schema for a control-backed settings page; it is never a Manifest capability or Call target",
+    "ConfigApply": "applies Gateway-validated settings after authorization; it is never a Manifest capability or Call target"
   },
   "fieldTypes": ["string", "number", "boolean", "select", "multiselect", "secret", "file", "directory", "duration", "size", "code", "keyValue", "array", "object"],
   "action": { "required": ["id", "title", "capability"], "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "capability": { "type": "string" }, "confirmation": { "type": "string" }, "dangerous": { "type": "boolean" } } },
@@ -27,6 +42,6 @@
       "query": "POST /pages/{page}/query",
       "action": "POST /pages/{page}/actions/{action}"
     },
-    "rules": ["Gateway authorizes instance and capability", "Gateway applies limits/deadline/redaction/audit", "Plugin cannot register another API path", "Constructor renders only known declarative field and section kinds"]
+    "rules": ["Gateway authorizes instance and capability", "Gateway applies limits/deadline/redaction/audit", "Plugin cannot register another API path", "Constructor renders only known declarative field and section kinds", "Exactly one page source is declared: a Manifest capability or a typed control RPC mapping", "Control-backed settings pages resolve fields from ConfigSchema and submit through ConfigApply without adding either RPC to Manifest or Call"]
   }
 }

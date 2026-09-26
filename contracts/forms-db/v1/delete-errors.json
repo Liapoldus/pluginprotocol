@@ -1,0 +1,12 @@
+{
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/forms-db/v1/delete-errors.json",
+  "capability": "forms.delete",
+  "version": 1,
+  "missingRecord": "not_found",
+  "semantics": "Удаление отсутствующей записи возвращает not_found (HTTP 404); ошибка считается конечной и не повторяется автоматически.",
+  "errors": {
+    "validation_failed": { "http": 422, "retryable": false },
+    "not_found": { "http": 404, "retryable": false },
+    "storage_unavailable": { "http": 503, "retryable": true }
+  }
+}

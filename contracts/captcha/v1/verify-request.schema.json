@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/captcha/v1/verify-request.schema.json",
+  "title": "Запрос captcha.verify v1",
+  "description": "Проверяет token с provider, выбранным настройками plugin. Клиент не выбирает provider и не передаёт verification URL или secret.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["token"],
+  "properties": {
+    "token": { "type": "string", "minLength": 1, "maxLength": 16384 }
+  }
+}

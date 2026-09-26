@@ -1,0 +1,7 @@
+[
+  { "name": "captcha-verify-missing-token", "schema": "contracts/captcha/v1/verify-request.schema.json", "payload": {} },
+  { "name": "captcha-verify-empty-token", "schema": "contracts/captcha/v1/verify-request.schema.json", "payload": { "token": "" } },
+  { "name": "captcha-verify-client-provider", "schema": "contracts/captcha/v1/verify-request.schema.json", "payload": { "token": "synthetic-token", "provider": "untrusted-provider" } },
+  { "name": "captcha-verify-response-wrong-valid-type", "schema": "contracts/captcha/v1/verify-response.schema.json", "payload": { "valid": "yes" } },
+  { "name": "captcha-verify-response-secret-extra", "schema": "contracts/captcha/v1/verify-response.schema.json", "payload": { "valid": true, "token": "must-not-return" } }
+]
