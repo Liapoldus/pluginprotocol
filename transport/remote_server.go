@@ -90,6 +90,9 @@ func (service *dispatchApplyService) DispatchApply(ctx context.Context, request 
 	}
 	response, err := service.generation.apply(request, service.instanceID, service.replicaIdentityURI, manifest, service.allowsCapability)
 	if err != nil {
+		if errors.Is(err, ErrDispatchGenerationPrecondition) {
+			return nil, status.Error(codes.FailedPrecondition, ErrInvalidDispatchGeneration.Error())
+		}
 		return nil, status.Error(codes.InvalidArgument, ErrInvalidDispatchGeneration.Error())
 	}
 	return response, nil

@@ -88,7 +88,9 @@ runtime library.
       обе платформы в matrix.
 - [x] Зафиксировать typed `DispatchApply` v1: полная atomic capability→mode
       generation на replica, сверка instance/settings/release с её активным
-      состоянием, идемпотентный повтор и replica-bound acknowledgement.
+      состоянием, идемпотентный повтор, отклонение stale/conflicting generation
+      со статусом `FAILED_PRECONDITION` без изменения прежнего scope и
+      replica-bound acknowledgement.
       Пустой capabilities scope устанавливает deny-all и подтверждает generation
       ACK-ом; отдельный real-child-process conformance проверяет поведение. Gateway
       обязан дождаться подтверждения каждой Ready replica до Caddy activation.

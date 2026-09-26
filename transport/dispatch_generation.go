@@ -13,7 +13,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var ErrInvalidDispatchGeneration = errors.New("dispatch generation is invalid")
+var (
+	ErrInvalidDispatchGeneration       = errors.New("dispatch generation is invalid")
+	ErrDispatchGenerationPrecondition = errors.New("dispatch generation precondition failed")
+)
 
 // DispatchGeneration is the per-replica active authorization snapshot. It is
 // empty until a control-plane client applies a generation successfully.
@@ -73,11 +76,11 @@ func (generation *DispatchGeneration) apply(request *pluginv1.DispatchApplyReque
 	if generation.request != nil {
 		active := generation.request.GetGeneration()
 		if request.GetGeneration() < active {
-			return nil, ErrInvalidDispatchGeneration
+			return nil, ErrDispatchGenerationPrecondition
 		}
 		if request.GetGeneration() == active {
 			if generation.response.GetDispatchDigest() != dispatchDigest || generation.response.GetManifestDigest() != manifestDigest {
-				return nil, ErrInvalidDispatchGeneration
+				return nil, ErrDispatchGenerationPrecondition
 			}
 			return proto.Clone(generation.response).(*pluginv1.DispatchApplyResponse), nil
 		}
