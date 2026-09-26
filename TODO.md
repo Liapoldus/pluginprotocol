@@ -28,8 +28,11 @@ runtime library.
   активация сохраняет активные настройки и grants, restart применяет текущую
   revision с заново выданными grants. Уточнить lifetime config grants как срок
   активной revision в каноническом контракте.
-- [ ] Подтвердить inherited listener FD E2E отдельно на macOS и Linux в CI;
-  workflow настроен на обе платформы.
+- [x] Подтвердить inherited listener FD real-child-process E2E: Vitest запускает
+  Go fixture, передаёт Gateway-owned listener как fd 3 и проверяет TCP accept и
+  response. `make check` включает этот тест и запускается CI matrix отдельно на
+  `macos-latest` и `ubuntu-latest`; локальный полный `make check` прошёл на
+  macOS.
 
 ## Request/response и capability contracts
 
