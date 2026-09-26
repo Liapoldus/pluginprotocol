@@ -23,8 +23,13 @@ runtime library.
 - [x] Закрепить единый remote listener `0.0.0.0:50051` для standalone/Docker/
   Kubernetes и добавить `ListenRemoteTLS`: TLS 1.3, обязательная проверка client
   certificate, отдельный trust bundle plugin workload identities, no downgrade.
-- [ ] Проверить inherited listener FD E2E на macOS и Linux и config-secret
-  revision rotation/revocation в Gateway conformance.
+- [x] Добавить real-child-process conformance для ConfigApply rotation:
+  успешная атомарная замена настроек отзывает прежние grants, неуспешная
+  активация сохраняет активные настройки и grants, restart применяет текущую
+  revision с заново выданными grants. Уточнить lifetime config grants как срок
+  активной revision в каноническом контракте.
+- [ ] Подтвердить inherited listener FD E2E отдельно на macOS и Linux в CI;
+  workflow настроен на обе платформы.
 
 ## Request/response и capability contracts
 

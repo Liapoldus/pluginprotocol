@@ -16,7 +16,7 @@
   "grantScope": {
     "scope": "GRANT_SCOPE_CONFIG_APPLY",
     "bindings": ["plugin instance", "settings revision", "secret reference", "purpose"],
-    "lifetime": "only while this ConfigApply operation is active",
+    "lifetime": "valid while the bound settings revision is active; a candidate grant is redeemable during that revision's ConfigApply activation, and a failed candidate does not revoke grants for the previous active revision",
     "crossUse": "cannot be used by Call or Stream capability invocations"
   },
   "activation": {

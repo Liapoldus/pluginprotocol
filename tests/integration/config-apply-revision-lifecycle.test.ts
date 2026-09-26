@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { createInterface, type Interface as ReadLineInterface } from "node:readline";
-import { once } from "node:events";
 import { fileURLToPath } from "node:url";
 import { credentials, type ServiceError } from "@grpc/grpc-js";
 import { BootstrapRequest, ConfigApplyRequest, ConfigApplyResult } from "../generated/liapoldus/plugin/v1/control.js";
@@ -33,10 +33,22 @@ const pluginClients = new Set<PluginServiceClient>();
 let grantClient: GrantBrokerClient | undefined;
 
 function nextLine(lines: ReadLineInterface, child: ChildProcessWithoutNullStreams): Promise<string> {
-  return Promise.race([
-    once(lines, "line").then(([line]) => String(line)),
-    once(child, "exit").then(([code]) => Promise.reject(new Error(`config revision fixture exited: ${code}`))),
-  ]);
+  return new Promise((resolve, reject) => {
+    const onLine = (line: string) => {
+      cleanup();
+      resolve(line);
+    };
+    const onExit = (code: number | null) => {
+      cleanup();
+      reject(new Error(`config revision fixture exited: ${code}`));
+    };
+    const cleanup = () => {
+      lines.off("line", onLine);
+      child.off("exit", onExit);
+    };
+    lines.once("line", onLine);
+    child.once("exit", onExit);
+  });
 }
 
 async function startPlugin(): Promise<{ child: ChildProcessWithoutNullStreams; client: PluginServiceClient }> {
@@ -126,6 +138,11 @@ function redeem(handle: string, revision: string) {
   });
 }
 
+async function expectRedeemed(handle: string, revision: string): Promise<void> {
+  const result = await redeem(handle, revision);
+  expect(Buffer.from(result.secret).equals(Buffer.from(secret))).toBe(true);
+}
+
 describe("ConfigApply settings revision and secret-grant lifecycle", () => {
   beforeAll(async () => {
     fixture = await buildGoFixture(root, "./tests/fixtures/config-revision-lifecycle");
@@ -147,6 +164,14 @@ describe("ConfigApply settings revision and secret-grant lifecycle", () => {
     await fixture?.cleanup();
   });
 
+  it("defines secret-grant validity by the active settings revision", async () => {
+    const contract = JSON.parse(await readFile(`${root}/contracts/protocol/v1/config-apply.json`, "utf8"));
+
+    expect(contract.grantScope.lifetime).toContain("while the bound settings revision is active");
+    expect(contract.grantScope.lifetime).toContain("failed candidate does not revoke grants for the previous active revision");
+    expect(contract.rotation.oldHandles).toContain("revoked when the new revision activation succeeds or the plugin instance stops");
+  });
+
   it("atomically rotates settings and grants, preserves the old revision on failed activation, and reissues grants after restart", async () => {
     const revision1 = "settings-r1";
     const revision2 = "settings-r2";
@@ -159,13 +184,13 @@ describe("ConfigApply settings revision and secret-grant lifecycle", () => {
     await bootstrap(firstProcess.client);
     await expect(apply(firstProcess.client, revision1, 1, firstHandle)).resolves.toMatchObject({ applied: true, settingsRevision: revision1 });
     await expect(readActiveSettings(firstProcess.client)).resolves.toEqual({ settingsRevision: revision1, generation: 1, hasSecret: true });
-    await expect(redeem(firstHandle, revision1)).resolves.toMatchObject({ secret });
+    await expectRedeemed(firstHandle, revision1);
 
     await setGatewayGrants([fixtureGrant(revision1, firstHandle), fixtureGrant(revision2, rejectedCandidateHandle)]);
     await expect(apply(firstProcess.client, revision2, 2, rejectedCandidateHandle, true)).resolves.toMatchObject({ applied: false, settingsRevision: revision2 });
     await expect(readActiveSettings(firstProcess.client)).resolves.toEqual({ settingsRevision: revision1, generation: 1, hasSecret: true });
     await setGatewayGrants([fixtureGrant(revision1, firstHandle)]);
-    await expect(redeem(firstHandle, revision1)).resolves.toMatchObject({ secret });
+    await expectRedeemed(firstHandle, revision1);
     await expect(redeem(rejectedCandidateHandle, revision2)).rejects.toMatchObject({ code: 7 });
 
     await setGatewayGrants([fixtureGrant(revision1, firstHandle), fixtureGrant(revision2, secondHandle)]);
@@ -173,7 +198,7 @@ describe("ConfigApply settings revision and secret-grant lifecycle", () => {
     await expect(readActiveSettings(firstProcess.client)).resolves.toEqual({ settingsRevision: revision2, generation: 2, hasSecret: true });
     await setGatewayGrants([fixtureGrant(revision2, secondHandle)]);
     await expect(redeem(firstHandle, revision1)).rejects.toMatchObject({ code: 7 });
-    await expect(redeem(secondHandle, revision2)).resolves.toMatchObject({ secret });
+    await expectRedeemed(secondHandle, revision2);
 
     firstProcess.client.close();
     pluginClients.delete(firstProcess.client);
@@ -188,6 +213,6 @@ describe("ConfigApply settings revision and secret-grant lifecycle", () => {
     await expect(apply(restartedProcess.client, revision2, 2, restartedHandle)).resolves.toMatchObject({ applied: true, settingsRevision: revision2 });
     await expect(readActiveSettings(restartedProcess.client)).resolves.toEqual({ settingsRevision: revision2, generation: 2, hasSecret: true });
     await expect(redeem(secondHandle, revision2)).rejects.toMatchObject({ code: 7 });
-    await expect(redeem(restartedHandle, revision2)).resolves.toMatchObject({ secret });
+    await expectRedeemed(restartedHandle, revision2);
   }, 60_000);
 });
