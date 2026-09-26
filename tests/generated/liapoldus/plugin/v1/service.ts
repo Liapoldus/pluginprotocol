@@ -21,6 +21,8 @@ import {
   type UntypedServiceImplementation,
 } from "@grpc/grpc-js";
 import {
+  BootstrapRequest,
+  BootstrapResult,
   ConfigApplyRequest,
   ConfigApplyResult,
   ConfigSchema,
@@ -1881,6 +1883,15 @@ export const StreamMessage: MessageFns<StreamMessage> = {
 
 export type PluginServiceService = typeof PluginServiceService;
 export const PluginServiceService = {
+  bootstrap: {
+    path: "/liapoldus.plugin.v1.PluginService/Bootstrap" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: BootstrapRequest): Buffer => Buffer.from(BootstrapRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): BootstrapRequest => BootstrapRequest.decode(value),
+    responseSerialize: (value: BootstrapResult): Buffer => Buffer.from(BootstrapResult.encode(value).finish()),
+    responseDeserialize: (value: Buffer): BootstrapResult => BootstrapResult.decode(value),
+  },
   manifest: {
     path: "/liapoldus.plugin.v1.PluginService/Manifest" as const,
     requestStream: false as const,
@@ -1948,6 +1959,7 @@ export const PluginServiceService = {
 } as const;
 
 export interface PluginServiceServer extends UntypedServiceImplementation {
+  bootstrap: handleUnaryCall<BootstrapRequest, BootstrapResult>;
   manifest: handleUnaryCall<ManifestRequest, Manifest>;
   configSchema: handleUnaryCall<ConfigSchemaRequest, ConfigSchema>;
   configApply: handleUnaryCall<ConfigApplyRequest, ConfigApplyResult>;
@@ -1958,6 +1970,21 @@ export interface PluginServiceServer extends UntypedServiceImplementation {
 }
 
 export interface PluginServiceClient extends Client {
+  bootstrap(
+    request: BootstrapRequest,
+    callback: (error: ServiceError | null, response: BootstrapResult) => void,
+  ): ClientUnaryCall;
+  bootstrap(
+    request: BootstrapRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: BootstrapResult) => void,
+  ): ClientUnaryCall;
+  bootstrap(
+    request: BootstrapRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: BootstrapResult) => void,
+  ): ClientUnaryCall;
   manifest(
     request: ManifestRequest,
     callback: (error: ServiceError | null, response: Manifest) => void,

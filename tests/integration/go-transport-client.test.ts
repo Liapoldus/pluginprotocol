@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 import { mkdtemp, readFile } from "node:fs/promises";
@@ -81,6 +82,50 @@ describe("public Go transport client", () => {
       const result = await runClient(fixture.address);
       expect(JSON.parse(result).plugin).toBe("fixture");
       expect(await readFile(trace, "utf8")).toBe("manifest\nconfig.schema\nconfig.apply\n");
+    } finally {
+      await stopChildProcess(fixture.process);
+    }
+  });
+
+  it("sends operational Bootstrap, pushes the exact settings revision, then becomes ready", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "pluginprotocol-bootstrap-order-"));
+    const trace = join(directory, "calls.log");
+    const fixture = await startPlugin({ LIAPOLDUS_FIXTURE_TRACE: trace });
+    try {
+      const result = await runClient(fixture.address, "bootstrap");
+      expect(JSON.parse(result).plugin).toBe("fixture");
+      expect(await readFile(trace, "utf8")).toBe("bootstrap\nmanifest\nconfig.schema\nconfig.apply\n");
+    } finally {
+      await stopChildProcess(fixture.process);
+    }
+  });
+
+  it("keeps the plugin unready when the pushed settings revision is rejected", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "pluginprotocol-bootstrap-config-rejected-"));
+    const trace = join(directory, "calls.log");
+    const fixture = await startPlugin({
+      LIAPOLDUS_FIXTURE_TRACE: trace,
+      LIAPOLDUS_FIXTURE_CONFIG_APPLIED: "false",
+    });
+    try {
+      const result = await runClientResult(fixture.address, "bootstrap");
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("plugin unavailable");
+      expect(await readFile(trace, "utf8")).toBe("bootstrap\nmanifest\nconfig.schema\nconfig.apply\n");
+    } finally {
+      await stopChildProcess(fixture.process);
+    }
+  });
+
+  it("rejects a config grant for a different instance before sending Bootstrap", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "pluginprotocol-bootstrap-grant-mismatch-"));
+    const trace = join(directory, "calls.log");
+    const fixture = await startPlugin({ LIAPOLDUS_FIXTURE_TRACE: trace });
+    try {
+      const result = await runClientResult(fixture.address, "bootstrap-invalid-grant");
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("plugin protocol violation");
+      expect(existsSync(trace)).toBe(false);
     } finally {
       await stopChildProcess(fixture.process);
     }

@@ -129,10 +129,6 @@ func run() error {
 			return err
 		}
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return err
-	}
 	serverPair, err := tls.LoadX509KeyPair(paths["serverCertificate"], paths["serverKey"])
 	if err != nil {
 		return err
@@ -140,7 +136,7 @@ func run() error {
 	rootPool := x509.NewCertPool()
 	rootPool.AddCert(ca)
 	capability := "forms.submit"
-	remoteServer, err := transport.NewRemoteServer(service{}, transport.RemoteServerOptions{
+	remoteServer, err := transport.ListenRemoteTLS(service{}, transport.RemoteServerOptions{
 		TLSCertificate: serverPair,
 		ClientRoots:    rootPool,
 		Authorization: transport.RemoteAuthorization{
@@ -158,9 +154,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	go func() { _ = remoteServer.Serve(listener) }()
+	_, port, err := net.SplitHostPort(remoteServer.Addr().String())
+	if err != nil {
+		remoteServer.Stop()
+		return err
+	}
+	go func() { _ = remoteServer.Serve() }()
 	result := map[string]any{
-		"address": listener.Addr().String(), "caFile": paths["ca"], "serverName": "plugin.test",
+		"address": net.JoinHostPort("127.0.0.1", port), "caFile": paths["ca"], "serverName": "plugin.test",
 		"serverIdentity": serverIdentity.String(), "controlCertificate": paths["controlCertificate"], "controlKey": paths["controlKey"],
 		"dataCertificate": paths["dataCertificate"], "dataKey": paths["dataKey"],
 		"otherCertificate": paths["otherCertificate"], "otherKey": paths["otherKey"],
@@ -171,7 +172,7 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 	<-shutdown
-	remoteServer.GracefulStop()
+	remoteServer.Stop()
 	return nil
 }
 

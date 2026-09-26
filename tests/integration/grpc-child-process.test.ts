@@ -46,14 +46,21 @@ describe("gRPC plugin child process", () => {
   });
 
   it("performs typed handshake, keeps capability payload JSON, and streams in both directions", async () => {
+    const bootstrap = await unary((callback) => client.bootstrap({ instanceId: "fixture-instance", grantBrokerEndpoint: "127.0.0.1:43110" }, callback));
+    expect(bootstrap.accepted).toBe(true);
     const manifest = await unary((callback) => client.manifest({}, callback));
     expect(manifest.protocolVersion).toBe("liapoldus.plugin.v1");
     expect(manifest.name).toBe("fixture");
 
     const schema = await unary((callback) => client.configSchema({}, callback));
     expect(schema).toBeDefined();
-    const applied = await unary((callback) => client.configApply({ config: new Uint8Array([123, 125]) }, callback));
+    const applied = await unary((callback) => client.configApply({
+      config: new Uint8Array([123, 125]),
+      settingsRevision: "settings-r1",
+      grants: [],
+    }, callback));
     expect(applied.applied).toBe(true);
+    expect(applied.settingsRevision).toBe("settings-r1");
 
     const response = await unary((callback) => client.call({
       capability: "forms.submit",
@@ -107,15 +114,43 @@ describe("gRPC plugin child process", () => {
   });
 
   it("propagates a unary deadline to the plugin process", async () => {
+    const deadlineProbe = await unary((callback) => client.call({
+      capability: "forms.deadline-probe",
+      payload: new TextEncoder().encode("{}"),
+      grants: [],
+    }, new Metadata(), { deadline: new Date(Date.now() + 10_000) }, callback));
+    expect(JSON.parse(new TextDecoder().decode(deadlineProbe.payload))).toEqual({ hasDeadline: true });
+
+    const before = await unary((callback) => client.call({
+      capability: "forms.cancelled",
+      payload: new TextEncoder().encode("{}"),
+      grants: [],
+    }, callback));
+    const observedBefore = JSON.parse(new TextDecoder().decode(before.payload)).deadlineObserved as number;
     const code = await new Promise<number>((resolve) => {
       client.call(
         { capability: "forms.slow", payload: new TextEncoder().encode("{}"), grants: [] },
         new Metadata(),
-        { deadline: new Date(Date.now() + 500) },
+        { deadline: new Date(Date.now() + 1_000) },
         (error) => resolve(error?.code ?? 0),
       );
     });
-    expect(code).toBe(status.DEADLINE_EXCEEDED);
+    // The local grpc-js deadline timer and the remote grpc-go context timer can
+    // race at expiration. Either terminal status is valid, but a success is not.
+    expect([status.DEADLINE_EXCEEDED, status.CANCELLED]).toContain(code);
+
+    const observationDeadline = Date.now() + 2_000;
+    let observedAfter = observedBefore;
+    while (Date.now() < observationDeadline && observedAfter === observedBefore) {
+      const response = await unary((callback) => client.call({
+        capability: "forms.cancelled",
+        payload: new TextEncoder().encode("{}"),
+        grants: [],
+      }, callback));
+      observedAfter = JSON.parse(new TextDecoder().decode(response.payload)).deadlineObserved as number;
+      if (observedAfter === observedBefore) await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    expect(observedAfter).toBeGreaterThan(observedBefore);
   });
 
   it("propagates explicit unary cancellation to the plugin process", async () => {

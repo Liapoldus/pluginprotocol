@@ -11,6 +11,7 @@ describe("test-only generated gRPC TypeScript client", () => {
     expect(source).toContain("PluginServiceClient");
     expect(source).toContain("PluginServiceService");
     expect(source).toContain("/liapoldus.plugin.v1.PluginService/Manifest");
+    expect(source).toContain("/liapoldus.plugin.v1.PluginService/Bootstrap");
     expect(source).toContain("/liapoldus.plugin.v1.PluginService/ConfigApply");
     expect(source).toContain("/liapoldus.plugin.v1.PluginService/Call");
     expect(source).toContain("/liapoldus.plugin.v1.PluginService/Stream");

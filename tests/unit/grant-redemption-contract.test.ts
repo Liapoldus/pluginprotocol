@@ -16,7 +16,10 @@ describe("scoped grant redemption v1", () => {
     expect(grantProto).toContain("bytes secret");
     expect(serviceProto).toContain("repeated ActiveGrant grants = 3");
     expect(serviceProto).not.toMatch(/message CallRequest[\s\S]*?bytes secret/);
-    expect(launch).toHaveProperty("grantBrokerEndpointEnvironment", "LIAPOLDUS_GRANT_BROKER_ENDPOINT");
+    expect(launch).toMatchObject({
+      bootstrap: { rpc: "PluginService.Bootstrap", containsSecretMaterial: false },
+      secrets: { delivery: "scoped GrantBroker RedeemGrant only", inBootstrap: false, inConfigApply: "opaque secret-reference identifiers only" },
+    });
   });
 
   it("generates test-only stubs for the typed grant broker service", async () => {
@@ -34,6 +37,22 @@ describe("scoped grant redemption v1", () => {
     expect(grantProto).toMatch(/message ActiveGrant[\s\S]*?string capability = 4/);
     expect(grantProto).toMatch(/message RedeemGrantRequest[\s\S]*?string capability = 4/);
     expect(grantProto).toContain("string purpose = 2");
+  });
+
+  it("separates per-call and config-revision grants without carrying secret bytes", async () => {
+    const grantProto = await readFile(`${root}/proto/liapoldus/plugin/v1/grant.proto`, "utf8");
+    const controlProto = await readFile(`${root}/proto/liapoldus/plugin/v1/control.proto`, "utf8");
+    const source = await readFile(`${root}/transport/grants.go`, "utf8");
+
+    expect(grantProto).toContain("GRANT_SCOPE_CALL");
+    expect(grantProto).toContain("GRANT_SCOPE_CONFIG_APPLY");
+    expect(grantProto).toContain("settings_revision");
+    expect(grantProto).toContain("secret_reference");
+    expect(controlProto).toMatch(/message ConfigApplyRequest\s*\{[^}]*settings_revision[^}]*repeated ActiveGrant grants/s);
+    expect(controlProto).toMatch(/message ConfigApplyResult\s*\{[^}]*settings_revision/s);
+    expect(source).toMatch(/func \(c \*GrantClient\) RedeemConfig\(ctx context\.Context, grant \*pluginv1\.ActiveGrant\)/);
+    expect(source).toMatch(/GRANT_SCOPE_CONFIG_APPLY/);
+    expect(source).not.toMatch(/message (?:ActiveGrant|RedeemGrantRequest)[\s\S]*?bytes secret/);
   });
 
   it("keeps grpc implementation types behind the protocol transport API", async () => {

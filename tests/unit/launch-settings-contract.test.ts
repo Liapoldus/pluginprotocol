@@ -8,22 +8,18 @@ const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const readJSON = async (path: string) => JSON.parse(await readFile(join(root, path), "utf8"));
 
 describe("plugin v1 launch settings schemas", () => {
-  it("accepts absolute local binary paths, argument arrays, and only typed secret file references in env", async () => {
+  it("accepts only an absolute local executable path and forbids argv/env config", async () => {
     const fileReference = await readJSON("contracts/protocol/v1/file-reference.schema.json");
     const launch = await readJSON("contracts/protocol/v1/local-launch.schema.json");
     const ajv = new Ajv2020({ strict: false });
     ajv.addSchema(fileReference);
     const validate = ajv.compile(launch);
-    const valid = {
-      binary: "/opt/liapoldus/plugins/forms",
-      args: ["serve", "--config", "/etc/liapoldus/forms.json"],
-      env: { FORMS_DB_PASSWORD: { kind: "file", path: "/run/secrets/forms-db-password" } },
-    };
+    const valid = { binary: "/opt/liapoldus/plugins/forms" };
 
     expect(validate(valid)).toBe(true);
     expect(validate({ ...valid, binary: "plugins/forms" })).toBe(false);
-    expect(validate({ ...valid, env: { FORMS_DB_PASSWORD: "plaintext" } })).toBe(false);
-    expect(validate({ ...valid, env: { FORMS_DB_PASSWORD: { kind: "file", path: "secrets/password" } } })).toBe(false);
+    expect(validate({ ...valid, args: ["--config", "app.json"] })).toBe(false);
+    expect(validate({ ...valid, env: { APP_CONFIG: "value" } })).toBe(false);
     expect(validate({ ...valid, unexpected: true })).toBe(false);
   });
 

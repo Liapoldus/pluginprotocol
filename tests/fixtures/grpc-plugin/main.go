@@ -20,8 +20,14 @@ import (
 
 type fixture struct {
 	pluginv1.UnimplementedPluginServiceServer
-	server        *grpc.Server
-	cancellations atomic.Int32
+	server           *grpc.Server
+	cancellations    atomic.Int32
+	deadlineObserved atomic.Int32
+}
+
+func (*fixture) Bootstrap(context.Context, *pluginv1.BootstrapRequest) (*pluginv1.BootstrapResult, error) {
+	recordControlCall("bootstrap")
+	return &pluginv1.BootstrapResult{Accepted: os.Getenv("LIAPOLDUS_FIXTURE_BOOTSTRAP_ACCEPTED") != "false"}, nil
 }
 
 func recordControlCall(name string) {
@@ -52,7 +58,7 @@ func (f *fixture) Manifest(context.Context, *pluginv1.ManifestRequest) (*pluginv
 	return &pluginv1.Manifest{
 		Name:            name,
 		ProtocolVersion: protocolVersion,
-		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow", "forms.delay", "forms.cancelled", "peer.session"},
+		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow", "forms.delay", "forms.cancelled", "forms.deadline-probe", "peer.session"},
 		CapabilityDescriptors: []*pluginv1.CapabilityDescriptor{
 			{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL}},
 			{Capability: "forms.live", Modes: []pluginv1.InvocationMode{
@@ -73,9 +79,12 @@ func (*fixture) ConfigSchema(context.Context, *pluginv1.ConfigSchemaRequest) (*p
 	return &pluginv1.ConfigSchema{}, nil
 }
 
-func (*fixture) ConfigApply(context.Context, *pluginv1.ConfigApplyRequest) (*pluginv1.ConfigApplyResult, error) {
+func (*fixture) ConfigApply(_ context.Context, request *pluginv1.ConfigApplyRequest) (*pluginv1.ConfigApplyResult, error) {
 	recordControlCall("config.apply")
-	return &pluginv1.ConfigApplyResult{Applied: os.Getenv("LIAPOLDUS_FIXTURE_CONFIG_APPLIED") != "false"}, nil
+	return &pluginv1.ConfigApplyResult{
+		Applied:          os.Getenv("LIAPOLDUS_FIXTURE_CONFIG_APPLIED") != "false",
+		SettingsRevision: request.GetSettingsRevision(),
+	}, nil
 }
 
 func (f *fixture) Shutdown(context.Context, *pluginv1.ShutdownRequest) (*pluginv1.ShutdownResult, error) {
@@ -85,7 +94,15 @@ func (f *fixture) Shutdown(context.Context, *pluginv1.ShutdownRequest) (*pluginv
 
 func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*pluginv1.CallResponse, error) {
 	if request.GetCapability() == "forms.cancelled" {
-		return &pluginv1.CallResponse{Payload: []byte(fmt.Sprintf("{\"count\":%d}", f.cancellations.Load()))}, nil
+		return &pluginv1.CallResponse{Payload: []byte(fmt.Sprintf("{\"count\":%d,\"deadlineObserved\":%d}", f.cancellations.Load(), f.deadlineObserved.Load()))}, nil
+	}
+	if request.GetCapability() == "forms.deadline-probe" {
+		_, hasDeadline := ctx.Deadline()
+		payload, err := json.Marshal(map[string]bool{"hasDeadline": hasDeadline})
+		if err != nil {
+			return nil, status.Error(codes.Internal, "deadline probe failed")
+		}
+		return &pluginv1.CallResponse{Payload: payload}, nil
 	}
 	if request.GetCapability() == "forms.delay" {
 		var input struct {
@@ -109,9 +126,11 @@ func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*plu
 		select {
 		case <-ctx.Done():
 			if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+				f.deadlineObserved.Add(1)
 				return nil, status.Error(codes.DeadlineExceeded, "")
 			}
 			f.cancellations.Add(1)
+			f.deadlineObserved.Add(1)
 			return nil, status.FromContextError(ctx.Err()).Err()
 		case <-timer.C:
 			return &pluginv1.CallResponse{Payload: []byte(`{}`)}, nil

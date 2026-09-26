@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"github.com/Liapoldus/pluginprotocol/transport"
 )
 
@@ -19,7 +20,20 @@ func run(endpoint, mode string) error {
 		return err
 	}
 	defer client.Close()
-	handshake, err := client.Handshake(ctx, []byte(`{}`))
+	var handshake transport.Handshake
+	if mode == "bootstrap" {
+		handshake, err = client.BootstrapAndHandshake(ctx, &pluginv1.BootstrapRequest{
+			InstanceId:          "fixture-instance",
+			GrantBrokerEndpoint: "127.0.0.1:43210",
+		}, []byte(`{}`), "settings-r1", nil)
+	} else if mode == "bootstrap-invalid-grant" {
+		handshake, err = client.BootstrapAndHandshake(ctx, &pluginv1.BootstrapRequest{InstanceId: "fixture-instance"}, []byte(`{}`), "settings-r1", []*pluginv1.ActiveGrant{{
+			Handle: "opaque", Purpose: "db-connect", Scope: pluginv1.GrantScope_GRANT_SCOPE_CONFIG_APPLY,
+			InstanceId: "other-instance", SettingsRevision: "settings-r1", SecretReference: "opaque-ref",
+		}})
+	} else {
+		handshake, err = client.Handshake(ctx, []byte(`{}`))
+	}
 	if err != nil {
 		return err
 	}

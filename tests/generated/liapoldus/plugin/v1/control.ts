@@ -6,6 +6,7 @@
 
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
+import { ActiveGrant } from "./grant.js";
 
 export const protobufPackage = "liapoldus.plugin.v1";
 
@@ -73,6 +74,19 @@ export function invocationModeToJSON(object: InvocationMode): string {
 }
 
 export interface ManifestRequest {
+}
+
+/**
+ * Bootstrap carries only operational connection information supplied by the
+ * Gateway. It must never contain plugin settings or secret material.
+ */
+export interface BootstrapRequest {
+  instanceId: string;
+  grantBrokerEndpoint: string;
+}
+
+export interface BootstrapResult {
+  accepted: boolean;
 }
 
 export interface Manifest {
@@ -146,12 +160,24 @@ export interface ConfigSchema {
   fields: ConfigField[];
 }
 
+/**
+ * ConfigApply is a Gateway-pushed, atomic settings revision. config is the
+ * versioned JSON document with opaque references only; grants contain no
+ * secret bytes and are valid only for this instance/revision/reference.
+ */
 export interface ConfigApplyRequest {
   config: Uint8Array;
+  settingsRevision: string;
+  grants: ActiveGrant[];
 }
 
+/**
+ * A plugin acknowledges the exact revision only after applying settings and
+ * resolving any required config-scoped grants in memory.
+ */
 export interface ConfigApplyResult {
   applied: boolean;
+  settingsRevision: string;
 }
 
 export interface ShutdownRequest {
@@ -209,6 +235,166 @@ export const ManifestRequest: MessageFns<ManifestRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<ManifestRequest>, I>>(_: I): ManifestRequest {
     const message = createBaseManifestRequest();
+    return message;
+  },
+};
+
+function createBaseBootstrapRequest(): BootstrapRequest {
+  return { instanceId: "", grantBrokerEndpoint: "" };
+}
+
+export const BootstrapRequest: MessageFns<BootstrapRequest> = {
+  encode(message: BootstrapRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.instanceId !== "") {
+      writer.uint32(10).string(message.instanceId);
+    }
+    if (message.grantBrokerEndpoint !== "") {
+      writer.uint32(18).string(message.grantBrokerEndpoint);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BootstrapRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBootstrapRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.instanceId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.grantBrokerEndpoint = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BootstrapRequest {
+    return {
+      instanceId: isSet(object.instanceId)
+        ? globalThis.String(object.instanceId)
+        : isSet(object.instance_id)
+        ? globalThis.String(object.instance_id)
+        : "",
+      grantBrokerEndpoint: isSet(object.grantBrokerEndpoint)
+        ? globalThis.String(object.grantBrokerEndpoint)
+        : isSet(object.grant_broker_endpoint)
+        ? globalThis.String(object.grant_broker_endpoint)
+        : "",
+    };
+  },
+
+  toJSON(message: BootstrapRequest): unknown {
+    const obj: any = {};
+    if (message.instanceId !== "") {
+      obj.instanceId = message.instanceId;
+    }
+    if (message.grantBrokerEndpoint !== "") {
+      obj.grantBrokerEndpoint = message.grantBrokerEndpoint;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BootstrapRequest>, I>>(base?: I): BootstrapRequest {
+    return BootstrapRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BootstrapRequest>, I>>(object: I): BootstrapRequest {
+    const message = createBaseBootstrapRequest();
+    message.instanceId = object.instanceId ?? "";
+    message.grantBrokerEndpoint = object.grantBrokerEndpoint ?? "";
+    return message;
+  },
+};
+
+function createBaseBootstrapResult(): BootstrapResult {
+  return { accepted: false };
+}
+
+export const BootstrapResult: MessageFns<BootstrapResult> = {
+  encode(message: BootstrapResult, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.accepted !== false) {
+      writer.uint32(8).bool(message.accepted);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BootstrapResult {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBootstrapResult();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.accepted = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BootstrapResult {
+    return { accepted: isSet(object.accepted) ? globalThis.Boolean(object.accepted) : false };
+  },
+
+  toJSON(message: BootstrapResult): unknown {
+    const obj: any = {};
+    if (message.accepted !== false) {
+      obj.accepted = message.accepted;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BootstrapResult>, I>>(base?: I): BootstrapResult {
+    return BootstrapResult.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BootstrapResult>, I>>(object: I): BootstrapResult {
+    const message = createBaseBootstrapResult();
+    message.accepted = object.accepted ?? false;
     return message;
   },
 };
@@ -1132,13 +1318,19 @@ export const ConfigSchema: MessageFns<ConfigSchema> = {
 };
 
 function createBaseConfigApplyRequest(): ConfigApplyRequest {
-  return { config: new Uint8Array(0) };
+  return { config: new Uint8Array(0), settingsRevision: "", grants: [] };
 }
 
 export const ConfigApplyRequest: MessageFns<ConfigApplyRequest> = {
   encode(message: ConfigApplyRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.config.length !== 0) {
       writer.uint32(10).bytes(message.config);
+    }
+    if (message.settingsRevision !== "") {
+      writer.uint32(18).string(message.settingsRevision);
+    }
+    for (const v of message.grants) {
+      ActiveGrant.encode(v!, writer.uint32(26).fork()).join();
     }
     return writer;
   },
@@ -1164,6 +1356,22 @@ export const ConfigApplyRequest: MessageFns<ConfigApplyRequest> = {
             message.config = reader.bytes();
             continue;
           }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.settingsRevision = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.grants.push(ActiveGrant.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -1177,13 +1385,27 @@ export const ConfigApplyRequest: MessageFns<ConfigApplyRequest> = {
   },
 
   fromJSON(object: any): ConfigApplyRequest {
-    return { config: isSet(object.config) ? bytesFromBase64(object.config) : new Uint8Array(0) };
+    return {
+      config: isSet(object.config) ? bytesFromBase64(object.config) : new Uint8Array(0),
+      settingsRevision: isSet(object.settingsRevision)
+        ? globalThis.String(object.settingsRevision)
+        : isSet(object.settings_revision)
+        ? globalThis.String(object.settings_revision)
+        : "",
+      grants: globalThis.Array.isArray(object?.grants) ? object.grants.map((e: any) => ActiveGrant.fromJSON(e)) : [],
+    };
   },
 
   toJSON(message: ConfigApplyRequest): unknown {
     const obj: any = {};
     if (message.config.length !== 0) {
       obj.config = base64FromBytes(message.config);
+    }
+    if (message.settingsRevision !== "") {
+      obj.settingsRevision = message.settingsRevision;
+    }
+    if (message.grants?.length) {
+      obj.grants = message.grants.map((e) => ActiveGrant.toJSON(e));
     }
     return obj;
   },
@@ -1194,18 +1416,23 @@ export const ConfigApplyRequest: MessageFns<ConfigApplyRequest> = {
   fromPartial<I extends Exact<DeepPartial<ConfigApplyRequest>, I>>(object: I): ConfigApplyRequest {
     const message = createBaseConfigApplyRequest();
     message.config = object.config ?? new Uint8Array(0);
+    message.settingsRevision = object.settingsRevision ?? "";
+    message.grants = object.grants?.map((e) => ActiveGrant.fromPartial(e)) || [];
     return message;
   },
 };
 
 function createBaseConfigApplyResult(): ConfigApplyResult {
-  return { applied: false };
+  return { applied: false, settingsRevision: "" };
 }
 
 export const ConfigApplyResult: MessageFns<ConfigApplyResult> = {
   encode(message: ConfigApplyResult, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.applied !== false) {
       writer.uint32(8).bool(message.applied);
+    }
+    if (message.settingsRevision !== "") {
+      writer.uint32(18).string(message.settingsRevision);
     }
     return writer;
   },
@@ -1231,6 +1458,14 @@ export const ConfigApplyResult: MessageFns<ConfigApplyResult> = {
             message.applied = reader.bool();
             continue;
           }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.settingsRevision = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -1244,13 +1479,23 @@ export const ConfigApplyResult: MessageFns<ConfigApplyResult> = {
   },
 
   fromJSON(object: any): ConfigApplyResult {
-    return { applied: isSet(object.applied) ? globalThis.Boolean(object.applied) : false };
+    return {
+      applied: isSet(object.applied) ? globalThis.Boolean(object.applied) : false,
+      settingsRevision: isSet(object.settingsRevision)
+        ? globalThis.String(object.settingsRevision)
+        : isSet(object.settings_revision)
+        ? globalThis.String(object.settings_revision)
+        : "",
+    };
   },
 
   toJSON(message: ConfigApplyResult): unknown {
     const obj: any = {};
     if (message.applied !== false) {
       obj.applied = message.applied;
+    }
+    if (message.settingsRevision !== "") {
+      obj.settingsRevision = message.settingsRevision;
     }
     return obj;
   },
@@ -1261,6 +1506,7 @@ export const ConfigApplyResult: MessageFns<ConfigApplyResult> = {
   fromPartial<I extends Exact<DeepPartial<ConfigApplyResult>, I>>(object: I): ConfigApplyResult {
     const message = createBaseConfigApplyResult();
     message.applied = object.applied ?? false;
+    message.settingsRevision = object.settingsRevision ?? "";
     return message;
   },
 };

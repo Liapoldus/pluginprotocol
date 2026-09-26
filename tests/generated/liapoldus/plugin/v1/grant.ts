@@ -21,11 +21,54 @@ import {
 
 export const protobufPackage = "liapoldus.plugin.v1";
 
+export enum GrantScope {
+  GRANT_SCOPE_UNSPECIFIED = 0,
+  GRANT_SCOPE_CALL = 1,
+  GRANT_SCOPE_CONFIG_APPLY = 2,
+  UNRECOGNIZED = -1,
+}
+
+export function grantScopeFromJSON(object: any): GrantScope {
+  switch (object) {
+    case 0:
+    case "GRANT_SCOPE_UNSPECIFIED":
+      return GrantScope.GRANT_SCOPE_UNSPECIFIED;
+    case 1:
+    case "GRANT_SCOPE_CALL":
+      return GrantScope.GRANT_SCOPE_CALL;
+    case 2:
+    case "GRANT_SCOPE_CONFIG_APPLY":
+      return GrantScope.GRANT_SCOPE_CONFIG_APPLY;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return GrantScope.UNRECOGNIZED;
+  }
+}
+
+export function grantScopeToJSON(object: GrantScope): string {
+  switch (object) {
+    case GrantScope.GRANT_SCOPE_UNSPECIFIED:
+      return "GRANT_SCOPE_UNSPECIFIED";
+    case GrantScope.GRANT_SCOPE_CALL:
+      return "GRANT_SCOPE_CALL";
+    case GrantScope.GRANT_SCOPE_CONFIG_APPLY:
+      return "GRANT_SCOPE_CONFIG_APPLY";
+    case GrantScope.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export interface ActiveGrant {
   handle: string;
   purpose: string;
   domains: string[];
   capability: string;
+  scope: GrantScope;
+  instanceId: string;
+  settingsRevision: string;
+  secretReference: string;
 }
 
 export interface RedeemGrantRequest {
@@ -33,6 +76,10 @@ export interface RedeemGrantRequest {
   purpose: string;
   domain: string;
   capability: string;
+  scope: GrantScope;
+  instanceId: string;
+  settingsRevision: string;
+  secretReference: string;
 }
 
 export interface RedeemGrantResponse {
@@ -40,7 +87,16 @@ export interface RedeemGrantResponse {
 }
 
 function createBaseActiveGrant(): ActiveGrant {
-  return { handle: "", purpose: "", domains: [], capability: "" };
+  return {
+    handle: "",
+    purpose: "",
+    domains: [],
+    capability: "",
+    scope: 0,
+    instanceId: "",
+    settingsRevision: "",
+    secretReference: "",
+  };
 }
 
 export const ActiveGrant: MessageFns<ActiveGrant> = {
@@ -56,6 +112,18 @@ export const ActiveGrant: MessageFns<ActiveGrant> = {
     }
     if (message.capability !== "") {
       writer.uint32(34).string(message.capability);
+    }
+    if (message.scope !== 0) {
+      writer.uint32(40).int32(message.scope);
+    }
+    if (message.instanceId !== "") {
+      writer.uint32(50).string(message.instanceId);
+    }
+    if (message.settingsRevision !== "") {
+      writer.uint32(58).string(message.settingsRevision);
+    }
+    if (message.secretReference !== "") {
+      writer.uint32(66).string(message.secretReference);
     }
     return writer;
   },
@@ -105,6 +173,38 @@ export const ActiveGrant: MessageFns<ActiveGrant> = {
             message.capability = reader.string();
             continue;
           }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.scope = reader.int32() as any;
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.instanceId = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.settingsRevision = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.secretReference = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -123,6 +223,22 @@ export const ActiveGrant: MessageFns<ActiveGrant> = {
       purpose: isSet(object.purpose) ? globalThis.String(object.purpose) : "",
       domains: globalThis.Array.isArray(object?.domains) ? object.domains.map((e: any) => globalThis.String(e)) : [],
       capability: isSet(object.capability) ? globalThis.String(object.capability) : "",
+      scope: isSet(object.scope) ? grantScopeFromJSON(object.scope) : 0,
+      instanceId: isSet(object.instanceId)
+        ? globalThis.String(object.instanceId)
+        : isSet(object.instance_id)
+        ? globalThis.String(object.instance_id)
+        : "",
+      settingsRevision: isSet(object.settingsRevision)
+        ? globalThis.String(object.settingsRevision)
+        : isSet(object.settings_revision)
+        ? globalThis.String(object.settings_revision)
+        : "",
+      secretReference: isSet(object.secretReference)
+        ? globalThis.String(object.secretReference)
+        : isSet(object.secret_reference)
+        ? globalThis.String(object.secret_reference)
+        : "",
     };
   },
 
@@ -140,6 +256,18 @@ export const ActiveGrant: MessageFns<ActiveGrant> = {
     if (message.capability !== "") {
       obj.capability = message.capability;
     }
+    if (message.scope !== 0) {
+      obj.scope = grantScopeToJSON(message.scope);
+    }
+    if (message.instanceId !== "") {
+      obj.instanceId = message.instanceId;
+    }
+    if (message.settingsRevision !== "") {
+      obj.settingsRevision = message.settingsRevision;
+    }
+    if (message.secretReference !== "") {
+      obj.secretReference = message.secretReference;
+    }
     return obj;
   },
 
@@ -152,12 +280,25 @@ export const ActiveGrant: MessageFns<ActiveGrant> = {
     message.purpose = object.purpose ?? "";
     message.domains = object.domains?.map((e) => e) || [];
     message.capability = object.capability ?? "";
+    message.scope = object.scope ?? 0;
+    message.instanceId = object.instanceId ?? "";
+    message.settingsRevision = object.settingsRevision ?? "";
+    message.secretReference = object.secretReference ?? "";
     return message;
   },
 };
 
 function createBaseRedeemGrantRequest(): RedeemGrantRequest {
-  return { handle: "", purpose: "", domain: "", capability: "" };
+  return {
+    handle: "",
+    purpose: "",
+    domain: "",
+    capability: "",
+    scope: 0,
+    instanceId: "",
+    settingsRevision: "",
+    secretReference: "",
+  };
 }
 
 export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
@@ -173,6 +314,18 @@ export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
     }
     if (message.capability !== "") {
       writer.uint32(34).string(message.capability);
+    }
+    if (message.scope !== 0) {
+      writer.uint32(40).int32(message.scope);
+    }
+    if (message.instanceId !== "") {
+      writer.uint32(50).string(message.instanceId);
+    }
+    if (message.settingsRevision !== "") {
+      writer.uint32(58).string(message.settingsRevision);
+    }
+    if (message.secretReference !== "") {
+      writer.uint32(66).string(message.secretReference);
     }
     return writer;
   },
@@ -222,6 +375,38 @@ export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
             message.capability = reader.string();
             continue;
           }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.scope = reader.int32() as any;
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.instanceId = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.settingsRevision = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.secretReference = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -240,6 +425,22 @@ export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
       purpose: isSet(object.purpose) ? globalThis.String(object.purpose) : "",
       domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
       capability: isSet(object.capability) ? globalThis.String(object.capability) : "",
+      scope: isSet(object.scope) ? grantScopeFromJSON(object.scope) : 0,
+      instanceId: isSet(object.instanceId)
+        ? globalThis.String(object.instanceId)
+        : isSet(object.instance_id)
+        ? globalThis.String(object.instance_id)
+        : "",
+      settingsRevision: isSet(object.settingsRevision)
+        ? globalThis.String(object.settingsRevision)
+        : isSet(object.settings_revision)
+        ? globalThis.String(object.settings_revision)
+        : "",
+      secretReference: isSet(object.secretReference)
+        ? globalThis.String(object.secretReference)
+        : isSet(object.secret_reference)
+        ? globalThis.String(object.secret_reference)
+        : "",
     };
   },
 
@@ -257,6 +458,18 @@ export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
     if (message.capability !== "") {
       obj.capability = message.capability;
     }
+    if (message.scope !== 0) {
+      obj.scope = grantScopeToJSON(message.scope);
+    }
+    if (message.instanceId !== "") {
+      obj.instanceId = message.instanceId;
+    }
+    if (message.settingsRevision !== "") {
+      obj.settingsRevision = message.settingsRevision;
+    }
+    if (message.secretReference !== "") {
+      obj.secretReference = message.secretReference;
+    }
     return obj;
   },
 
@@ -269,6 +482,10 @@ export const RedeemGrantRequest: MessageFns<RedeemGrantRequest> = {
     message.purpose = object.purpose ?? "";
     message.domain = object.domain ?? "";
     message.capability = object.capability ?? "";
+    message.scope = object.scope ?? 0;
+    message.instanceId = object.instanceId ?? "";
+    message.settingsRevision = object.settingsRevision ?? "";
+    message.secretReference = object.secretReference ?? "";
     return message;
   },
 };
@@ -341,8 +558,9 @@ export const RedeemGrantResponse: MessageFns<RedeemGrantResponse> = {
 };
 
 /**
- * GrantBroker is hosted by Gateway on a private loopback endpoint. Plugins
- * redeem opaque, per-call handles; secret material is never part of Call JSON.
+ * GrantBroker is hosted by Gateway on a private endpoint. Plugins redeem
+ * opaque call- or config-scoped handles; secret material is never part of
+ * capability or configuration JSON.
  */
 export type GrantBrokerService = typeof GrantBrokerService;
 export const GrantBrokerService = {

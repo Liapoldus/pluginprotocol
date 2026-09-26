@@ -13,7 +13,7 @@ describe("remote GrantBroker transport contract", () => {
     expect(source).toMatch(/AllowsClientIdentity func\(string\) bool/);
     expect(source).toMatch(/func DialRemoteGrantBrokerContext\(ctx context\.Context, endpoint string, options RemoteGrantTLSOptions\)/);
     expect(source).toMatch(/func RemoteGrantClientIdentity\(ctx context\.Context\) \(string, bool\)/);
-    expect(source).toMatch(/ClientAuth:\s+tls\.RequireAndVerifyClientCert/);
+    expect(source).toMatch(/remoteListenerTLSConfig\(options\.TLSCertificate, options\.ClientRoots\)/);
     expect(source).toContain("credentials.NewTLS");
     expect(source).toMatch(/func NewGrantBrokerServer\(service pluginv1\.GrantBrokerServer\) \*GrantServer/);
     expect(source).toMatch(/func DialGrantBrokerContext\(ctx context\.Context, endpoint string\) \(\*GrantClient, error\)/);
@@ -33,5 +33,16 @@ describe("remote GrantBroker transport contract", () => {
       secretMaterial: "RedeemGrantResponse.secret only",
       publiclyExposed: false,
     });
+  });
+
+  it("does not discover the Gateway callback endpoint through process environment", async () => {
+    const source = await readFile(`${root}/transport/grants.go`, "utf8");
+    const control = await readFile(`${root}/proto/liapoldus/plugin/v1/control.proto`, "utf8");
+
+    expect(source).not.toContain("DialGrantBrokerFromEnvironmentContext");
+    expect(source).not.toContain("GrantBrokerEndpointEnvironment");
+    expect(source).toMatch(/func DialGrantBrokerFromBootstrapContext\(ctx context\.Context, bootstrap \*pluginv1\.BootstrapRequest, remoteOptions \*RemoteGrantTLSOptions\)/);
+    expect(source).toMatch(/if remoteOptions != nil \{\s*return DialRemoteGrantBrokerContext/);
+    expect(control).toMatch(/message BootstrapRequest\s*\{[^}]*grant_broker_endpoint/s);
   });
 });

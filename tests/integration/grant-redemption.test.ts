@@ -46,4 +46,26 @@ describe("typed scoped grant redemption", () => {
     expect(JSON.parse(output)).toEqual({ result: "redeemed" });
     expect(output).not.toContain("fixture-secret");
   });
+
+  it("redeems a config secret only for its opaque reference and exact settings revision", async () => {
+    const output = await new Promise<string>((resolve, reject) => {
+      const process = spawn("go", ["run", "./tests/fixtures/grant-client", address, JSON.stringify({
+        scope: "config-apply",
+        instanceId: "forms-instance",
+        settingsRevision: "settings-r7",
+        secretReference: "opaque-secret-ref",
+        handle: "opaque-config-handle",
+        purpose: "db-connect",
+      })], { cwd: root });
+      let stdout = "";
+      let stderr = "";
+      process.stdout.on("data", (chunk) => { stdout += String(chunk); });
+      process.stderr.on("data", (chunk) => { stderr += String(chunk); });
+      process.once("error", reject);
+      process.once("exit", (code) => code === 0 ? resolve(stdout) : reject(new Error(stderr)));
+    });
+
+    expect(JSON.parse(output)).toEqual({ result: "redeemed" });
+    expect(output).not.toContain("fixture-secret");
+  });
 });
