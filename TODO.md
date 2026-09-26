@@ -78,10 +78,22 @@ runtime library.
 - [x] На локальной macOS покрыть gRPC Stream deadline, cancellation,
       bidirectional data, concurrent calls, bounded backpressure и orderly
       close во время данных в `tests/integration/stream-runtime-conformance.test.ts`.
-- [ ] Добавить conformance для remote replica reconnect после подключения к
-      новому TLS endpoint и credential rotation с overlap trust roots;
-      readiness orchestration и rollout остаются ответственностью Gateway и
-      внешнего workload manager.
+- [x] Добавить real-child-process conformance для remote replica reconnect:
+      новый endpoint с сертификатом той же replica identity принимается при
+      overlap старого и нового trust roots; control identity сохраняет доступ к
+      Manifest, data identity остаётся запрещённой. После удаления старого root
+      старый endpoint отклоняется, новый остаётся доступен; insecure downgrade
+      отсутствует.
+- [ ] Gateway/workload manager владеет credential rotation и readiness barrier:
+      protocol SDK не меняет credentials уже открытого gRPC channel. Caller
+      загружает обновлённые endpoint/certificate/trust roots, создаёт новый
+      `DialRemoteContext`, повторяет handshake и требуемый control/data setup,
+      проверяет replica identity/Manifest/configuration/DispatchApply, и лишь
+      затем считает replica Ready. Неизвестный результат Call не replay-ится;
+      прерванный Stream закрывается. Удаление прежнего trust root — внешняя
+      rollout-операция после переключения всех требуемых клиентов; protocol
+      conformance доказывает TLS fail-closed на уже исключённом endpoint, но не
+      оркестрирует Gateway replicas или rollout.
 - [x] Проверить remote GrantBroker по TLS/mTLS и active-dispatch authorization
       для control/data identities в real-child-process conformance.
 - [x] Запускать полный `make check` в CI на Ubuntu и macOS; workflow содержит
