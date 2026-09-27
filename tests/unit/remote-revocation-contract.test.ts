@@ -11,9 +11,9 @@ describe("remote mTLS revocation contract", () => {
       await readFile(join(root, "contracts/protocol/v1/remote-revocation.json"), "utf8"),
     ) as {
       protocolVersion: string;
-      bundle: { encoding: string; pemBlockType: string; issuerSignature: string };
+      bundle: { encoding: string; pemBlockType: string; issuerSignature: string; authorityKeyId: string };
       requiredFor: string[];
-      verification: { thisUpdate: string; nextUpdate: string; crlNumber: string; missingIssuerCRL: string };
+      verification: { thisUpdate: string; nextUpdate: string; crlNumber: string; missingIssuerCRL: string; signatureFailure: string };
       update: { valid: string; invalid: string; closesActiveChannels: boolean; reconnectOwner: string; replayUnknownCall: boolean };
       expiration: { action: string; reconnectRequired: boolean };
       maxBundleBytes: number;
@@ -22,6 +22,7 @@ describe("remote mTLS revocation contract", () => {
     expect(contract.protocolVersion).toBe("liapoldus.plugin.v1");
     expect(contract.bundle).toMatchObject({ encoding: "PEM", pemBlockType: "X509 CRL" });
     expect(contract.bundle.issuerSignature).toContain("issuing CA");
+    expect(contract.bundle.authorityKeyId).toBe("required-and-matches-verified-issuer-subject-key-id");
     expect(contract.requiredFor).toEqual(expect.arrayContaining([
       "remote plugin client",
       "remote plugin server",
@@ -33,6 +34,7 @@ describe("remote mTLS revocation contract", () => {
       nextUpdate: "required-and-future",
       crlNumber: "required-and-monotonic-per-issuer",
       missingIssuerCRL: "deny-handshake",
+      signatureFailure: "clear-state-close-active-channels-and-deny",
     });
     expect(contract.update).toMatchObject({
       valid: "atomic-replace",
