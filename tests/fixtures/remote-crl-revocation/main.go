@@ -73,7 +73,7 @@ func main() {
 	}
 	result, err := run(os.Args[1])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "remote revocation fixture failed", err)
+		fmt.Fprintln(os.Stderr, "remote revocation fixture failed")
 		os.Exit(1)
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
@@ -121,7 +121,7 @@ func run(scenario string) (result, error) {
 		return result{"accepted": err == nil}, nil
 	case "grant-broker":
 		return runGrantBroker(creds, emptyCRL, gatewayRevokedCRL, grantClientRevokedCRL)
-	case "healthy", "revoked-plugin", "revoked-gateway", "update-client", "update-server", "invalid-update", "expiry", "rollback", "unrevoke":
+	case "healthy", "revoked-plugin", "revoked-gateway", "update-client", "update-server", "invalid-update", "expiry", "rollback", "unrevoke", "bad-signature":
 		return runPlugin(scenario, creds, emptyCRL, emptyCRL3, serverRevokedCRL, clientRevokedCRL)
 	default:
 		return nil, fmt.Errorf("unknown fixture scenario")
@@ -132,7 +132,7 @@ func runPlugin(scenario string, creds credentials, emptyCRL, emptyCRL3, serverRe
 	serverBundle, clientBundle := emptyCRL, emptyCRL
 	if scenario == "expiry" {
 		var err error
-		clientBundle, err = creds.crl(1, nil, time.Now().Add(-time.Minute), time.Now().Add(350*time.Millisecond))
+		clientBundle, err = creds.crl(1, nil, time.Now().Add(-time.Minute), time.Now().Add(1500*time.Millisecond))
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +180,7 @@ func runPlugin(scenario string, creds credentials, emptyCRL, emptyCRL3, serverRe
 		return result{"accepted": true}, nil
 	}
 	if scenario == "expiry" {
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(1700 * time.Millisecond)
 		expiryContext, expiryCancel := context.WithTimeout(context.Background(), time.Second)
 		defer expiryCancel()
 		closed := manifestFails(client, expiryContext)
@@ -189,6 +189,14 @@ func runPlugin(scenario string, creds credentials, emptyCRL, emptyCRL3, serverRe
 	}
 
 	switch scenario {
+	case "bad-signature":
+		badCRL, crlErr := creds.invalidSignatureCRL(2)
+		if crlErr != nil {
+			return nil, crlErr
+		}
+		updateErr := clientRevocations.Update(badCRL)
+		closed := manifestFails(client, ctx)
+		return result{"updateAccepted": updateErr == nil, "activeChannelClosed": closed, "reconnected": dialSucceeds(listener.Addr().String(), creds, clientRevocations)}, nil
 	case "rollback":
 		updateErr := clientRevocations.Update(emptyCRL)
 		closed := manifestFails(client, ctx)
@@ -402,4 +410,34 @@ func (c credentials) crl(number int64, revoked []*big.Int, thisUpdate, nextUpdat
 		return nil, err
 	}
 	return pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: list}), nil
+}
+
+func (c credentials) invalidSignatureCRL(number int64) ([]byte, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(9), Subject: c.ca.Subject,
+		NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Hour),
+		IsCA: true, BasicConstraintsValid: true,
+		KeyUsage:     x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
+		SubjectKeyId: append([]byte(nil), c.ca.SubjectKeyId...),
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		return nil, err
+	}
+	wrongIssuer, err := x509.ParseCertificate(der)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	crlDER, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+		Number: big.NewInt(number), ThisUpdate: now.Add(-time.Minute), NextUpdate: now.Add(time.Hour),
+	}, wrongIssuer, key)
+	if err != nil {
+		return nil, err
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlDER}), nil
 }

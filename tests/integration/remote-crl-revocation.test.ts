@@ -71,6 +71,14 @@ describe("remote mTLS CRL revocation", () => {
     });
   }, 20_000);
 
+  it("rejects a CRL signed by a different key even when its issuer name and key id match", async () => {
+    expect(await run("bad-signature")).toEqual({
+      updateAccepted: true,
+      activeChannelClosed: true,
+      reconnected: false,
+    });
+  }, 10_000);
+
   it("applies the same revocation policy to both remote GrantBroker peers", async () => {
     expect(await run("grant-broker")).toEqual({
       healthy: true,
