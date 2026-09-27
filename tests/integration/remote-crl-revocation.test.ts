@@ -54,6 +54,10 @@ describe("remote mTLS CRL revocation", () => {
     expect(await run("stale-bundle")).toEqual({ accepted: false });
   });
 
+  it("closes established channels when their CRL expires", async () => {
+    expect(await run("expiry")).toEqual({ expiredChannelClosed: true, reconnected: false });
+  }, 10_000);
+
   it("applies the same revocation policy to both remote GrantBroker peers", async () => {
     expect(await run("grant-broker")).toEqual({
       healthy: true,

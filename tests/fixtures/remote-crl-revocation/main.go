@@ -28,7 +28,9 @@ const controlIdentity = "urn:liapoldus:gateway:deployment:plugin:forms:control"
 
 type result map[string]any
 
-type pluginService struct{ pluginv1.UnimplementedPluginServiceServer }
+type pluginService struct {
+	pluginv1.UnimplementedPluginServiceServer
+}
 
 func (pluginService) Manifest(context.Context, *pluginv1.ManifestRequest) (*pluginv1.Manifest, error) {
 	return &pluginv1.Manifest{Name: "fixture", ProtocolVersion: pluginprotocol.ProtocolVersion}, nil
@@ -43,20 +45,26 @@ func (pluginService) Shutdown(context.Context, *pluginv1.ShutdownRequest) (*plug
 	return &pluginv1.ShutdownResult{Closed: true}, nil
 }
 
-type grantService struct{ pluginv1.UnimplementedGrantBrokerServer }
+type grantService struct {
+	pluginv1.UnimplementedGrantBrokerServer
+}
 
 func (grantService) RedeemGrant(context.Context, *pluginv1.RedeemGrantRequest) (*pluginv1.RedeemGrantResponse, error) {
 	return &pluginv1.RedeemGrantResponse{Secret: []byte("fixture-secret")}, nil
 }
 
 type credentials struct {
-	serverCertificate tls.Certificate
-	clientCertificate tls.Certificate
-	roots             *x509.CertPool
-	ca                *x509.Certificate
-	caKey             *ecdsa.PrivateKey
-	serverSerial      *big.Int
-	clientSerial      *big.Int
+	serverCertificate      tls.Certificate
+	gatewayCertificate     tls.Certificate
+	clientCertificate      tls.Certificate
+	grantClientCertificate tls.Certificate
+	roots                  *x509.CertPool
+	ca                     *x509.Certificate
+	caKey                  *ecdsa.PrivateKey
+	serverSerial           *big.Int
+	gatewaySerial          *big.Int
+	clientSerial           *big.Int
+	grantClientSerial      *big.Int
 }
 
 func main() {
@@ -65,7 +73,7 @@ func main() {
 	}
 	result, err := run(os.Args[1])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "remote revocation fixture failed")
+		fmt.Fprintln(os.Stderr, "remote revocation fixture failed", err)
 		os.Exit(1)
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
@@ -90,6 +98,14 @@ func run(scenario string) (result, error) {
 	if err != nil {
 		return nil, err
 	}
+	grantClientRevokedCRL, err := creds.crl(2, []*big.Int{creds.grantClientSerial}, time.Now().Add(-time.Minute), time.Now().Add(time.Hour))
+	if err != nil {
+		return nil, err
+	}
+	gatewayRevokedCRL, err := creds.crl(2, []*big.Int{creds.gatewaySerial}, time.Now().Add(-time.Minute), time.Now().Add(time.Hour))
+	if err != nil {
+		return nil, err
+	}
 	staleCRL, err := creds.crl(3, nil, time.Now().Add(-2*time.Hour), time.Now().Add(-time.Hour))
 	if err != nil {
 		return nil, err
@@ -100,8 +116,8 @@ func run(scenario string) (result, error) {
 		_, err := transport.NewRemoteRevocationState(creds.roots, staleCRL)
 		return result{"accepted": err == nil}, nil
 	case "grant-broker":
-		return runGrantBroker(creds, emptyCRL, serverRevokedCRL, clientRevokedCRL)
-	case "healthy", "revoked-plugin", "revoked-gateway", "update-client", "update-server", "invalid-update":
+		return runGrantBroker(creds, emptyCRL, gatewayRevokedCRL, grantClientRevokedCRL)
+	case "healthy", "revoked-plugin", "revoked-gateway", "update-client", "update-server", "invalid-update", "expiry":
 		return runPlugin(scenario, creds, emptyCRL, serverRevokedCRL, clientRevokedCRL)
 	default:
 		return nil, fmt.Errorf("unknown fixture scenario")
@@ -110,6 +126,13 @@ func run(scenario string) (result, error) {
 
 func runPlugin(scenario string, creds credentials, emptyCRL, serverRevokedCRL, clientRevokedCRL []byte) (result, error) {
 	serverBundle, clientBundle := emptyCRL, emptyCRL
+	if scenario == "expiry" {
+		var err error
+		clientBundle, err = creds.crl(1, nil, time.Now().Add(-time.Minute), time.Now().Add(350*time.Millisecond))
+		if err != nil {
+			return nil, err
+		}
+	}
 	if scenario == "revoked-gateway" {
 		serverBundle = clientRevokedCRL
 	}
@@ -152,6 +175,14 @@ func runPlugin(scenario string, creds credentials, emptyCRL, serverRevokedCRL, c
 	if scenario == "healthy" {
 		return result{"accepted": true}, nil
 	}
+	if scenario == "expiry" {
+		time.Sleep(500 * time.Millisecond)
+		expiryContext, expiryCancel := context.WithTimeout(context.Background(), time.Second)
+		defer expiryCancel()
+		closed := manifestFails(client, expiryContext)
+		reconnected := dialSucceeds(listener.Addr().String(), creds, clientRevocations)
+		return result{"expiredChannelClosed": closed, "reconnected": reconnected}, nil
+	}
 
 	switch scenario {
 	case "update-client":
@@ -184,7 +215,7 @@ func runGrantBroker(creds credentials, emptyCRL, serverRevokedCRL, clientRevoked
 		return nil, err
 	}
 	server, err := transport.NewRemoteGrantBrokerServer(grantService{}, transport.RemoteGrantServerOptions{
-		TLSCertificate: creds.serverCertificate, ClientRoots: creds.roots, Revocations: serverRevocations,
+		TLSCertificate: creds.gatewayCertificate, ClientRoots: creds.roots, Revocations: serverRevocations,
 		ServerIdentityURI: controlIdentity, AllowsClientIdentity: func(identity string) bool { return identity == serverIdentity },
 	})
 	if err != nil {
@@ -199,7 +230,7 @@ func runGrantBroker(creds credentials, emptyCRL, serverRevokedCRL, clientRevoked
 	go func() { _ = server.Serve(listener) }()
 	client, err := transport.DialRemoteGrantBrokerContext(context.Background(), listener.Addr().String(), transport.RemoteGrantTLSOptions{
 		ServerName: "plugin.test", ExpectedServerIdentity: controlIdentity, ClientIdentityURI: serverIdentity,
-		RootCAs: creds.roots, ClientCertificate: creds.clientCertificate, Revocations: clientRevocations,
+		RootCAs: creds.roots, ClientCertificate: creds.grantClientCertificate, Revocations: clientRevocations,
 	})
 	if err != nil {
 		return nil, err
@@ -211,9 +242,11 @@ func runGrantBroker(creds credentials, emptyCRL, serverRevokedCRL, clientRevoked
 		return nil, err
 	}
 	clientErr := clientRevocations.Update(serverRevokedCRL)
-	clientClosed := client.Redeem(ctx, "forms.submit", "fixture-handle", "fixture-purpose", "fixture-domain") != nil
+	_, clientRedeemErr := client.Redeem(ctx, "forms.submit", "fixture-handle", "fixture-purpose", "fixture-domain")
+	clientClosed := clientRedeemErr != nil
 	serverErr := serverRevocations.Update(clientRevokedCRL)
-	serverClosed := client.Redeem(ctx, "forms.submit", "fixture-handle", "fixture-purpose", "fixture-domain") != nil
+	_, serverRedeemErr := client.Redeem(ctx, "forms.submit", "fixture-handle", "fixture-purpose", "fixture-domain")
+	serverClosed := serverRedeemErr != nil
 	return result{"healthy": true, "clientUpdateClosed": clientErr == nil && clientClosed, "serverUpdateClosed": serverErr == nil && serverClosed}, nil
 }
 
@@ -221,13 +254,13 @@ func startPluginServer(creds credentials, revocations *transport.RemoteRevocatio
 	server, err := transport.NewRemoteServer(pluginService{}, transport.RemoteServerOptions{
 		TLSCertificate: creds.serverCertificate, ClientRoots: creds.roots, Revocations: revocations,
 		Authorization: transport.RemoteAuthorization{
-			ControlIdentity: controlIdentity,
-			DataIdentity: "urn:liapoldus:gateway:deployment:plugin:forms:data",
+			ControlIdentity:  controlIdentity,
+			DataIdentity:     "urn:liapoldus:gateway:deployment:plugin:forms:data",
 			AllowsCapability: func(string) bool { return true },
 		},
 		InstanceID: "forms", ReplicaIdentityURI: serverIdentity,
 		SettingsDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		ReleaseDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		ReleaseDigest:  "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	})
 	if err != nil {
 		return nil, nil, err
@@ -289,16 +322,30 @@ func newCredentials() (credentials, error) {
 	roots := x509.NewCertPool()
 	roots.AddCert(ca)
 	serverURI, _ := url.Parse(serverIdentity)
-	clientURI, _ := url.Parse(controlIdentity)
+	controlURI, _ := url.Parse(controlIdentity)
 	serverCertificate, serverSerial, err := issue(ca, key, "plugin.test", serverURI, x509.ExtKeyUsageServerAuth)
 	if err != nil {
 		return credentials{}, err
 	}
-	clientCertificate, clientSerial, err := issue(ca, key, "", clientURI, x509.ExtKeyUsageClientAuth)
+	clientCertificate, clientSerial, err := issue(ca, key, "", controlURI, x509.ExtKeyUsageClientAuth)
 	if err != nil {
 		return credentials{}, err
 	}
-	return credentials{serverCertificate: serverCertificate, clientCertificate: clientCertificate, roots: roots, ca: ca, caKey: key, serverSerial: serverSerial, clientSerial: clientSerial}, nil
+	grantClientCertificate, grantClientSerial, err := issue(ca, key, "", serverURI, x509.ExtKeyUsageClientAuth)
+	if err != nil {
+		return credentials{}, err
+	}
+	gatewayCertificate, gatewaySerial, err := issue(ca, key, "plugin.test", controlURI, x509.ExtKeyUsageServerAuth)
+	if err != nil {
+		return credentials{}, err
+	}
+	return credentials{
+		serverCertificate: serverCertificate, gatewayCertificate: gatewayCertificate,
+		clientCertificate: clientCertificate, grantClientCertificate: grantClientCertificate,
+		roots: roots, ca: ca, caKey: key,
+		serverSerial: serverSerial, gatewaySerial: gatewaySerial,
+		clientSerial: clientSerial, grantClientSerial: grantClientSerial,
+	}, nil
 }
 
 func issue(ca *x509.Certificate, caKey *ecdsa.PrivateKey, dnsName string, identity *url.URL, usage x509.ExtKeyUsage) (tls.Certificate, *big.Int, error) {
