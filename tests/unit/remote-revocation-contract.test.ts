@@ -15,6 +15,7 @@ describe("remote mTLS revocation contract", () => {
       requiredFor: string[];
       verification: { thisUpdate: string; nextUpdate: string; crlNumber: string; missingIssuerCRL: string };
       update: { valid: string; invalid: string; closesActiveChannels: boolean; reconnectOwner: string; replayUnknownCall: boolean };
+      expiration: { action: string; reconnectRequired: boolean };
       maxBundleBytes: number;
     };
 
@@ -39,6 +40,10 @@ describe("remote mTLS revocation contract", () => {
       closesActiveChannels: true,
       reconnectOwner: "caller",
       replayUnknownCall: false,
+    });
+    expect(contract.expiration).toEqual({
+      action: "clear-state-close-active-channels-and-fail-closed",
+      reconnectRequired: true,
     });
     expect(contract.maxBundleBytes).toBeGreaterThan(0);
 
