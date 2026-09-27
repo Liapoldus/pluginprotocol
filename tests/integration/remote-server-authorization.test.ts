@@ -23,6 +23,7 @@ let credentials: {
   dataKey: string;
   otherCertificate: string;
   otherKey: string;
+  revocationsFile: string;
 };
 
 describe("remote plugin server authorization", () => {
@@ -163,6 +164,7 @@ async function invokeRaw(identity: "control" | "data" | "other", operation: stri
       key,
       operation,
       capability,
+      credentials.revocationsFile,
     ], { cwd: root, stdio: "pipe" });
     let stdout = "";
     let stderr = "";

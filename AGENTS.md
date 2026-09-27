@@ -28,7 +28,16 @@ JSON contract bodies.
   certificate and a dedicated plugin-workload CA bundle; application config,
   environment variables, and Bootstrap do not carry TLS key material. Gateway
   does not become a CA; Management and plugin workload trust roots are separate.
-  Invalid/revoked credentials fail closed without insecure downgrade.
+  Every remote plugin and GrantBroker TLS direction requires a caller-managed
+  `RemoteRevocationState` initialized with the matching trust pool and a fresh,
+  externally delivered RFC 5280 PEM CRL bundle. The SDK checks issuer name,
+  AuthorityKeyId, CRL signature, freshness, monotonic CRLNumber, v3 issuer
+  `cRLSign` usage and revoked serials against the TLS-verified chain. CRL
+  replacement or expiry closes active
+  channels; invalid signatures, missing issuer CRLs and revoked leaves fail
+  closed without insecure downgrade or Call replay. The workload identity
+  provider/operator owns bundle delivery and reconnection. Canonical details:
+  `contracts/protocol/v1/remote-revocation.json`.
 - The v1 transport migration intentionally replaces the old v1.0.0
   length-prefixed TCP framing with gRPC. Keep module import path and protocol
   namespace at v1 as explicitly decided, and publish the next compatible Go

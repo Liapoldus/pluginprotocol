@@ -13,10 +13,11 @@ import (
 )
 
 type serverInfo struct {
-	Address        string `json:"address"`
-	Directory      string `json:"directory"`
-	ServerIdentity string `json:"serverIdentity"`
-	ClientIdentity string `json:"clientIdentity"`
+	Address         string `json:"address"`
+	Directory       string `json:"directory"`
+	ServerIdentity  string `json:"serverIdentity"`
+	ClientIdentity  string `json:"clientIdentity"`
+	RevocationsFile string `json:"revocationsFile"`
 }
 
 func run(info serverInfo, mode string) error {
@@ -42,6 +43,14 @@ func run(info serverInfo, mode string) error {
 	if err != nil {
 		return err
 	}
+	crlBundle, err := os.ReadFile(info.RevocationsFile)
+	if err != nil {
+		return err
+	}
+	revocations, err := transport.NewRemoteRevocationState(roots, crlBundle)
+	if err != nil {
+		return err
+	}
 	if mode == "no-client-certificate" {
 		certificate = tls.Certificate{}
 	}
@@ -50,6 +59,7 @@ func run(info serverInfo, mode string) error {
 	client, err := transport.DialRemoteGrantBrokerContext(ctx, info.Address, transport.RemoteGrantTLSOptions{
 		ServerName: "localhost", ExpectedServerIdentity: expectedServerIdentity,
 		ClientIdentityURI: clientIdentity, RootCAs: roots, ClientCertificate: certificate,
+		Revocations: revocations,
 	})
 	if err != nil {
 		return err

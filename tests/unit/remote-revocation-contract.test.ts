@@ -11,7 +11,13 @@ describe("remote mTLS revocation contract", () => {
       await readFile(join(root, "contracts/protocol/v1/remote-revocation.json"), "utf8"),
     ) as {
       protocolVersion: string;
-      bundle: { encoding: string; pemBlockType: string; issuerSignature: string; authorityKeyId: string; issuerKeyUsage: string };
+      bundle: {
+        encoding: string;
+        pemBlockType: string;
+        issuerSignature: string;
+        authorityKeyId: string;
+        issuerKeyUsage: { minimumCertificateVersion: number; requireCRLSign: boolean };
+      };
       requiredFor: string[];
       verification: { thisUpdate: string; nextUpdate: string; crlNumber: string; missingIssuerCRL: string; signatureFailure: string };
       update: { valid: string; invalid: string; closesActiveChannels: boolean; reconnectOwner: string; replayUnknownCall: boolean };
@@ -20,10 +26,14 @@ describe("remote mTLS revocation contract", () => {
     };
 
     expect(contract.protocolVersion).toBe("liapoldus.plugin.v1");
-    expect(contract.bundle).toMatchObject({ encoding: "PEM", pemBlockType: "X509 CRL" });
+    expect(contract.bundle).toMatchObject({
+      encoding: "PEM",
+      pemBlockType: "X509 CRL",
+      standard: "RFC 5280 as updated by RFC 10007",
+    });
     expect(contract.bundle.issuerSignature).toContain("issuing CA");
     expect(contract.bundle.authorityKeyId).toBe("required-and-matches-verified-issuer-subject-key-id");
-    expect(contract.bundle.issuerKeyUsage).toBe("v3-crl-issuer-requires-present-cRLSign-key-usage");
+    expect(contract.bundle.issuerKeyUsage).toEqual({ minimumCertificateVersion: 3, requireCRLSign: true });
     expect(contract.requiredFor).toEqual(expect.arrayContaining([
       "remote plugin client",
       "remote plugin server",

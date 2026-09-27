@@ -27,6 +27,7 @@ type RemoteServerOptions struct {
 	ReplicaIdentityURI string
 	SettingsDigest     string
 	ReleaseDigest      string
+	Revocations        *RemoteRevocationState
 	Limits             ServerOptions
 }
 
@@ -34,7 +35,7 @@ type RemoteServerOptions struct {
 // client certificate and applies the protocol's control/data identity policy.
 // Reflection is intentionally not registered on remote listeners.
 func NewRemoteServer(service pluginv1.PluginServiceServer, options RemoteServerOptions) (*grpc.Server, error) {
-	if service == nil || len(options.TLSCertificate.Certificate) == 0 || options.TLSCertificate.PrivateKey == nil || options.ClientRoots == nil || options.InstanceID == "" || !validRemoteIdentity(options.ReplicaIdentityURI) || !validSHA256Digest(options.SettingsDigest) || !validSHA256Digest(options.ReleaseDigest) {
+	if service == nil || len(options.TLSCertificate.Certificate) == 0 || options.TLSCertificate.PrivateKey == nil || options.ClientRoots == nil || !options.Revocations.matchesRoots(options.ClientRoots) || options.InstanceID == "" || !validRemoteIdentity(options.ReplicaIdentityURI) || !validSHA256Digest(options.SettingsDigest) || !validSHA256Digest(options.ReleaseDigest) {
 		return nil, ErrInvalidRemoteServerOptions
 	}
 	certificate := cloneTLSCertificate(options.TLSCertificate)
@@ -49,7 +50,7 @@ func NewRemoteServer(service pluginv1.PluginServiceServer, options RemoteServerO
 		return nil, ErrInvalidRemoteServerOptions
 	}
 	maxMessageBytes, maxStreamMessageBytes := messageLimits(options.Limits)
-	tlsConfig, err := remoteListenerTLSConfig(certificate, options.ClientRoots)
+	tlsConfig, err := remoteListenerTLSConfig(certificate, options.ClientRoots, options.Revocations)
 	if err != nil {
 		return nil, ErrInvalidRemoteServerOptions
 	}

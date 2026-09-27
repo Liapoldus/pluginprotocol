@@ -22,8 +22,9 @@ var ErrGrantDenied = errors.New("grant redemption denied")
 // GrantClient calls the Gateway's private loopback grant broker. It deliberately
 // returns only broker errors, never request values or secret material.
 type GrantClient struct {
-	connection *grpc.ClientConn
-	service    pluginv1.GrantBrokerClient
+	connection           *grpc.ClientConn
+	service              pluginv1.GrantBrokerClient
+	unregisterRevocation func()
 }
 
 // RemoteGrantTLSOptions binds a remote broker channel to the plugin replica's
@@ -34,6 +35,7 @@ type RemoteGrantTLSOptions struct {
 	ClientIdentityURI      string
 	RootCAs                *x509.CertPool
 	ClientCertificate      tls.Certificate
+	Revocations            *RemoteRevocationState
 }
 
 // RemoteGrantServerOptions configures the Gateway's private remote callback.
@@ -45,6 +47,7 @@ type RemoteGrantServerOptions struct {
 	ClientRoots          *x509.CertPool
 	ServerIdentityURI    string
 	AllowsClientIdentity func(string) bool
+	Revocations          *RemoteRevocationState
 }
 
 // DialGrantBrokerContext connects to a Gateway grant-broker loopback endpoint.
@@ -87,8 +90,13 @@ func DialRemoteGrantBrokerContext(ctx context.Context, endpoint string, options 
 		ExpectedServerIdentity: options.ExpectedServerIdentity,
 		RootCAs:                options.RootCAs,
 		ClientCertificate:      options.ClientCertificate,
+		Revocations:            options.Revocations,
 	}
-	if !isRemoteTCPEndpoint(endpoint) || !validRemoteTLSOptions(remoteOptions) || !validRemoteIdentity(options.ClientIdentityURI) || !certificateHasURI(options.ClientCertificate, options.ClientIdentityURI) {
+	if !isRemoteTCPEndpoint(endpoint) || !validRemoteTLSOptions(remoteOptions) || !options.Revocations.matchesRoots(options.RootCAs) || !validRemoteIdentity(options.ClientIdentityURI) || !certificateHasURI(options.ClientCertificate, options.ClientIdentityURI) {
+		return nil, ErrInvalidRemoteTLS
+	}
+	generation, err := options.Revocations.generationForHandshake()
+	if err != nil {
 		return nil, ErrInvalidRemoteTLS
 	}
 	tlsConfig, err := remoteTLSConfig(remoteOptions)
@@ -103,14 +111,29 @@ func DialRemoteGrantBrokerContext(ctx context.Context, endpoint string, options 
 	if err != nil {
 		return nil, classifyRPCError(ctx, err)
 	}
-	return &GrantClient{connection: connection, service: pluginv1.NewGrantBrokerClient(connection)}, nil
+	client := &GrantClient{connection: connection, service: pluginv1.NewGrantBrokerClient(connection)}
+	client.unregisterRevocation, err = options.Revocations.registerChannel(generation, func() { _ = connection.Close() })
+	if err != nil {
+		_ = connection.Close()
+		return nil, ErrInvalidRemoteTLS
+	}
+	return client, nil
 }
 
-func (c *GrantClient) Close() error { return c.connection.Close() }
+func (c *GrantClient) Close() error {
+	if c == nil || c.connection == nil {
+		return nil
+	}
+	if c.unregisterRevocation != nil {
+		c.unregisterRevocation()
+	}
+	return c.connection.Close()
+}
 
 // NewGrantBrokerServer creates a size-bounded broker gRPC server for Gateway.
 type GrantServer struct {
-	server *grpc.Server
+	server      *grpc.Server
+	revocations *RemoteRevocationState
 }
 
 type grantBrokerAdapter struct {
@@ -139,10 +162,10 @@ func NewGrantBrokerServer(service pluginv1.GrantBrokerServer) *GrantServer {
 // verified client certificate, pins its own URI SAN, and authorizes only
 // replica identities accepted by the supplied allow-list policy.
 func NewRemoteGrantBrokerServer(service pluginv1.GrantBrokerServer, options RemoteGrantServerOptions) (*GrantServer, error) {
-	if service == nil || len(options.TLSCertificate.Certificate) == 0 || options.TLSCertificate.PrivateKey == nil || options.ClientRoots == nil || !validRemoteIdentity(options.ServerIdentityURI) || options.AllowsClientIdentity == nil || !certificateHasURI(options.TLSCertificate, options.ServerIdentityURI) {
+	if service == nil || len(options.TLSCertificate.Certificate) == 0 || options.TLSCertificate.PrivateKey == nil || options.ClientRoots == nil || !options.Revocations.matchesRoots(options.ClientRoots) || !validRemoteIdentity(options.ServerIdentityURI) || options.AllowsClientIdentity == nil || !certificateHasURI(options.TLSCertificate, options.ServerIdentityURI) {
 		return nil, ErrInvalidRemoteTLS
 	}
-	tlsConfig, err := remoteListenerTLSConfig(options.TLSCertificate, options.ClientRoots)
+	tlsConfig, err := remoteListenerTLSConfig(options.TLSCertificate, options.ClientRoots, options.Revocations)
 	if err != nil {
 		return nil, ErrInvalidRemoteTLS
 	}
@@ -153,7 +176,7 @@ func NewRemoteGrantBrokerServer(service pluginv1.GrantBrokerServer, options Remo
 		grpc.UnaryInterceptor(remoteGrantIdentityInterceptor(options.AllowsClientIdentity)),
 	)
 	pluginv1.RegisterGrantBrokerServer(server, grantBrokerAdapter{service: service})
-	return &GrantServer{server: server}, nil
+	return &GrantServer{server: server, revocations: options.Revocations}, nil
 }
 
 type remoteGrantIdentityKey struct{}
@@ -202,7 +225,15 @@ func certificateHasURI(certificate tls.Certificate, expected string) bool {
 	return certificateContainsURI(leaf, expected)
 }
 
-func (s *GrantServer) Serve(listener net.Listener) error { return s.server.Serve(listener) }
+func (s *GrantServer) Serve(listener net.Listener) error {
+	if s == nil || s.server == nil || listener == nil {
+		return ErrInvalidRemoteTLS
+	}
+	if s.revocations != nil {
+		listener = s.revocations.WrapListener(listener)
+	}
+	return s.server.Serve(listener)
+}
 
 func (s *GrantServer) Stop() { s.server.Stop() }
 

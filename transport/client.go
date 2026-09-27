@@ -33,9 +33,11 @@ var (
 )
 
 type Client struct {
-	connection *grpc.ClientConn
-	service    pluginv1.PluginServiceClient
-	health     grpc_health_v1.HealthClient
+	connection           *grpc.ClientConn
+	service              pluginv1.PluginServiceClient
+	health               grpc_health_v1.HealthClient
+	revocations          *RemoteRevocationState
+	unregisterRevocation func()
 }
 
 type Handshake struct {
@@ -51,6 +53,7 @@ type RemoteTLSOptions struct {
 	ExpectedServerIdentity string
 	RootCAs                *x509.CertPool
 	ClientCertificate      tls.Certificate
+	Revocations            *RemoteRevocationState
 }
 
 // DialContext opens an insecure gRPC channel only to a literal loopback IP.
@@ -79,7 +82,11 @@ func DialContext(ctx context.Context, endpoint string) (*Client, error) {
 // additional verifier requires an exact URI SAN for the expected plugin
 // workload identity. The caller must perform Handshake on every new channel.
 func DialRemoteContext(ctx context.Context, endpoint string, options RemoteTLSOptions) (*Client, error) {
-	if !isRemoteTCPEndpoint(endpoint) || !validRemoteTLSOptions(options) {
+	if !isRemoteTCPEndpoint(endpoint) || !validRemoteTLSOptions(options) || !options.Revocations.matchesRoots(options.RootCAs) {
+		return nil, ErrInvalidRemoteTLS
+	}
+	generation, err := options.Revocations.generationForHandshake()
+	if err != nil {
 		return nil, ErrInvalidRemoteTLS
 	}
 	configuration, err := remoteTLSConfig(options)
@@ -94,17 +101,27 @@ func DialRemoteContext(ctx context.Context, endpoint string, options RemoteTLSOp
 	if err != nil {
 		return nil, classifyRPCError(ctx, err)
 	}
-	return &Client{
-		connection: connection,
-		service:    pluginv1.NewPluginServiceClient(connection),
-		health:     grpc_health_v1.NewHealthClient(connection),
-	}, nil
+	client := &Client{
+		connection:  connection,
+		service:     pluginv1.NewPluginServiceClient(connection),
+		health:      grpc_health_v1.NewHealthClient(connection),
+		revocations: options.Revocations,
+	}
+	client.unregisterRevocation, err = options.Revocations.registerChannel(generation, func() { _ = connection.Close() })
+	if err != nil {
+		_ = connection.Close()
+		return nil, ErrInvalidRemoteTLS
+	}
+	return client, nil
 }
 
 func remoteTLSConfig(options RemoteTLSOptions) (*tls.Config, error) {
 	expectedIdentity := options.ExpectedServerIdentity
 	contract, err := loadRemoteListenerContract()
 	if err != nil {
+		return nil, ErrInvalidRemoteTLS
+	}
+	if options.Revocations == nil || !options.Revocations.matchesRoots(options.RootCAs) {
 		return nil, ErrInvalidRemoteTLS
 	}
 	return &tls.Config{
@@ -114,6 +131,9 @@ func remoteTLSConfig(options RemoteTLSOptions) (*tls.Config, error) {
 		Certificates: []tls.Certificate{cloneTLSCertificate(options.ClientCertificate)},
 		VerifyConnection: func(state tls.ConnectionState) error {
 			if len(state.PeerCertificates) == 0 {
+				return ErrInvalidRemoteTLS
+			}
+			if err := options.Revocations.checkPeer(state); err != nil {
 				return ErrInvalidRemoteTLS
 			}
 			for _, identity := range state.PeerCertificates[0].URIs {
@@ -197,7 +217,15 @@ func isLoopbackEndpoint(endpoint string) bool {
 	return err == nil && port > 0 && port <= 65535 && net.ParseIP(host).IsLoopback()
 }
 
-func (c *Client) Close() error { return c.connection.Close() }
+func (c *Client) Close() error {
+	if c == nil || c.connection == nil {
+		return nil
+	}
+	if c.unregisterRevocation != nil {
+		c.unregisterRevocation()
+	}
+	return c.connection.Close()
+}
 
 func (c *Client) Service() pluginv1.PluginServiceClient { return c.service }
 

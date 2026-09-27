@@ -17,6 +17,13 @@ wire-совместимости.
   TLS 1.3, обязательный client certificate и dedicated workload trust bundle.
 - Добавлен operational-only typed `Bootstrap`; Gateway push-ит settings через
   `ConfigApply` до health/readiness, а plugin хранит active revision in-memory.
+- Для remote plugin и GrantBroker mTLS добавлен обязательный внешний signed
+  RFC 5280 CRL bundle с уточнением RFC 10007: SDK проверяет
+  issuer/AuthorityKeyId/signature, `cRLSign` usage сертификата v3 issuer,
+  freshness и монотонный CRLNumber, отказывает revoked/uncovered peers и
+  закрывает активные каналы при замене CRL или истечении NextUpdate. Доставка и reconnect остаются
+  ответственностью workload identity provider/operator; downgrade и replay
+  неизвестного Call отсутствуют.
 - `ConfigApply` принимает opaque secret-reference IDs и instance/revision-bound
   `CONFIG_APPLY` grants; source `file:` refs/paths остаются Gateway-owned, raw
   secret bytes выдаются только через активный scoped GrantBroker redemption.

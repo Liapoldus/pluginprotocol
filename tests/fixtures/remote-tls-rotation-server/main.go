@@ -79,6 +79,18 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	oldServerCRL, err := createCRL(oldCA, oldCAKey, 1)
+	if err != nil {
+		return err
+	}
+	newServerCRL, err := createCRL(newCA, newCAKey, 1)
+	if err != nil {
+		return err
+	}
+	clientCRL, err := createCRL(clientCA, clientCAKey, 1)
+	if err != nil {
+		return err
+	}
 	serverURI, err := url.Parse(serverIdentity)
 	if err != nil {
 		return err
@@ -135,13 +147,24 @@ func run() error {
 		}
 		paths[name] = path
 	}
+	for name, content := range map[string][]byte{
+		"old-server-revocations.pem":     oldServerCRL,
+		"renewed-server-revocations.pem": newServerCRL,
+		"client-revocations.pem":         clientCRL,
+	} {
+		path := directory + "/" + name
+		if err := os.WriteFile(path, content, 0o600); err != nil {
+			return err
+		}
+		paths[name] = path
+	}
 	clientRoots := x509.NewCertPool()
 	clientRoots.AddCert(clientCA)
-	oldServer, oldListener, err := startServer(paths["old-server.pem"], paths["old-server-key.pem"], clientRoots)
+	oldServer, oldListener, err := startServer(paths["old-server.pem"], paths["old-server-key.pem"], clientRoots, clientCRL)
 	if err != nil {
 		return err
 	}
-	newServer, newListener, err := startServer(paths["renewed-server.pem"], paths["renewed-server-key.pem"], clientRoots)
+	newServer, newListener, err := startServer(paths["renewed-server.pem"], paths["renewed-server-key.pem"], clientRoots, clientCRL)
 	if err != nil {
 		oldServer.Stop()
 		oldListener.Close()
@@ -153,8 +176,10 @@ func run() error {
 		"oldAddress": oldListener.Addr().String(), "renewedAddress": newListener.Addr().String(),
 		"serverName": "plugin.test", "serverIdentity": serverIdentity,
 		"oldRootFile": paths["old-root.pem"], "renewedRootFile": paths["renewed-root.pem"],
-		"overlapRootsFile":   paths["overlap-roots.pem"],
-		"controlCertificate": paths["control.pem"], "controlKey": paths["control-key.pem"],
+		"overlapRootsFile":     paths["overlap-roots.pem"],
+		"oldServerCRLFile":     paths["old-server-revocations.pem"],
+		"renewedServerCRLFile": paths["renewed-server-revocations.pem"],
+		"controlCertificate":   paths["control.pem"], "controlKey": paths["control-key.pem"],
 		"dataCertificate": paths["data.pem"], "dataKey": paths["data-key.pem"],
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
@@ -170,14 +195,19 @@ func run() error {
 	return nil
 }
 
-func startServer(certificatePath, keyPath string, clientRoots *x509.CertPool) (*grpc.Server, net.Listener, error) {
+func startServer(certificatePath, keyPath string, clientRoots *x509.CertPool, clientCRL []byte) (*grpc.Server, net.Listener, error) {
 	certificate, err := tls.LoadX509KeyPair(certificatePath, keyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	revocations, err := transport.NewRemoteRevocationState(clientRoots, clientCRL)
 	if err != nil {
 		return nil, nil, err
 	}
 	server, err := transport.NewRemoteServer(service{}, transport.RemoteServerOptions{
 		TLSCertificate: certificate,
 		ClientRoots:    clientRoots,
+		Revocations:    revocations,
 		Authorization: transport.RemoteAuthorization{
 			ControlIdentity:  controlIdentity,
 			DataIdentity:     dataIdentity,
@@ -196,7 +226,7 @@ func startServer(certificatePath, keyPath string, clientRoots *x509.CertPool) (*
 		server.Stop()
 		return nil, nil, err
 	}
-	return server, listener, nil
+	return server, revocations.WrapListener(listener), nil
 }
 
 func createCA(commonName string) (*x509.Certificate, *ecdsa.PrivateKey, []byte, error) {
@@ -212,7 +242,7 @@ func createCA(commonName string) (*x509.Certificate, *ecdsa.PrivateKey, []byte, 
 		SerialNumber: serial, Subject: pkix.Name{CommonName: commonName},
 		NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Hour),
 		IsCA: true, BasicConstraintsValid: true,
-		KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
 	}
 	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	if err != nil {
@@ -223,6 +253,16 @@ func createCA(commonName string) (*x509.Certificate, *ecdsa.PrivateKey, []byte, 
 		return nil, nil, nil, err
 	}
 	return certificate, key, der, nil
+}
+
+func createCRL(ca *x509.Certificate, caKey *ecdsa.PrivateKey, number int64) ([]byte, error) {
+	der, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+		Number: big.NewInt(number), ThisUpdate: time.Now().Add(-time.Minute), NextUpdate: time.Now().Add(time.Hour),
+	}, ca, caKey)
+	if err != nil {
+		return nil, err
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: der}), nil
 }
 
 func issue(ca *x509.Certificate, caKey *ecdsa.PrivateKey, dnsName string, identity *url.URL, usage x509.ExtKeyUsage) ([]byte, []byte, error) {

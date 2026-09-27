@@ -31,7 +31,7 @@ func main() {
 }
 
 func run() result {
-	if len(os.Args) != 7 {
+	if len(os.Args) != 8 {
 		return result{Code: codes.InvalidArgument.String()}
 	}
 	caPEM, err := os.ReadFile(os.Args[2])
@@ -46,10 +46,18 @@ func run() result {
 	if err != nil {
 		return result{Code: codes.InvalidArgument.String()}
 	}
+	crlBundle, err := os.ReadFile(os.Args[7])
+	if err != nil {
+		return result{Code: codes.InvalidArgument.String()}
+	}
+	revocations, err := transport.NewRemoteRevocationState(roots, crlBundle)
+	if err != nil {
+		return result{Code: codes.InvalidArgument.String()}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
 	client, err := transport.DialRemoteContext(ctx, os.Args[1], transport.RemoteTLSOptions{
-		ServerName: os.Args[3], ExpectedServerIdentity: os.Args[4], RootCAs: roots, ClientCertificate: certificate,
+		ServerName: os.Args[3], ExpectedServerIdentity: os.Args[4], RootCAs: roots, ClientCertificate: certificate, Revocations: revocations,
 	})
 	if err != nil {
 		return result{Code: rpcCode(err)}

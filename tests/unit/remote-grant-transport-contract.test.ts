@@ -13,7 +13,7 @@ describe("remote GrantBroker transport contract", () => {
     expect(source).toMatch(/AllowsClientIdentity func\(string\) bool/);
     expect(source).toMatch(/func DialRemoteGrantBrokerContext\(ctx context\.Context, endpoint string, options RemoteGrantTLSOptions\)/);
     expect(source).toMatch(/func RemoteGrantClientIdentity\(ctx context\.Context\) \(string, bool\)/);
-    expect(source).toMatch(/remoteListenerTLSConfig\(options\.TLSCertificate, options\.ClientRoots\)/);
+    expect(source).toMatch(/remoteListenerTLSConfig\(options\.TLSCertificate, options\.ClientRoots, options\.Revocations\)/);
     expect(source).toContain("credentials.NewTLS");
     expect(source).toMatch(/func NewGrantBrokerServer\(service pluginv1\.GrantBrokerServer\) \*GrantServer/);
     expect(source).toMatch(/func DialGrantBrokerContext\(ctx context\.Context, endpoint string\) \(\*GrantClient, error\)/);

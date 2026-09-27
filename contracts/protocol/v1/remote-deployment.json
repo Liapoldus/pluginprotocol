@@ -2,6 +2,7 @@
   "protocolVersion": "liapoldus.plugin.v1",
   "transport": "gRPC over HTTP/2 over TCP",
   "fileReferenceSchema": "file-reference.schema.json",
+  "remoteRevocation": "remote-revocation.json",
   "modes": {
     "local": {
       "processOwner": "gateway-supervisor",
@@ -104,6 +105,7 @@
   "handshake": ["Bootstrap", "Manifest", "ConfigSchema", "ConfigApply", "grpc.health.v1"],
   "capabilities": { "unary": "Call with versioned JSON payload", "stream": "bidirectional Stream" },
   "grantBroker": {
+    "revocationContract": "remote-revocation.json",
     "endpointDelivery": "Bootstrap.grant_broker_endpoint; never process environment",
     "remoteTransport": "TLS with mutual authentication",
     "clientIdentity": "same unique remote plugin replica URI SAN used for its gRPC connection",

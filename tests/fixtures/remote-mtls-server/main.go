@@ -21,10 +21,7 @@ import (
 
 	"github.com/Liapoldus/pluginprotocol"
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
+	"github.com/Liapoldus/pluginprotocol/transport"
 )
 
 type testService struct {
@@ -63,7 +60,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	caTemplate := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "fixture ca"}, NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature}
+	caTemplate := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "fixture ca"}, NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature}
 	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
 	if err != nil {
 		return err
@@ -111,17 +108,39 @@ func run() error {
 	}
 	rootPool := x509.NewCertPool()
 	rootPool.AddCert(ca)
-	serverTLS := &tls.Config{Certificates: []tls.Certificate{serverPair}, ClientCAs: rootPool, ClientAuth: tls.RequireAndVerifyClientCert, MinVersion: tls.VersionTLS13}
-	grpcServer := grpc.NewServer(grpc.Creds(credentials.NewTLS(serverTLS)))
-	pluginv1.RegisterPluginServiceServer(grpcServer, testService{})
-	healthServer := health.NewServer()
-	healthServer.SetServingStatus(pluginv1.PluginService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
-	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
-	go func() { _ = grpcServer.Serve(listener) }()
+	crlDER, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{Number: big.NewInt(1), ThisUpdate: time.Now().Add(-time.Minute), NextUpdate: time.Now().Add(time.Hour)}, ca, caKey)
+	if err != nil {
+		return err
+	}
+	crlFile := directory + "/revocations.pem"
+	if err := os.WriteFile(crlFile, pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlDER}), 0o600); err != nil {
+		return err
+	}
+	crlPEM := pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlDER})
+	revocations, err := transport.NewRemoteRevocationState(rootPool, crlPEM)
+	if err != nil {
+		return err
+	}
+	grpcServer, err := transport.NewRemoteServer(testService{}, transport.RemoteServerOptions{
+		TLSCertificate: serverPair, ClientRoots: rootPool, Revocations: revocations,
+		Authorization: transport.RemoteAuthorization{
+			ControlIdentity:  "urn:liapoldus:gateway:deployment:plugin:forms:control",
+			DataIdentity:     "urn:liapoldus:gateway:deployment:plugin:forms:data",
+			AllowsCapability: func(string) bool { return true },
+		},
+		InstanceID: "forms", ReplicaIdentityURI: "urn:liapoldus:plugin:forms:replica:pod-1",
+		SettingsDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		ReleaseDigest:  "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	})
+	if err != nil {
+		return err
+	}
+	go func() { _ = grpcServer.Serve(revocations.WrapListener(listener)) }()
 	result := map[string]string{
 		"address": listener.Addr().String(), "caFile": paths["ca"], "serverName": "plugin.test",
 		"serverIdentity": "urn:liapoldus:plugin:forms:replica:pod-1", "clientCertificate": paths["clientCertificate"],
-		"clientKey": paths["clientKey"],
+		"clientKey":       paths["clientKey"],
+		"revocationsFile": crlFile,
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
 		return err

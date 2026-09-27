@@ -20,7 +20,7 @@ func main() {
 }
 
 func run() error {
-	if len(os.Args) != 7 {
+	if len(os.Args) != 8 {
 		return fmt.Errorf("remote client arguments are invalid")
 	}
 	caPEM, err := os.ReadFile(os.Args[2])
@@ -35,10 +35,18 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	crlBundle, err := os.ReadFile(os.Args[7])
+	if err != nil {
+		return err
+	}
+	revocations, err := transport.NewRemoteRevocationState(roots, crlBundle)
+	if err != nil {
+		return fmt.Errorf("remote revocation state is invalid")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	client, err := transport.DialRemoteContext(ctx, os.Args[1], transport.RemoteTLSOptions{
-		ServerName: os.Args[3], ExpectedServerIdentity: os.Args[4], RootCAs: roots, ClientCertificate: clientCertificate,
+		ServerName: os.Args[3], ExpectedServerIdentity: os.Args[4], RootCAs: roots, ClientCertificate: clientCertificate, Revocations: revocations,
 	})
 	if err != nil {
 		return fmt.Errorf("remote channel could not be established")

@@ -28,7 +28,7 @@ func main() {
 }
 
 func run() error {
-	if len(os.Args) != 9 {
+	if len(os.Args) != 10 {
 		return fmt.Errorf("authorization client arguments are invalid")
 	}
 	caPEM, err := os.ReadFile(os.Args[2])
@@ -43,10 +43,18 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	crlBundle, err := os.ReadFile(os.Args[9])
+	if err != nil {
+		return err
+	}
+	revocations, err := transport.NewRemoteRevocationState(roots, crlBundle)
+	if err != nil {
+		return fmt.Errorf("remote revocation state is invalid")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	client, err := transport.DialRemoteContext(ctx, os.Args[1], transport.RemoteTLSOptions{
-		ServerName: os.Args[3], ExpectedServerIdentity: os.Args[4], RootCAs: roots, ClientCertificate: certificate,
+		ServerName: os.Args[3], ExpectedServerIdentity: os.Args[4], RootCAs: roots, ClientCertificate: certificate, Revocations: revocations,
 	})
 	if err != nil {
 		return err
@@ -81,7 +89,7 @@ func run() error {
 		result, err = client.Service().DispatchApply(ctx, &pluginv1.DispatchApplyRequest{
 			Generation: generation, InstanceId: "forms", SettingsDigest: settingsDigest,
 			ReleaseDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-			Capabilities: capabilities,
+			Capabilities:  capabilities,
 		})
 		if err == nil {
 			dispatchResponse, err = protojson.Marshal(result)

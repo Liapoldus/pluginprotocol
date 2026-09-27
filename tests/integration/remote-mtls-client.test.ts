@@ -12,7 +12,7 @@ let serverFixture: GoFixtureBinary | undefined;
 let clientFixture: GoFixtureBinary | undefined;
 let server: ReturnType<typeof startGoFixture> | undefined;
 let serverDirectory = "";
-let credentials: { address: string; caFile: string; serverName: string; serverIdentity: string; clientCertificate: string; clientKey: string };
+let credentials: { address: string; caFile: string; serverName: string; serverIdentity: string; clientCertificate: string; clientKey: string; revocationsFile: string };
 
 describe("remote plugin mTLS client", () => {
   beforeAll(async () => {
@@ -50,6 +50,7 @@ describe("remote plugin mTLS client", () => {
       credentials.serverIdentity,
       credentials.clientCertificate,
       credentials.clientKey,
+      credentials.revocationsFile,
     ]);
     expect(result.exitCode, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({ ok: true, plugin: "fixture" });
@@ -63,6 +64,7 @@ describe("remote plugin mTLS client", () => {
       "urn:liapoldus:plugin:other:replica:pod-1",
       credentials.clientCertificate,
       credentials.clientKey,
+      credentials.revocationsFile,
     ]);
     expect(result.exitCode).not.toBe(0);
     expect(result.stdout).not.toContain("private");

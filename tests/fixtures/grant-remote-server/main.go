@@ -51,6 +51,16 @@ func run() error {
 	if err := writePEM(directory+"/ca.pem", "CERTIFICATE", ca.Raw); err != nil {
 		return err
 	}
+	crlDER, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+		Number: big.NewInt(1), ThisUpdate: time.Now().Add(-time.Minute), NextUpdate: time.Now().Add(time.Hour),
+	}, ca, caKey)
+	if err != nil {
+		return err
+	}
+	crlPEM := pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlDER})
+	if err := os.WriteFile(directory+"/revocations.pem", crlPEM, 0600); err != nil {
+		return err
+	}
 	serverCert, err := newLeaf(ca, caKey, serverIdentity, true)
 	if err != nil {
 		return err
@@ -74,6 +84,10 @@ func run() error {
 	}
 	roots := x509.NewCertPool()
 	roots.AddCert(ca)
+	revocations, err := transport.NewRemoteRevocationState(roots, crlPEM)
+	if err != nil {
+		return err
+	}
 	certificate, err := tlsCertificate(directory, "server")
 	if err != nil {
 		return err
@@ -84,13 +98,14 @@ func run() error {
 	}
 	server, err := transport.NewRemoteGrantBrokerServer(broker{}, transport.RemoteGrantServerOptions{
 		TLSCertificate: certificate, ClientRoots: roots, ServerIdentityURI: serverIdentity,
+		Revocations:          revocations,
 		AllowsClientIdentity: func(identity string) bool { return identity == clientIdentity },
 	})
 	if err != nil {
 		return err
 	}
 	defer server.Stop()
-	if err := json.NewEncoder(os.Stdout).Encode(map[string]string{"address": listener.Addr().String(), "directory": directory, "serverIdentity": serverIdentity, "clientIdentity": clientIdentity}); err != nil {
+	if err := json.NewEncoder(os.Stdout).Encode(map[string]string{"address": listener.Addr().String(), "directory": directory, "serverIdentity": serverIdentity, "clientIdentity": clientIdentity, "revocationsFile": directory + "/revocations.pem"}); err != nil {
 		return err
 	}
 	return server.Serve(listener)
@@ -106,7 +121,7 @@ func newCA() (*x509.Certificate, *ecdsa.PrivateKey, error) {
 		return nil, nil, err
 	}
 	now := time.Now()
-	certificate := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: "test CA"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature}
+	certificate := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: "test CA"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature}
 	der, err := x509.CreateCertificate(rand.Reader, certificate, certificate, &key.PublicKey, key)
 	if err != nil {
 		return nil, nil, err

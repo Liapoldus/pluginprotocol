@@ -1,5 +1,6 @@
 {
   "protocolVersion": "liapoldus.plugin.v1",
+  "revocationContract": "remote-revocation.json",
   "transport": "tcp",
   "bindAddress": "0.0.0.0:50051",
   "servicePortMayDiffer": true,

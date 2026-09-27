@@ -83,7 +83,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	caTemplate := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "authorization fixture CA"}, NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature}
+	caTemplate := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "authorization fixture CA"}, NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature}
 	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
 	if err != nil {
 		return err
@@ -129,16 +129,32 @@ func run() error {
 			return err
 		}
 	}
+	crlDER, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+		Number: big.NewInt(1), ThisUpdate: time.Now().Add(-time.Minute), NextUpdate: time.Now().Add(time.Hour),
+	}, ca, caKey)
+	if err != nil {
+		return err
+	}
+	crlFile := directory + "/revocations.pem"
+	crlPEM := pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlDER})
+	if err := os.WriteFile(crlFile, crlPEM, 0o600); err != nil {
+		return err
+	}
 	serverPair, err := tls.LoadX509KeyPair(paths["serverCertificate"], paths["serverKey"])
 	if err != nil {
 		return err
 	}
 	rootPool := x509.NewCertPool()
 	rootPool.AddCert(ca)
+	revocations, err := transport.NewRemoteRevocationState(rootPool, crlPEM)
+	if err != nil {
+		return err
+	}
 	capability := "forms.submit"
 	remoteServer, err := transport.ListenRemoteTLS(service{}, transport.RemoteServerOptions{
 		TLSCertificate: serverPair,
 		ClientRoots:    rootPool,
+		Revocations:    revocations,
 		Authorization: transport.RemoteAuthorization{
 			ControlIdentity: identities["control"].String(),
 			DataIdentity:    identities["data"].String(),
@@ -161,7 +177,7 @@ func run() error {
 	}
 	go func() { _ = remoteServer.Serve() }()
 	result := map[string]any{
-		"address": net.JoinHostPort("127.0.0.1", port), "caFile": paths["ca"], "serverName": "plugin.test",
+		"address": net.JoinHostPort("127.0.0.1", port), "caFile": paths["ca"], "serverName": "plugin.test", "revocationsFile": crlFile,
 		"serverIdentity": serverIdentity.String(), "controlCertificate": paths["controlCertificate"], "controlKey": paths["controlKey"],
 		"dataCertificate": paths["dataCertificate"], "dataKey": paths["dataKey"],
 		"otherCertificate": paths["otherCertificate"], "otherKey": paths["otherKey"],

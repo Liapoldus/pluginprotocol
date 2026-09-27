@@ -23,6 +23,15 @@ runtime library.
 - [x] Закрепить единый remote listener `0.0.0.0:50051` для standalone/Docker/
   Kubernetes и добавить `ListenRemoteTLS`: TLS 1.3, обязательная проверка client
   certificate, отдельный trust bundle plugin workload identities, no downgrade.
+- [x] Добавить обязательную signed CRL-проверку для обоих TLS-направлений remote
+  plugin и GrantBroker: монотонные CRLNumber, AuthorityKeyId/issuer signature,
+  требуемый `cRLSign` у v3 issuer по RFC 10007, freshness, fail-closed при
+  отсутствующем issuer, stale/invalid bundle или revoked serial; атомарная
+  замена и CRL expiry закрывают существующие каналы.
+  Доставку полного RFC 5280 PEM bundle, watch/update trigger и reconnect оставили
+  у workload identity provider/operator; SDK не загружает CRL сам, не делает
+  downgrade и не повторяет неизвестный Call. E2E проверяет отозванные обе стороны,
+  замену/истечение набора, rollback CRLNumber, запрет un-revoke и GrantBroker.
 - [x] Добавить real-child-process conformance для ConfigApply rotation:
   успешная атомарная замена настроек отзывает прежние grants, неуспешная
   активация сохраняет активные настройки и grants, restart применяет текущую

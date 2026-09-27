@@ -20,6 +20,8 @@ let credentials: {
   oldRootFile: string;
   renewedRootFile: string;
   overlapRootsFile: string;
+  oldServerCRLFile: string;
+  renewedServerCRLFile: string;
   controlCertificate: string;
   controlKey: string;
   dataCertificate: string;
@@ -79,7 +81,7 @@ async function connect(endpointKey: "oldAddress" | "renewedAddress", rootsKey: "
   return new Promise((resolve, reject) => {
     const child: ChildProcessWithoutNullStreams = spawn(clientFixture!.executable, [
       credentials[endpointKey], credentials[rootsKey], credentials.serverName, credentials.serverIdentity,
-      certificate, key,
+      certificate, key, endpointKey === "oldAddress" ? credentials.oldServerCRLFile : credentials.renewedServerCRLFile,
     ], { cwd: root, stdio: "pipe" });
     let stdout = "";
     let stderr = "";

@@ -1,0 +1,51 @@
+{
+  "protocolVersion": "liapoldus.plugin.v1",
+  "bundle": {
+    "encoding": "PEM",
+    "pemBlockType": "X509 CRL",
+    "standard": "RFC 5280 as updated by RFC 10007",
+    "issuerSignature": "Each CRL must be signed by the issuing CA that directly issued the verified peer leaf certificate; signature verification uses the already verified peer chain; no additional bundle envelope is used.",
+    "authorityKeyId": "required-and-matches-verified-issuer-subject-key-id",
+    "issuerKeyUsage": {
+      "minimumCertificateVersion": 3,
+      "requireCRLSign": true
+    }
+  },
+  "requiredFor": [
+    "remote plugin client",
+    "remote plugin server",
+    "remote GrantBroker client",
+    "remote GrantBroker server"
+  ],
+  "verification": {
+    "thisUpdate": "not-in-future",
+    "nextUpdate": "required-and-future",
+    "crlNumber": "required-and-monotonic-per-issuer",
+    "missingIssuerCRL": "deny-handshake",
+    "signatureFailure": "clear-state-close-active-channels-and-deny",
+    "serialMatch": "deny-handshake",
+    "revokedSerialRemoval": "forbidden-while-revocation-state-lives"
+  },
+  "expiration": {
+    "action": "clear-state-close-active-channels-and-fail-closed",
+    "reconnectRequired": true
+  },
+  "update": {
+    "valid": "atomic-replace",
+    "invalid": "clear-state-and-fail-closed",
+    "closesActiveChannels": true,
+    "serverConnectionScope": "close-all-accepted-connections",
+    "reconnectOwner": "caller",
+    "handshakeOnReconnect": true,
+    "replayUnknownCall": false,
+    "migrateActiveStream": false
+  },
+  "delivery": {
+    "owner": "external workload identity provider or operator",
+    "protocolSDKReadsFiles": false,
+    "protocolSDKWatchesFiles": false,
+    "protocolSDKDownloadsCRLs": false,
+    "bundleReplacement": "caller passes the complete replacement PEM bundle to RemoteRevocationState.Update"
+  },
+  "maxBundleBytes": 4194304
+}

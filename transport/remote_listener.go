@@ -17,9 +17,10 @@ import (
 var ErrInvalidRemoteListenerContract = errors.New("remote plugin listener contract is invalid")
 
 type remoteListenerContract struct {
-	Transport   string `json:"transport"`
-	BindAddress string `json:"bindAddress"`
-	Security    struct {
+	Transport          string `json:"transport"`
+	BindAddress        string `json:"bindAddress"`
+	RevocationContract string `json:"revocationContract"`
+	Security           struct {
 		MinimumTLSVersion                uint16 `json:"minimumTLSVersion"`
 		ClientAuth                       uint8  `json:"clientAuth"`
 		RequireVerifiedClientCertificate bool   `json:"requireVerifiedClientCertificate"`
@@ -58,7 +59,7 @@ func ListenRemoteTLS(service pluginv1.PluginServiceServer, options RemoteServerO
 		_ = listener.Close()
 		return nil, ErrInvalidRemoteListenerContract
 	}
-	return &RemoteListener{server: server, listener: listener}, nil
+	return &RemoteListener{server: server, listener: options.Revocations.WrapListener(listener)}, nil
 }
 
 // Serve starts the remote plugin gRPC service on its fixed mTLS listener.
@@ -112,20 +113,55 @@ func validRemoteListenerContract(contract remoteListenerContract) bool {
 		return false
 	}
 	return contract.Security.MinimumTLSVersion >= tls.VersionTLS13 &&
+		contract.RevocationContract != "" &&
 		contract.Security.ClientAuth == uint8(tls.RequireAndVerifyClientCert) &&
 		contract.Security.RequireVerifiedClientCertificate &&
 		!contract.Security.InsecureFallback
 }
 
-func remoteListenerTLSConfig(certificate tls.Certificate, clientRoots *x509.CertPool) (*tls.Config, error) {
+func remoteListenerTLSConfig(certificate tls.Certificate, clientRoots *x509.CertPool, revocations *RemoteRevocationState) (*tls.Config, error) {
 	contract, err := loadRemoteListenerContract()
-	if err != nil || len(certificate.Certificate) == 0 || certificate.PrivateKey == nil || clientRoots == nil {
+	if err != nil || len(certificate.Certificate) == 0 || certificate.PrivateKey == nil || clientRoots == nil || !revocations.matchesRoots(clientRoots) {
 		return nil, ErrInvalidRemoteServerOptions
 	}
 	return &tls.Config{
-		MinVersion:   contract.Security.MinimumTLSVersion,
-		Certificates: []tls.Certificate{cloneTLSCertificate(certificate)},
-		ClientAuth:   tls.ClientAuthType(contract.Security.ClientAuth),
-		ClientCAs:    clientRoots.Clone(),
+		MinVersion:       contract.Security.MinimumTLSVersion,
+		Certificates:     []tls.Certificate{cloneTLSCertificate(certificate)},
+		ClientAuth:       tls.ClientAuthType(contract.Security.ClientAuth),
+		ClientCAs:        clientRoots.Clone(),
+		VerifyConnection: revocations.verifyPeer,
+	}, nil
+}
+
+type remoteRevocationContract struct {
+	PEMBlockType   string `json:"pemBlockType"`
+	MaxBundleBytes int64  `json:"maxBundleBytes"`
+	IssuerKeyUsage struct {
+		MinimumCertificateVersion int  `json:"minimumCertificateVersion"`
+		RequireCRLSign            bool `json:"requireCRLSign"`
+	} `json:"issuerKeyUsage"`
+}
+
+func loadRemoteRevocationContract() (remoteRevocationContract, error) {
+	content, err := fs.ReadFile(pluginprotocol.ContractFiles(), "contracts/protocol/v1/remote-revocation.json")
+	if err != nil {
+		return remoteRevocationContract{}, ErrRemoteRevocation
+	}
+	var contract struct {
+		Bundle struct {
+			PEMBlockType   string `json:"pemBlockType"`
+			IssuerKeyUsage struct {
+				MinimumCertificateVersion int  `json:"minimumCertificateVersion"`
+				RequireCRLSign            bool `json:"requireCRLSign"`
+			} `json:"issuerKeyUsage"`
+		} `json:"bundle"`
+		MaxBundleBytes int64 `json:"maxBundleBytes"`
+	}
+	if err := json.Unmarshal(content, &contract); err != nil || contract.Bundle.PEMBlockType == "" || contract.MaxBundleBytes < 1 || contract.Bundle.IssuerKeyUsage.MinimumCertificateVersion < 1 || !contract.Bundle.IssuerKeyUsage.RequireCRLSign {
+		return remoteRevocationContract{}, ErrRemoteRevocation
+	}
+	return remoteRevocationContract{
+		PEMBlockType: contract.Bundle.PEMBlockType, MaxBundleBytes: contract.MaxBundleBytes,
+		IssuerKeyUsage: contract.Bundle.IssuerKeyUsage,
 	}, nil
 }
