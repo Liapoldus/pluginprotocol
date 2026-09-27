@@ -79,6 +79,10 @@ describe("remote mTLS CRL revocation", () => {
     });
   }, 10_000);
 
+  it("rejects a v3 CRL issuer certificate without cRLSign key usage", async () => {
+    expect(await run("missing-crl-sign")).toEqual({ accepted: false });
+  });
+
   it("applies the same revocation policy to both remote GrantBroker peers", async () => {
     expect(await run("grant-broker")).toEqual({
       healthy: true,

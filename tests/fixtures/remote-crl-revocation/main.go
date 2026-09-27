@@ -82,7 +82,7 @@ func main() {
 }
 
 func run(scenario string) (result, error) {
-	creds, err := newCredentials()
+	creds, err := newCredentials(scenario != "missing-crl-sign")
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func run(scenario string) (result, error) {
 		return result{"accepted": err == nil}, nil
 	case "grant-broker":
 		return runGrantBroker(creds, emptyCRL, gatewayRevokedCRL, grantClientRevokedCRL)
-	case "healthy", "revoked-plugin", "revoked-gateway", "update-client", "update-server", "invalid-update", "expiry", "rollback", "unrevoke", "bad-signature":
+	case "healthy", "revoked-plugin", "revoked-gateway", "update-client", "update-server", "invalid-update", "expiry", "rollback", "unrevoke", "bad-signature", "missing-crl-sign":
 		return runPlugin(scenario, creds, emptyCRL, emptyCRL3, serverRevokedCRL, clientRevokedCRL)
 	default:
 		return nil, fmt.Errorf("unknown fixture scenario")
@@ -160,7 +160,7 @@ func runPlugin(scenario string, creds credentials, emptyCRL, emptyCRL3, serverRe
 	go func() { _ = server.Serve(serverRevocations.WrapListener(listener)) }()
 
 	client, err := dialPlugin(listener.Addr().String(), creds, clientRevocations)
-	if scenario == "revoked-plugin" || scenario == "revoked-gateway" {
+	if scenario == "revoked-plugin" || scenario == "revoked-gateway" || scenario == "missing-crl-sign" {
 		if client != nil {
 			_ = client.Close()
 			return result{"accepted": true}, nil
@@ -316,7 +316,7 @@ func manifestFails(client *transport.Client, ctx context.Context) bool {
 	return err != nil
 }
 
-func newCredentials() (credentials, error) {
+func newCredentials(includeCRLSign bool) (credentials, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return credentials{}, err
@@ -326,10 +326,14 @@ func newCredentials() (credentials, error) {
 		return credentials{}, err
 	}
 	now := time.Now()
+	caKeyUsage := x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature
+	if !includeCRLSign {
+		caKeyUsage = 0
+	}
 	caTemplate := &x509.Certificate{
 		SerialNumber: serial, Subject: pkix.Name{CommonName: "fixture CA"},
 		NotBefore: now.Add(-time.Minute), NotAfter: now.Add(time.Hour), IsCA: true,
-		BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true, KeyUsage: caKeyUsage,
 	}
 	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &key.PublicKey, key)
 	if err != nil {
@@ -402,10 +406,16 @@ func (c credentials) crl(number int64, revoked []*big.Int, thisUpdate, nextUpdat
 	for _, serial := range revoked {
 		entries = append(entries, x509.RevocationListEntry{SerialNumber: serial, RevocationTime: thisUpdate})
 	}
+	issuer := c.ca
+	if issuer.KeyUsage&x509.KeyUsageCRLSign == 0 {
+		signer := *issuer
+		signer.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature
+		issuer = &signer
+	}
 	list, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
 		Number: big.NewInt(number), ThisUpdate: thisUpdate, NextUpdate: nextUpdate,
 		RevokedCertificateEntries: entries,
-	}, c.ca, c.caKey)
+	}, issuer, c.caKey)
 	if err != nil {
 		return nil, err
 	}
