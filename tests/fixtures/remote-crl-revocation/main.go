@@ -98,6 +98,10 @@ func run(scenario string) (result, error) {
 	if err != nil {
 		return nil, err
 	}
+	emptyCRL3, err := creds.crl(3, nil, time.Now().Add(-time.Minute), time.Now().Add(time.Hour))
+	if err != nil {
+		return nil, err
+	}
 	grantClientRevokedCRL, err := creds.crl(2, []*big.Int{creds.grantClientSerial}, time.Now().Add(-time.Minute), time.Now().Add(time.Hour))
 	if err != nil {
 		return nil, err
@@ -117,14 +121,14 @@ func run(scenario string) (result, error) {
 		return result{"accepted": err == nil}, nil
 	case "grant-broker":
 		return runGrantBroker(creds, emptyCRL, gatewayRevokedCRL, grantClientRevokedCRL)
-	case "healthy", "revoked-plugin", "revoked-gateway", "update-client", "update-server", "invalid-update", "expiry":
-		return runPlugin(scenario, creds, emptyCRL, serverRevokedCRL, clientRevokedCRL)
+	case "healthy", "revoked-plugin", "revoked-gateway", "update-client", "update-server", "invalid-update", "expiry", "rollback", "unrevoke":
+		return runPlugin(scenario, creds, emptyCRL, emptyCRL3, serverRevokedCRL, clientRevokedCRL)
 	default:
 		return nil, fmt.Errorf("unknown fixture scenario")
 	}
 }
 
-func runPlugin(scenario string, creds credentials, emptyCRL, serverRevokedCRL, clientRevokedCRL []byte) (result, error) {
+func runPlugin(scenario string, creds credentials, emptyCRL, emptyCRL3, serverRevokedCRL, clientRevokedCRL []byte) (result, error) {
 	serverBundle, clientBundle := emptyCRL, emptyCRL
 	if scenario == "expiry" {
 		var err error
@@ -185,6 +189,14 @@ func runPlugin(scenario string, creds credentials, emptyCRL, serverRevokedCRL, c
 	}
 
 	switch scenario {
+	case "rollback":
+		updateErr := clientRevocations.Update(emptyCRL)
+		closed := manifestFails(client, ctx)
+		return result{"updateAccepted": updateErr == nil, "activeChannelClosed": closed, "reconnected": dialSucceeds(listener.Addr().String(), creds, clientRevocations)}, nil
+	case "unrevoke":
+		firstErr := clientRevocations.Update(serverRevokedCRL)
+		secondErr := clientRevocations.Update(emptyCRL3)
+		return result{"revokeAccepted": firstErr == nil, "unrevokeAccepted": secondErr == nil, "reconnected": dialSucceeds(listener.Addr().String(), creds, clientRevocations)}, nil
 	case "update-client":
 		updateErr := clientRevocations.Update(serverRevokedCRL)
 		closed := manifestFails(client, ctx)

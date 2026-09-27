@@ -58,6 +58,19 @@ describe("remote mTLS CRL revocation", () => {
     expect(await run("expiry")).toEqual({ expiredChannelClosed: true, reconnected: false });
   }, 10_000);
 
+  it("rejects CRL number rollback and never accepts a previously revoked serial again", async () => {
+    expect(await run("rollback")).toEqual({
+      updateAccepted: false,
+      activeChannelClosed: true,
+      reconnected: false,
+    });
+    expect(await run("unrevoke")).toEqual({
+      revokeAccepted: true,
+      unrevokeAccepted: false,
+      reconnected: false,
+    });
+  }, 20_000);
+
   it("applies the same revocation policy to both remote GrantBroker peers", async () => {
     expect(await run("grant-broker")).toEqual({
       healthy: true,
