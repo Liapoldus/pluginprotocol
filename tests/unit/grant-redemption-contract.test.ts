@@ -42,7 +42,7 @@ describe("scoped grant redemption v1", () => {
   it("separates per-call and config-revision grants without carrying secret bytes", async () => {
     const grantProto = await readFile(`${root}/proto/liapoldus/plugin/v1/grant.proto`, "utf8");
     const controlProto = await readFile(`${root}/proto/liapoldus/plugin/v1/control.proto`, "utf8");
-    const source = await readFile(`${root}/transport/grants.go`, "utf8");
+    const source = await readFile(`${root}/infrastructure/transport/grants.go`, "utf8");
 
     expect(grantProto).toContain("GRANT_SCOPE_CALL");
     expect(grantProto).toContain("GRANT_SCOPE_CONFIG_APPLY");
@@ -56,7 +56,7 @@ describe("scoped grant redemption v1", () => {
   });
 
   it("keeps grpc implementation types behind the protocol transport API", async () => {
-    const transport = await readFile(`${root}/transport/grants.go`, "utf8");
+    const transport = await readFile(`${root}/infrastructure/transport/grants.go`, "utf8");
 
     expect(transport).toContain("type GrantServer struct");
     expect(transport).toMatch(/func NewGrantBrokerServer\(service pluginv1\.GrantBrokerServer\) \*GrantServer/);

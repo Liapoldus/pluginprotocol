@@ -35,7 +35,7 @@ describe("local workload mTLS contract", () => {
       },
     });
 
-    const source = await readFile(`${root}/transport/local_tls.go`, "utf8");
+    const source = await readFile(`${root}/infrastructure/transport/local_tls.go`, "utf8");
     expect(source).toContain("contracts/protocol/v1/local-workload-mtls.json");
     expect(source).toContain("contract.Security.MinimumTLSVersion");
     expect(source).toContain("contract.Security.ClientCertificateRequired");

@@ -6,7 +6,7 @@ const root = fileURLToPath(new URL("../..", import.meta.url));
 
 describe("Gateway-pushed plugin configuration readiness", () => {
   it("applies Gateway settings before reporting plugin health/readiness", async () => {
-    const source = await readFile(`${root}/transport/client.go`, "utf8");
+    const source = await readFile(`${root}/infrastructure/transport/client.go`, "utf8");
     const handshake = source.slice(source.indexOf("func (c *Client) handshake("));
     const schema = handshake.indexOf("c.service.ConfigSchema(");
     const apply = handshake.indexOf("c.service.ConfigApply(");
@@ -19,7 +19,7 @@ describe("Gateway-pushed plugin configuration readiness", () => {
   });
 
   it("exposes typed operational bootstrap before the pushed settings handshake", async () => {
-    const source = await readFile(`${root}/transport/client.go`, "utf8");
+    const source = await readFile(`${root}/infrastructure/transport/client.go`, "utf8");
     const launch = JSON.parse(await readFile(`${root}/contracts/protocol/v1/launch.json`, "utf8"));
 
     expect(source).toMatch(/func \(c \*Client\) BootstrapAndHandshake\(ctx context\.Context, bootstrap \*pluginv1\.BootstrapRequest, config \[\]byte, settingsRevision string, grants \[\]\*pluginv1\.ActiveGrant\)/);
@@ -31,7 +31,7 @@ describe("Gateway-pushed plugin configuration readiness", () => {
 
   it("binds config-secret redemption to opaque references and revision-scoped grants", async () => {
     const contract = JSON.parse(await readFile(`${root}/contracts/protocol/v1/config-apply.json`, "utf8"));
-    const source = await readFile(`${root}/transport/grants.go`, "utf8");
+    const source = await readFile(`${root}/infrastructure/transport/grants.go`, "utf8");
 
     expect(contract.secretReferences).toMatchObject({
       gatewayInput: "may refer to an external file: secret source",

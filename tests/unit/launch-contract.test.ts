@@ -13,7 +13,7 @@ describe("plugin v1 launch contract", () => {
     expect(contract).not.toHaveProperty("endpointEnvironment");
     expect(contract).not.toHaveProperty("grantBrokerEndpointEnvironment");
 
-    const source = readFileSync(`${root}/transport/server.go`, "utf8");
+    const source = readFileSync(`${root}/infrastructure/transport/server.go`, "utf8");
     expect(source).toContain("ListenInherited");
     expect(source).not.toContain("EndpointEnvironment");
   });

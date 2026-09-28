@@ -6,7 +6,7 @@ const root = fileURLToPath(new URL("../..", import.meta.url));
 
 describe("remote GrantBroker transport contract", () => {
   it("requires authenticated TLS identities on both ends without changing loopback APIs", async () => {
-    const source = await readFile(`${root}/transport/grants.go`, "utf8");
+    const source = await readFile(`${root}/infrastructure/transport/grants.go`, "utf8");
 
     expect(source).toMatch(/type RemoteGrantServerOptions struct/);
     expect(source).toMatch(/func NewRemoteGrantBrokerServer\(service pluginv1\.GrantBrokerServer, options RemoteGrantServerOptions\)/);
@@ -36,7 +36,7 @@ describe("remote GrantBroker transport contract", () => {
   });
 
   it("does not discover the Gateway callback endpoint through process environment", async () => {
-    const source = await readFile(`${root}/transport/grants.go`, "utf8");
+    const source = await readFile(`${root}/infrastructure/transport/grants.go`, "utf8");
     const control = await readFile(`${root}/proto/liapoldus/plugin/v1/control.proto`, "utf8");
 
     expect(source).not.toContain("DialGrantBrokerFromEnvironmentContext");
