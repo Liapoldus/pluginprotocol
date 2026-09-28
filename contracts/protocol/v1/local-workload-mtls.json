@@ -1,0 +1,43 @@
+{
+  "protocolVersion": "liapoldus.plugin.v1",
+  "mode": "supervised-local",
+  "bootstrap": {
+    "channel": "private-inherited-pipe",
+    "directions": {
+      "gatewayToPluginDescriptor": 4,
+      "pluginToGatewayDescriptor": 5
+    },
+    "framing": "newline-delimited-json",
+    "messageSchema": "local-bootstrap.schema.json",
+    "maximumMessageBytes": 16384,
+    "challengeBytes": 32,
+    "sendsPrivateKeys": false,
+    "refreshPinsOnEveryLaunch": true,
+    "transferredMaterial": ["peer identity", "peer leaf certificate", "launch nonce"]
+  },
+  "identity": {
+    "form": "uri-san",
+    "comparison": "exact",
+    "roles": ["gateway", "plugin instance"],
+    "certificateLifetimeSeconds": 315360000
+  },
+  "security": {
+    "minimumTLSVersion": 772,
+    "mutualAuthentication": true,
+    "clientCertificateRequired": true,
+    "certificateTrust": "exact-sha256-leaf-pin",
+    "certificateAuthorityRequired": false,
+    "insecureFallback": false,
+    "pinInput": "leaf-certificate-der",
+    "pinComparison": "constant-time",
+    "peerCertificateMustBeCurrent": true,
+    "peerCertificateMustBeNonCA": true,
+    "requiredKeyUsage": "digital-signature",
+    "requiredExtendedKeyUsages": ["client-auth", "server-auth"]
+  },
+  "lifecycle": {
+    "channelScope": "one-local-process-launch",
+    "rotation": "restart-process-and-exchange-fresh-pins",
+    "transport": "grpc-http2-over-loopback-tcp"
+  }
+}
