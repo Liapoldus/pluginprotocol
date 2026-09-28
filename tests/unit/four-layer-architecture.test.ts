@@ -26,4 +26,14 @@ describe("four-layer plugin protocol SDK", () => {
     expect(coreImports).toMatch(/crypto\/tls/);
     expect(coreImports).toMatch(/google\.golang\.org\/grpc/);
   });
+
+  it("exposes loopback and grant-broker listeners through the public SDK facade", async () => {
+    const facade = await readFile(`${root}/presentation/sdk/transport.go`, "utf8");
+    const implementation = await readFile(`${root}/infrastructure/transport/local_listener.go`, "utf8");
+
+    expect(facade).toMatch(/func ListenLoopback\(/);
+    expect(facade).toMatch(/func StartGrantBroker\(/);
+    expect(implementation).toMatch(/func ListenLoopback\(/);
+    expect(implementation).toMatch(/func StartGrantBroker\(/);
+  });
 });
