@@ -20,7 +20,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol"
+	"github.com/Liapoldus/pluginprotocol/domain"
 )
 
 type localBootstrapOffer struct {
@@ -70,7 +70,7 @@ func BootstrapLocalClient(ctx context.Context, send io.WriteCloser, receive io.R
 		return LocalPeerCredentials{}, ErrInvalidLocalTLS
 	}
 	offer := localBootstrapOffer{
-		ProtocolVersion: pluginprotocol.ProtocolVersion,
+		ProtocolVersion: domain.ProtocolVersion,
 		GatewayIdentity: gatewayIdentity, PluginIdentity: pluginIdentity,
 		GatewayChallenge: gatewayChallenge, GatewayCertificate: gatewayCertificate.Certificate[0],
 	}
@@ -80,7 +80,7 @@ func BootstrapLocalClient(ctx context.Context, send io.WriteCloser, receive io.R
 	reader := bufio.NewReaderSize(receive, contract.Bootstrap.MaximumMessageBytes+1)
 	var response localBootstrapResponse
 	if err := readLocalBootstrap(reader, contract.Bootstrap.MaximumMessageBytes, &response); err != nil ||
-		response.ProtocolVersion != pluginprotocol.ProtocolVersion || response.GatewayIdentity != gatewayIdentity || response.PluginIdentity != pluginIdentity ||
+		response.ProtocolVersion != domain.ProtocolVersion || response.GatewayIdentity != gatewayIdentity || response.PluginIdentity != pluginIdentity ||
 		!sameLocalChallenge(gatewayChallenge, response.GatewayChallenge) || len(response.PluginChallenge) != contract.Bootstrap.ChallengeBytes {
 		return LocalPeerCredentials{}, ErrInvalidLocalTLS
 	}
@@ -88,7 +88,7 @@ func BootstrapLocalClient(ctx context.Context, send io.WriteCloser, receive io.R
 		return LocalPeerCredentials{}, ErrInvalidLocalTLS
 	}
 	confirmation := localBootstrapConfirmation{
-		ProtocolVersion: pluginprotocol.ProtocolVersion,
+		ProtocolVersion: domain.ProtocolVersion,
 		GatewayIdentity: gatewayIdentity, PluginIdentity: pluginIdentity,
 		GatewayChallenge: gatewayChallenge, PluginChallenge: response.PluginChallenge,
 	}
@@ -118,7 +118,7 @@ func AcceptLocalBootstrap(ctx context.Context, receive io.ReadCloser, send io.Wr
 	reader := bufio.NewReaderSize(receive, contract.Bootstrap.MaximumMessageBytes+1)
 	var offer localBootstrapOffer
 	if err := readLocalBootstrap(reader, contract.Bootstrap.MaximumMessageBytes, &offer); err != nil ||
-		offer.ProtocolVersion != pluginprotocol.ProtocolVersion || !validRemoteIdentity(offer.GatewayIdentity) || !validRemoteIdentity(offer.PluginIdentity) ||
+		offer.ProtocolVersion != domain.ProtocolVersion || !validRemoteIdentity(offer.GatewayIdentity) || !validRemoteIdentity(offer.PluginIdentity) ||
 		offer.GatewayIdentity == offer.PluginIdentity || len(offer.GatewayChallenge) != contract.Bootstrap.ChallengeBytes {
 		return LocalPeerCredentials{}, ErrInvalidLocalTLS
 	}
@@ -134,7 +134,7 @@ func AcceptLocalBootstrap(ctx context.Context, receive io.ReadCloser, send io.Wr
 		return LocalPeerCredentials{}, ErrInvalidLocalTLS
 	}
 	response := localBootstrapResponse{
-		ProtocolVersion: pluginprotocol.ProtocolVersion,
+		ProtocolVersion: domain.ProtocolVersion,
 		GatewayIdentity: offer.GatewayIdentity, PluginIdentity: offer.PluginIdentity,
 		GatewayChallenge: offer.GatewayChallenge, PluginChallenge: pluginChallenge,
 		PluginCertificate: pluginCertificate.Certificate[0],
@@ -144,7 +144,7 @@ func AcceptLocalBootstrap(ctx context.Context, receive io.ReadCloser, send io.Wr
 	}
 	var confirmation localBootstrapConfirmation
 	if err := readLocalBootstrap(reader, contract.Bootstrap.MaximumMessageBytes, &confirmation); err != nil ||
-		confirmation.ProtocolVersion != pluginprotocol.ProtocolVersion || confirmation.GatewayIdentity != offer.GatewayIdentity || confirmation.PluginIdentity != offer.PluginIdentity ||
+		confirmation.ProtocolVersion != domain.ProtocolVersion || confirmation.GatewayIdentity != offer.GatewayIdentity || confirmation.PluginIdentity != offer.PluginIdentity ||
 		!sameLocalChallenge(offer.GatewayChallenge, confirmation.GatewayChallenge) || !sameLocalChallenge(pluginChallenge, confirmation.PluginChallenge) {
 		return LocalPeerCredentials{}, ErrInvalidLocalTLS
 	}

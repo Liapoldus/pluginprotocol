@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/transport"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 )
 
 func serveInherited() error {

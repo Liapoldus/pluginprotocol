@@ -12,7 +12,7 @@ describe("pluginprotocol stream open context encoder", () => {
     const contexts = result.stdout.trim().split("\n").map((line) => JSON.parse(line));
 
     expect(contexts).toEqual([
-      { kind: "tcp", source: "127.0.0.1:1001", destination: "127.0.0.1:2002", sni: "forms.example", alpn: "h2" },
+      { kind: "tcp", source: "127.0.0.1:1001", destination: "127.0.0.1:2002", sni: "fixture.example", alpn: "h2" },
       { kind: "udp", source: "127.0.0.1:1001", destination: "127.0.0.1:2002" },
     ]);
   });

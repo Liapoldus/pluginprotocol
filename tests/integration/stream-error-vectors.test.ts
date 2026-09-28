@@ -66,7 +66,7 @@ describe("executable Stream error vectors", () => {
         stream.once("error", (error: { code?: number; details?: string }) => { clearTimeout(timeout); resolve({ code: error.code ?? -1, details: error.details }); });
         stream.once("end", () => { clearTimeout(timeout); resolve({ code: grpcStatus.OK }); });
       });
-      stream.write({ capability: "forms.live", open: {
+      stream.write({ capability: "fixture.live", open: {
         transport: StreamTransport.STREAM_TRANSPORT_UNSPECIFIED,
         mode: InvocationMode.INVOCATION_MODE_SSE,
         connectionId: vector.fixtureScenario,

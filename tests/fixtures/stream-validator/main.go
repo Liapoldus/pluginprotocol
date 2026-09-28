@@ -10,9 +10,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Liapoldus/pluginprotocol"
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	pluginprotocol "github.com/Liapoldus/pluginprotocol/presentation/sdk"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
@@ -50,7 +50,7 @@ type streamLimits struct {
 }
 
 func loadLimits() (streamLimits, error) {
-	content, err := fs.ReadFile(pluginprotocol.ContractFiles(), "contracts/protocol/v1/stream-lifecycle.json")
+	content, err := fs.ReadFile(pluginprotocol.ContractFiles(), "protocol/v1/stream-lifecycle.json")
 	if err != nil {
 		return streamLimits{}, err
 	}
@@ -91,7 +91,7 @@ func emitScenario(stream grpc.BidiStreamingServer[pluginv1.StreamMessage, plugin
 		}
 		return stream.Send(&pluginv1.StreamMessage{Capability: capability, Body: &pluginv1.StreamMessage_HttpResponseChunk{HttpResponseChunk: &pluginv1.HttpResponseChunk{EndStream: true}}})
 	case "websocket-accepted-no-close":
-		return stream.Send(&pluginv1.StreamMessage{Capability: capability, Body: &pluginv1.StreamMessage_WebsocketHandshake{WebsocketHandshake: &pluginv1.WebSocketHandshakeResult{Accepted: true, Subprotocol: "forms.v1", MetadataJson: []byte(`{"version":1}`)}}})
+		return stream.Send(&pluginv1.StreamMessage{Capability: capability, Body: &pluginv1.StreamMessage_WebsocketHandshake{WebsocketHandshake: &pluginv1.WebSocketHandshakeResult{Accepted: true, Subprotocol: "fixture.v1", MetadataJson: []byte(`{"version":1}`)}}})
 	case "sse-large-data":
 		return stream.Send(&pluginv1.StreamMessage{Capability: capability, Body: &pluginv1.StreamMessage_SseEvent{SseEvent: &pluginv1.SseEvent{Data: strings.Repeat("x", limits.SSEDataBytes+1)}}})
 	case "sse-large-event":

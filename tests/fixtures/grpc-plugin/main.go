@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -58,10 +58,10 @@ func (f *fixture) Manifest(context.Context, *pluginv1.ManifestRequest) (*pluginv
 	return &pluginv1.Manifest{
 		Name:            name,
 		ProtocolVersion: protocolVersion,
-		Capabilities:    []string{"forms.submit", "forms.live", "forms.slow", "forms.delay", "forms.cancelled", "forms.deadline-probe", "peer.session"},
+		Capabilities:    []string{"fixture.submit", "fixture.live", "fixture.slow", "fixture.delay", "fixture.cancelled", "fixture.deadline-probe", "peer.session"},
 		CapabilityDescriptors: []*pluginv1.CapabilityDescriptor{
-			{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL}},
-			{Capability: "forms.live", Modes: []pluginv1.InvocationMode{
+			{Capability: "fixture.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL}},
+			{Capability: "fixture.live", Modes: []pluginv1.InvocationMode{
 				pluginv1.InvocationMode_INVOCATION_MODE_HTTP_STREAM,
 				pluginv1.InvocationMode_INVOCATION_MODE_WEBSOCKET,
 				pluginv1.InvocationMode_INVOCATION_MODE_SSE,
@@ -93,19 +93,19 @@ func (f *fixture) Shutdown(context.Context, *pluginv1.ShutdownRequest) (*pluginv
 }
 
 func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*pluginv1.CallResponse, error) {
-	if request.GetCapability() == "forms.grpc-unavailable" {
+	if request.GetCapability() == "fixture.grpc-unavailable" {
 		return nil, status.Error(codes.Unavailable, "")
 	}
-	if request.GetCapability() == "forms.invalid-response" {
+	if request.GetCapability() == "fixture.invalid-response" {
 		return &pluginv1.CallResponse{Payload: []byte("{")}, nil
 	}
-	if request.GetCapability() == "forms.call-rejected" {
+	if request.GetCapability() == "fixture.call-rejected" {
 		return &pluginv1.CallResponse{Code: "fixture_rejected"}, nil
 	}
-	if request.GetCapability() == "forms.cancelled" {
+	if request.GetCapability() == "fixture.cancelled" {
 		return &pluginv1.CallResponse{Payload: []byte(fmt.Sprintf("{\"count\":%d,\"deadlineObserved\":%d}", f.cancellations.Load(), f.deadlineObserved.Load()))}, nil
 	}
-	if request.GetCapability() == "forms.deadline-probe" {
+	if request.GetCapability() == "fixture.deadline-probe" {
 		_, hasDeadline := ctx.Deadline()
 		payload, err := json.Marshal(map[string]bool{"hasDeadline": hasDeadline})
 		if err != nil {
@@ -113,7 +113,7 @@ func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*plu
 		}
 		return &pluginv1.CallResponse{Payload: payload}, nil
 	}
-	if request.GetCapability() == "forms.delay" {
+	if request.GetCapability() == "fixture.delay" {
 		var input struct {
 			DelayMS int `json:"delayMs"`
 		}
@@ -129,7 +129,7 @@ func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*plu
 			return &pluginv1.CallResponse{Payload: []byte("{\"done\":true}")}, nil
 		}
 	}
-	if request.GetCapability() == "forms.slow" {
+	if request.GetCapability() == "fixture.slow" {
 		timer := time.NewTimer(5 * time.Second)
 		defer timer.Stop()
 		select {
@@ -145,7 +145,7 @@ func (f *fixture) Call(ctx context.Context, request *pluginv1.CallRequest) (*plu
 			return &pluginv1.CallResponse{Payload: []byte(`{}`)}, nil
 		}
 	}
-	if request.GetCapability() != "forms.submit" {
+	if request.GetCapability() != "fixture.submit" {
 		return &pluginv1.CallResponse{Code: "capability_not_found", Message: "unsupported capability"}, nil
 	}
 	var payload map[string]any
@@ -188,19 +188,19 @@ func (*fixture) Stream(stream grpc.BidiStreamingServer[pluginv1.StreamMessage, p
 					return status.Error(codes.InvalidArgument, "invalid WebSocket context")
 				}
 				for _, offered := range context.OfferedSubprotocols {
-					if offered == "forms.v1" {
+					if offered == "fixture.v1" {
 						websocketAccepted = true
 						break
 					}
 				}
 				if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_WebsocketHandshake{
-					WebsocketHandshake: &pluginv1.WebSocketHandshakeResult{Accepted: websocketAccepted, Subprotocol: map[bool]string{true: "forms.v1"}[websocketAccepted], MetadataJson: []byte(`{"version":1}`)},
+					WebsocketHandshake: &pluginv1.WebSocketHandshakeResult{Accepted: websocketAccepted, Subprotocol: map[bool]string{true: "fixture.v1"}[websocketAccepted], MetadataJson: []byte(`{"version":1}`)},
 				}}); err != nil {
 					return err
 				}
 			case pluginv1.InvocationMode_INVOCATION_MODE_SSE:
 				if err := stream.Send(&pluginv1.StreamMessage{Capability: message.GetCapability(), Body: &pluginv1.StreamMessage_SseEvent{
-					SseEvent: &pluginv1.SseEvent{Data: "ready", Event: "forms.ready", Id: "event-1", RetryMillis: proto.Uint32(1500)},
+					SseEvent: &pluginv1.SseEvent{Data: "ready", Event: "fixture.ready", Id: "event-1", RetryMillis: proto.Uint32(1500)},
 				}}); err != nil {
 					return err
 				}
@@ -229,7 +229,7 @@ func (*fixture) Stream(stream grpc.BidiStreamingServer[pluginv1.StreamMessage, p
 				return err
 			}
 		case *pluginv1.StreamMessage_HttpRequestChunk:
-			if !opened || mode != pluginv1.InvocationMode_INVOCATION_MODE_HTTP_STREAM || message.GetCapability() != "forms.live" {
+			if !opened || mode != pluginv1.InvocationMode_INVOCATION_MODE_HTTP_STREAM || message.GetCapability() != "fixture.live" {
 				return status.Error(codes.InvalidArgument, "invalid HTTP request chunk")
 			}
 			if !responseStarted {

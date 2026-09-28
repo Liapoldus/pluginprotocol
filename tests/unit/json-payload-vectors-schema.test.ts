@@ -9,7 +9,6 @@ const vectorPath = `${root}/contracts/protocol/v1/json-payload-vectors.json`;
 
 type PayloadVector = {
   name: string;
-  capability: string;
   requestSchema: string;
   responseSchema: string;
   request: unknown;

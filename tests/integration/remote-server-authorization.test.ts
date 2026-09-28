@@ -60,7 +60,7 @@ describe("remote plugin server authorization", () => {
   }, 20_000);
 
   it("requires a typed DispatchApply acknowledgement before enabling data calls", async () => {
-    expect(await invoke("data", "call", "forms.submit")).toBe(false);
+    expect(await invoke("data", "call", "fixture.submit")).toBe(false);
     const result = await invokeRaw("control", "dispatch");
     expect(result.accepted).toBe(true);
     expect(result.response).toMatchObject({
@@ -73,16 +73,16 @@ describe("remote plugin server authorization", () => {
     });
     expect(await invoke("control", "dispatch")).toBe(true);
     expect(await invoke("control", "dispatch-conflict")).toBe(false);
-    expect(await invoke("data", "call", "forms.submit")).toBe(true);
-    expect(await invoke("data", "call", "forms.read")).toBe(false);
+    expect(await invoke("data", "call", "fixture.submit")).toBe(true);
+    expect(await invoke("data", "call", "fixture.read")).toBe(false);
   }, 20_000);
 
   it("permits only the data identity and active capability for Call and Stream", async () => {
-    expect(await invoke("data", "call", "forms.submit")).toBe(true);
-    expect(await invoke("data", "call", "forms.read")).toBe(false);
-    expect(await invoke("control", "call", "forms.submit")).toBe(false);
-    expect(await invoke("data", "stream", "forms.submit")).toBe(true);
-    expect(await invoke("control", "stream", "forms.submit")).toBe(false);
+    expect(await invoke("data", "call", "fixture.submit")).toBe(true);
+    expect(await invoke("data", "call", "fixture.read")).toBe(false);
+    expect(await invoke("control", "call", "fixture.submit")).toBe(false);
+    expect(await invoke("data", "stream", "fixture.submit")).toBe(true);
+    expect(await invoke("control", "stream", "fixture.submit")).toBe(false);
   }, 30_000);
 
   it.each([
@@ -90,13 +90,13 @@ describe("remote plugin server authorization", () => {
     ["UDP", "stream-omitted-mode-udp"],
   ])("authorizes a remote %s stream whose legacy mode is inferred from transport", async (_name, operation) => {
     expect(await invokeRaw("control", "dispatch")).toMatchObject({ accepted: true });
-    expect(await invokeRaw("data", operation, "forms.submit")).toMatchObject({ accepted: true });
+    expect(await invokeRaw("data", operation, "fixture.submit")).toMatchObject({ accepted: true });
   }, 30_000);
 
   it("validates both Stream directions on the remote mTLS server", async () => {
     expect(await invokeRaw("control", "dispatch")).toMatchObject({ accepted: true });
-    const inbound = await invokeRaw("data", "stream-invalid-inbound", "forms.submit");
-    const outbound = await invokeRaw("data", "stream-invalid-outbound", "forms.submit");
+    const inbound = await invokeRaw("data", "stream-invalid-inbound", "fixture.submit");
+    const outbound = await invokeRaw("data", "stream-invalid-outbound", "fixture.submit");
     expect(inbound).toMatchObject({ accepted: false, code: "InvalidArgument" });
     expect(outbound).toMatchObject({ accepted: false, code: "InvalidArgument" });
   }, 30_000);
@@ -125,9 +125,9 @@ describe("remote plugin server authorization", () => {
     const stale = await invokeRaw("control", "dispatch-stale");
     expect(stale).toMatchObject({ accepted: false, code: "FailedPrecondition" });
 
-    expect(await invoke("data", "call", "forms.submit")).toBe(true);
-    expect((await invokeRaw("data", "stream-omitted-mode-tcp", "forms.submit")).accepted).toBe(true);
-    expect((await invokeRaw("data", "stream-omitted-mode-udp", "forms.submit")).accepted).toBe(false);
+    expect(await invoke("data", "call", "fixture.submit")).toBe(true);
+    expect((await invokeRaw("data", "stream-omitted-mode-tcp", "fixture.submit")).accepted).toBe(true);
+    expect((await invokeRaw("data", "stream-omitted-mode-udp", "fixture.submit")).accepted).toBe(false);
   }, 30_000);
 
   it("acknowledges an empty generation as deny-all", async () => {
@@ -142,7 +142,7 @@ describe("remote plugin server authorization", () => {
       manifestDigest: expect.stringMatching(/^sha256:/),
       dispatchDigest: expect.stringMatching(/^sha256:/),
     });
-    expect(await invoke("data", "call", "forms.submit")).toBe(false);
+    expect(await invoke("data", "call", "fixture.submit")).toBe(false);
   }, 20_000);
 });
 

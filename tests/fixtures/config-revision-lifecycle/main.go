@@ -14,9 +14,9 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/Liapoldus/pluginprotocol"
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	pluginprotocol "github.com/Liapoldus/pluginprotocol/presentation/sdk"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health"

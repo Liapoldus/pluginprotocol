@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 )
 
 func run(endpoint, mode string) error {
@@ -63,7 +63,7 @@ func run(endpoint, mode string) error {
 		}
 		payload[0] = '"'
 		payload[len(payload)-1] = '"'
-		_, err := client.Call(ctx, "forms.submit", payload)
+		_, err := client.Call(ctx, "fixture.submit", payload)
 		if errors.Is(err, transport.ErrProtocolViolation) {
 			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "protocol_violation"})
 		}
@@ -77,7 +77,7 @@ func run(endpoint, mode string) error {
 		cancellation := time.AfterFunc(50*time.Millisecond, cancelCall)
 		defer cancellation.Stop()
 		defer cancelCall()
-		_, err := client.Call(callContext, "forms.slow", []byte("{}"))
+		_, err := client.Call(callContext, "fixture.slow", []byte("{}"))
 		if errors.Is(err, context.Canceled) {
 			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "canceled"})
 		}
@@ -86,14 +86,14 @@ func run(endpoint, mode string) error {
 	if mode == "deadline" {
 		callContext, cancelCall := context.WithTimeout(ctx, 50*time.Millisecond)
 		defer cancelCall()
-		_, err := client.Call(callContext, "forms.slow", []byte(`{}`))
+		_, err := client.Call(callContext, "fixture.slow", []byte(`{}`))
 		if errors.Is(err, context.DeadlineExceeded) {
 			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "deadline_exceeded"})
 		}
 		return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "other"})
 	}
 	if mode == "local-invalid-json" {
-		_, err := client.Call(ctx, "forms.submit", []byte("{"))
+		_, err := client.Call(ctx, "fixture.submit", []byte("{"))
 		if errors.Is(err, transport.ErrProtocolViolation) {
 			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "protocol_violation"})
 		}
@@ -101,9 +101,9 @@ func run(endpoint, mode string) error {
 	}
 	if mode == "invalid-response-json" || mode == "call-rejected" || mode == "grpc-unavailable" {
 		capability := map[string]string{
-			"invalid-response-json": "forms.invalid-response",
-			"call-rejected":         "forms.call-rejected",
-			"grpc-unavailable":      "forms.grpc-unavailable",
+			"invalid-response-json": "fixture.invalid-response",
+			"call-rejected":         "fixture.call-rejected",
+			"grpc-unavailable":      "fixture.grpc-unavailable",
 		}[mode]
 		_, err := client.Call(ctx, capability, []byte(`{}`))
 		switch {
@@ -117,7 +117,7 @@ func run(endpoint, mode string) error {
 			return json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "other"})
 		}
 	}
-	response, err := client.Call(ctx, "forms.submit", []byte(`{"value":"hello"}`))
+	response, err := client.Call(ctx, "fixture.submit", []byte(`{"value":"hello"}`))
 	if err != nil {
 		return err
 	}

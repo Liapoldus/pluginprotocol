@@ -11,7 +11,8 @@ import (
 	"io/fs"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol"
+	"github.com/Liapoldus/pluginprotocol/contracts"
+	"github.com/Liapoldus/pluginprotocol/domain"
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -145,12 +146,12 @@ func validLocalPeerCredentials(credentials LocalPeerCredentials, usage x509.ExtK
 }
 
 func loadLocalMTLSContract() (localMTLSContract, error) {
-	content, err := fs.ReadFile(pluginprotocol.ContractFiles(), "contracts/protocol/v1/local-workload-mtls.json")
+	content, err := fs.ReadFile(contracts.Files(), "protocol/v1/local-workload-mtls.json")
 	if err != nil {
 		return localMTLSContract{}, ErrInvalidLocalTLS
 	}
 	var contract localMTLSContract
-	if err := json.Unmarshal(content, &contract); err != nil || contract.ProtocolVersion != pluginprotocol.ProtocolVersion ||
+	if err := json.Unmarshal(content, &contract); err != nil || contract.ProtocolVersion != domain.ProtocolVersion ||
 		contract.Mode != "supervised-local" || contract.Bootstrap.Channel != "private-inherited-pipe" || contract.Bootstrap.Directions.GatewayToPluginDescriptor != 4 || contract.Bootstrap.Directions.PluginToGatewayDescriptor != 5 || contract.Bootstrap.Framing != "newline-delimited-json" ||
 		contract.Bootstrap.MessageSchema != "local-bootstrap.schema.json" || contract.Bootstrap.MaximumMessageBytes < 1024 || contract.Bootstrap.MaximumMessageBytes > 65536 ||
 		contract.Bootstrap.ChallengeBytes != 32 || contract.Bootstrap.SendsPrivateKeys || !contract.Bootstrap.RefreshPinsOnEveryLaunch ||

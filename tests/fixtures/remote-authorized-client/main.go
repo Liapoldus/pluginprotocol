@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -77,13 +77,13 @@ func run() error {
 		if os.Args[7] == "dispatch-empty" {
 			generation = 3
 		}
-		capabilities := []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}}
+		capabilities := []*pluginv1.CapabilityDispatchScope{{Capability: "fixture.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}}
 		if os.Args[7] == "dispatch-empty" {
 			capabilities = nil
 		} else if os.Args[7] == "dispatch-next" {
-			capabilities = []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP}}}
+			capabilities = []*pluginv1.CapabilityDispatchScope{{Capability: "fixture.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP}}}
 		} else if os.Args[7] == "dispatch-next-conflict" || os.Args[7] == "dispatch-stale" {
-			capabilities = []*pluginv1.CapabilityDispatchScope{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}}
+			capabilities = []*pluginv1.CapabilityDispatchScope{{Capability: "fixture.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}}
 		}
 		var result *pluginv1.DispatchApplyResponse
 		result, err = client.Service().DispatchApply(ctx, &pluginv1.DispatchApplyRequest{

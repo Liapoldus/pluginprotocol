@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 )
 
 type redemptionRequest struct {

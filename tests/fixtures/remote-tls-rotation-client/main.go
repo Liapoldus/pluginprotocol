@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

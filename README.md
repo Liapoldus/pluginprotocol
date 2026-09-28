@@ -1,20 +1,63 @@
 # Liapoldus Plugin Protocol
 
-Единый transport и generated Go API для plugin process Gateway. Нормативны
-protobuf sources в [`proto/liapoldus/plugin/v1`](proto/liapoldus/plugin/v1) и
-versioned declarative contracts в [`contracts/`](contracts/).
+Универсальная transport/security библиотека для plugin processes и Gateway.
+Нормативны protobuf sources в [`proto/liapoldus/plugin/v1`](proto/liapoldus/plugin/v1)
+и только общие wire, control, transport и shared HTTP contracts в
+[`contracts/`](contracts/). Manifest/settings/capability/admin contracts и
+conformance vectors принадлежат каждому отдельному plugin repository.
+
+> **Цель перепроектирования:** превратить текущие transport primitives в
+> самостоятельный SDK с typed handler registry и общей локальной/удалённой
+> workload-security моделью. SDK уже предоставляет typed Call/Stream registry
+> и supervised-local mTLS bootstrap поверх private inherited pipes. Core ещё
+> использует прежние plaintext entry points; их consumer migration и удаление
+> legacy APIs остаются обязательными до v1 readiness. Остальные задачи — в
+> [`TODO.md`](TODO.md).
+
+## Структура SDK
+
+Реализация разделена на четыре слоя; публичной точкой входа для Gateway и
+плагинов служит только `github.com/Liapoldus/pluginprotocol/presentation/sdk`.
+Внутренние пакеты не являются стабильным consumer API.
+
+| Слой | Пакеты | Ответственность |
+| --- | --- | --- |
+| Domain | `domain/` | Общие protocol handler/stream abstractions и версия протокола. Не содержит plugin-specific behavior или storage/network implementation. |
+| Application | `application/` | Typed registration и lookup capability handlers, проверка дублирования/допустимых invocation modes. |
+| Infrastructure | `infrastructure/grpc/`, `infrastructure/transport/`, `infrastructure/contracts/` | Generated gRPC service adapter, connection/listener lifecycle, mTLS/identity/revocation, framing/flow control через gRPC и загрузка общих static contracts. |
+| Presentation | `presentation/sdk/` | Публичная композиция SDK: registration, server/client, local/remote networking, grants и общие boundary helpers. |
+
+Сгенерированный `pluginv1` остаётся wire API namespace и используется внутри
+слоёв как типизированный transport contract. Consumers вызывают сетевые и
+security operations через `presentation/sdk`; они не создают gRPC connections,
+listeners или TLS config самостоятельно. Контракты конкретных Manifest,
+settings, capabilities, ошибок и Admin Surface остаются в репозитории каждого
+плагина и никогда не добавляются в эти общие слои.
 
 ## Transport и режимы запуска
 
-Единый v1 transport — gRPC/HTTP/2 поверх TCP. Local-supervised режим использует
-назначенный `127.0.0.1:<port>` и insecure credentials только на loopback.
-Gateway передаёт уже открытый listener дочернему процессу как inherited file
-descriptor 3; plugin SDK открывает его через `transport.ListenInherited`.
+Единый v1 transport — gRPC/HTTP/2 поверх TCP. Для local-supervised запуска
+публичный facade предоставляет `sdk.StartLocalSession` на стороне Gateway и
+`sdk.ServeInheritedLocalSession` на стороне plugin. Gateway передаёт дочернему
+процессу только inherited listener fd 3 и private bootstrap pipes fd 4/5;
+argv и environment пусты. SDK завершает identity/challenge exchange,
+настраивает TLS 1.3 с точными URI SAN и SHA-256 leaf pins обеих сторон,
+поднимает mTLS connection и проверяет стандартный gRPC health до возврата
+готовой сессии. Private keys не пересекают pipe, а insecure fallback отсутствует.
+`LocalSession.Client`, `Wait` и `Stop` дают вызывающему процессу control над RPC
+и завершением дочернего процесса; restart/backoff остаётся ответственностью
+Gateway. Низкоуровневые `BootstrapLocalClient`, `AcceptInheritedLocalBootstrap`,
+`DialLocalContext` и `NewLocalServer` остаются доступными для advanced composition.
+`transport.DialContext`/`transport.NewServer` пока сохранены только для
+незавершённой миграции существующих consumers и не являются целевым local mode.
 Local launch contract содержит только абсолютный путь к binary: Gateway не
 передаёт plugin argv или environment variables, а plugin не читает локальные
 application-config files.
-Remote mode адресуется явным стабильным Service host:port и требует TLS с
-проверкой server identity и mTLS; перехода на менее защищённый transport нет.
+Remote mode адресуется стабильным host:port каждой отдельно учитываемой
+replica и требует TLS с проверкой server identity и mTLS; перехода на менее
+защищённый transport нет. Общий load-balanced Service endpoint не доказывает
+получение ответа от каждой replica и не используется вместо per-replica
+readiness acknowledgement.
 Plugin во всех remote-развёртываниях слушает `0.0.0.0:50051` через
 `transport.ListenRemoteTLS`. Этот container/listener port одинаков для
 standalone binary, Docker и Kubernetes; внешний Service может отображать его на
@@ -27,9 +70,10 @@ Management API или публичных clients использовать нел
 private keys не передаются через Bootstrap или application settings.
 Каждая remote workload replica имеет отдельную externally-issued identity,
 связанную с заранее зарегистрированным logical plugin instance. Gateway
-проверяет URI identity и DNS/IP SAN при каждом новом gRPC connection. Ready
-replicas за Service должны обслуживать совместимые protocol, Manifest и
-settings digest. Запуск workload, process readiness и rollout принадлежат
+проверяет URI identity и DNS/IP SAN при каждом новом gRPC connection. Все
+replicas одного logical instance в desired membership должны обслуживать
+совместимые protocol, Manifest и settings digest. Запуск workload, process
+readiness и rollout принадлежат
 внешнему Docker/Kubernetes operator; Gateway выполняет handshake, config apply
 и DispatchApply до включения replica в dispatch. Ключи передаются только через
 защищённые file/secret mounts. Ротацию
@@ -39,12 +83,39 @@ Gateway управляет process только в local mode. Для remote mod
 перезапускает workload и не повторяет Call с неопределённым исходом. Нормативный
 wire/launch contract находится в
 [`remote-deployment.json`](contracts/protocol/v1/remote-deployment.json): он
-задаёт уникальную URI identity каждой plugin replica, раздельные per-instance
-Gateway control и Caddy data identities, разрешённые RPC/capability scopes и
-условия readiness за стабильным Service. Полная семантика установки active
+задаёт уникальную URI identity каждой plugin replica, раздельные control/data
+client identities, разрешённые RPC/capability scopes и условия readiness.
+Каждая Core replica record должна адресовать ожидаемую workload identity;
+service discovery и балансируемый fan-out не заменяют per-replica ACK. Полная
+семантика установки active
 dispatch generation и replica acknowledgement закреплена в
 [`dispatch-apply.json`](contracts/protocol/v1/dispatch-apply.json); protobuf
 DTO остаются единственным wire-описанием.
+
+### Профиль сети SDK — следующий этап
+
+Выбор carrier/security должен быть частью protocol SDK initialization, а не
+plugin application settings. Хост (Core для supervised-плагина или внешний
+оператор для external deployment) передаёт SDK типизированный transport
+profile при `Init`; plugin business handler не читает transport variables из
+environment/argv/application files и не выбирает ослабленный режим сам.
+
+Существующие `Dial*`, `Listen*` и TLS options пока являются переходным API;
+целевой фасад должен собирать их через единый lifecycle `Init`, а затем отдавать
+готовые typed client/server/registry handles. Начальный поддерживаемый профиль —
+gRPC/HTTP2 поверх TCP с обязательным workload mTLS для supervised-local и
+remote workloads. Незашифрованное соединение допустимо только в явном test/dev
+profile, недоступном production и remote deployment; ошибки credentials или
+handshake не дают downgrade.
+
+QUIC остаётся отдельным carrier backend, а не переключателем, который просто
+меняет значение `tcp` на `quic`. Перед его добавлением нужно подтвердить
+совместимость с gRPC/control RPC, health, streaming flow control, deadlines,
+cancellation, revocation и платформами macOS/Linux одной общей conformance
+suite. `Init` не должен создавать разные protobuf или plugin capability
+contracts для разных carrier-ов. API shape и допустимые profile значения
+остаются открытой задачей в [`TODO.md`](TODO.md); здесь зафиксированы только
+границы и требования.
 
 Transport API предоставляет `DialRemoteContext` для исходящего TLS/mTLS,
 `RemoteServerInterceptors` для разделения control/data URI identities и
@@ -68,8 +139,9 @@ ConfigApply исключает instance из readiness и dispatch. Gateway по
 ConfigApply после каждого рестарта/reconnect; plugin не pull-ит конфигурацию.
 `ConfigApply` принимает opaque `settings_revision` и `ActiveGrant` descriptors;
 успех подтверждается только с тем же revision. Config grant scope включает
-instance, revision и secret reference и доступен лишь пока выполняется этот
-apply. Настройки могут содержать только opaque Gateway-generated secret ID:
+instance, revision и secret reference: candidate grant можно погасить во время
+активации, а grant committed revision остаётся доступен, пока активна эта
+revision. Настройки могут содержать только opaque Gateway-generated secret ID:
 Gateway не передаёт plugin исходный `file:` reference или его path, а разрешает
 источник только при scoped redemption. При rotation Gateway выдаёт новый
 revision и новые grants, отзывает старые; plugin атомарно заменяет in-memory
@@ -90,8 +162,11 @@ upgrade, а text/binary message boundaries сохраняются; SSE пере�
 flow control; старые custom frame, length-prefix и самописный session
 multiplexer удалены.
 
-JSON contracts manifest/settings/HTTP response actions/admin-surface/admin-UI и типы
-`HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext` сохраняются.
+Plugin-specific Manifest/settings/capability/admin contracts и их JSON payloads
+остаются в репозиториях плагинов. Библиотека передаёт payload как opaque JSON;
+общими остаются только wire/control contracts и HTTP/Stream transport shapes.
+Protocol types `HTTPRequest`, `L4Request`, `IdentityRequest`, `RequestContext`
+сохраняются как transport boundary types.
 Общий typed cookie response описан в
 [`response-action.schema.json`](contracts/http/v1/response-action.schema.json);
 входящая cookie-пара — в
@@ -104,14 +179,15 @@ allow-list — в [`cookie-policy.schema.json`](contracts/http/v1/cookie-policy.
 потоковые open contexts и response-start metadata описаны в versioned
 [`Stream schemas`](contracts/protocol/v1/stream-open-context.schema.json) и
 [`HTTP response metadata`](contracts/protocol/v1/http-stream-response-metadata.schema.json).
-Gateway/Caddy проверяет cookie allow-list до dispatch и применяет response
+Traffic-owning consumer проверяет cookie allow-list до dispatch и применяет response
 actions атомарно до headers/upgrade; входящие и исходящие cookie значения
 редактируются в логах, trace, audit, диагностике и ошибках.
 Protocol transport не получает публичный socket, filesystem path или raw secret.
 Grant handling и redaction остаются ответственностью Gateway boundary.
-Go-потребители versioned JSON contracts используют `ContractFiles()`, который
-отдаёт read-only `fs.FS` с embedded содержимым каталога `contracts/`; plugin
-модули не копируют capability fixtures локально.
+Go-адаптеры транспортных правил используют `ContractFiles()`, который отдаёт
+read-only `fs.FS` с embedded общими контрактами `contracts/`. Capability
+payload остаётся opaque JSON для transport SDK; plugin держит и валидирует
+собственные product contracts у себя в репозитории.
 
 Публичный Go API в корневом `pluginprotocol` пакете предоставляет
 `DecodeCookiePolicy(data []byte) (CookiePolicy, error)`,
@@ -142,18 +218,19 @@ semantic-versioning ожидания и должно оставаться зам
 - Proto содержит transport/control RPC types, generic Call envelope и
 bidirectional Stream message envelope.
 - Manifest содержит аддитивный descriptor `capability → invocation modes`;
-  Caddyfile binding валидируется по нему до активации snapshot.
-- JSON Schemas определяют capability business payloads; transport не содержит
-  отдельные protobuf DTO на каждую capability.
+  traffic-owning plugin сверяет собственные JSON settings bindings с descriptor
+  до принятия candidate config. Core не разбирает product-specific fields.
+- Capability payload schemas находятся у соответствующих плагинов; protocol
+  не валидирует и не интерпретирует их JSON payloads и не содержит отдельные
+  protobuf DTO для product capabilities.
 - Generated Go client/server code публикуется вместе с этим module.
 - TypeScript generated stubs существуют только под `tests/` для Vitest
   conformance и не выпускаются как публичный npm package.
-- Gateway управляет plugin process supervision, endpoint allocation, grants и
-  control-plane policy. В целевой Gateway architecture Caddy Liapoldus handler
-  владеет public listeners и напрямую вызывает plugin через `Call`/`Stream`;
-  Gateway подготавливает immutable dispatch snapshot, но не проксирует
-  пользовательский request/response. Протокол сам не задаёт route или
-  Caddyfile semantics.
+- Gateway Core управляет process supervision только в `supervised` profile,
+  generic endpoints, grants и control-plane policy. Traffic-owning consumer владеет
+  public listeners и напрямую вызывает другие plugins через `Call`/`Stream`;
+  Gateway не проксирует пользовательский request/response. SDK не задаёт
+  product routes или traffic configuration format.
 - Constructor control plane остаётся REST и не использует этот gRPC service.
 
 Для L4 Stream каждый TCP connection имеет отдельный lifecycle, а каждая UDP
@@ -202,10 +279,11 @@ candidate и удаляет заменённые копии как можно с
 логировать или включать в ошибки/events plugin. Gateway редактирует protocol
 diagnostics и не раскрывает opaque handle в логах или пользовательских ошибках.
 
-SDK открывает loopback broker через `DialGrantBrokerFromBootstrapContext` без
-TLS только для loopback endpoint; удалённый endpoint требует обязательных
-`RemoteGrantTLSOptions` от workload identity provider и не допускает downgrade.
-Это не публичный Gateway API. Plugin не должен считать handle авторизацией:
+Текущая реализация открывает loopback broker через
+`DialGrantBrokerFromBootstrapContext` без TLS только на loopback; целевая SDK
+модель требует workload mTLS и для local callback после bootstrap exchange.
+Удалённый endpoint уже требует `RemoteGrantTLSOptions` и не допускает
+downgrade. Это не публичный Gateway API. Plugin не должен считать handle авторизацией:
 call handle можно погасить только в пределах текущего `CallRequest`, а
 config handle — только для точного instance/revision/reference, прикреплённого к
 активной конфигурации. Проверка grant и выдача секрета остаются ответственностью
@@ -222,15 +300,17 @@ go build ./...
 npm test --prefix tests
 ```
 
-Публичный Go transport API расположен в `transport/`: `ListenInherited`
-принимает listener от Gateway через fd 3, `DialContext` принимает только адрес
-с IP-loopback, `BootstrapAndHandshake` передаёт operational bootstrap, затем
-Gateway settings через `ConfigApply` и проверяет health только после успешного
-применения конфигурации; `Call` передаёт JSON capability payload, а `NewServer`
-регистрирует plugin service, health и reflection с лимитами сообщений. Плагин
-получает listener от Supervisor согласно launch contract
+Публичный Go API расположен в `presentation/sdk`: `StartLocalSession` запускает
+supervised child без argv/env, выполняет private bootstrap и возвращает pinned
+mTLS client только после health check; `ServeInheritedLocalSession` — парный
+plugin entry point для fd 3/4/5. `LocalSession.Wait` сообщает о завершении
+процесса, а `Stop` запрашивает typed Shutdown и завершает его в пределах caller
+deadline. Более низкоуровневые networking primitives доступны в том же SDK для
+явной композиции. Gateway settings передаются отдельно через `ConfigApply` до
+readiness, а `Call` передаёт JSON capability payload. Плагин получает listener
+согласно launch contract
 [`contracts/protocol/v1/launch.json`](contracts/protocol/v1/launch.json) и может
-принять его через `transport.ListenInherited`. Плагин реализует сгенерированный
+принять его через SDK local-session API. Плагин реализует сгенерированный
 `pluginv1.PluginServiceServer`; Gateway policy, grants и process supervision не
 переносятся в transport library.
 

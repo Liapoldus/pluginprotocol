@@ -1,7 +1,4 @@
-// Package transport keeps the original import path as a compatibility facade.
-// New integrations should use the layered SDK API in presentation/sdk; gRPC,
-// TLS, and socket implementations live in infrastructure/transport.
-package transport
+package sdk
 
 import (
 	"context"
@@ -27,6 +24,7 @@ var (
 	ErrCallRejected                   = infra.ErrCallRejected
 	ErrInvalidRemoteTLS               = infra.ErrInvalidRemoteTLS
 	ErrInvalidLocalTLS                = infra.ErrInvalidLocalTLS
+	ErrInvalidLocalSession            = infra.ErrInvalidLocalSession
 	ErrGrantRejected                  = infra.ErrGrantRejected
 	ErrGrantDenied                    = infra.ErrGrantDenied
 	ErrInvalidRemoteAuthorization     = infra.ErrInvalidRemoteAuthorization
@@ -45,6 +43,8 @@ type LocalPeerCredentials = infra.LocalPeerCredentials
 type LocalServerOptions = infra.LocalServerOptions
 type RemoteServerOptions = infra.RemoteServerOptions
 type RemoteListener = infra.RemoteListener
+type LocalSession = infra.LocalSession
+type LocalSessionOptions = infra.LocalSessionOptions
 type RemoteRevocationState = infra.RemoteRevocationState
 type RemoteAuthorization = infra.RemoteAuthorization
 type GrantClient = infra.GrantClient
@@ -52,6 +52,8 @@ type GrantServer = infra.GrantServer
 type RemoteGrantTLSOptions = infra.RemoteGrantTLSOptions
 type RemoteGrantServerOptions = infra.RemoteGrantServerOptions
 type DispatchGeneration = infra.DispatchGeneration
+type LocalListener = infra.LocalListener
+type StartedGrantServer = infra.StartedGrantServer
 
 func DialContext(ctx context.Context, endpoint string) (*Client, error) {
 	return infra.DialContext(ctx, endpoint)
@@ -119,6 +121,20 @@ func DialRemoteGrantBrokerContext(ctx context.Context, endpoint string, options 
 
 func NewGrantBrokerServer(service pluginv1.GrantBrokerServer) *GrantServer {
 	return infra.NewGrantBrokerServer(service)
+}
+
+func StartGrantBroker(service pluginv1.GrantBrokerServer) (*StartedGrantServer, error) {
+	return infra.StartGrantBroker(service)
+}
+
+func ListenLoopback() (*LocalListener, error) { return infra.ListenLoopback() }
+
+func StartLocalSession(ctx context.Context, options LocalSessionOptions) (*LocalSession, error) {
+	return infra.StartLocalSession(ctx, options)
+}
+
+func ServeInheritedLocalSession(ctx context.Context, service pluginv1.PluginServiceServer, options ServerOptions) error {
+	return infra.ServeInheritedLocalSession(ctx, service, options)
 }
 
 func NewRemoteGrantBrokerServer(service pluginv1.GrantBrokerServer, options RemoteGrantServerOptions) (*GrantServer, error) {

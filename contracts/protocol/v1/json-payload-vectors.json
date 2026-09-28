@@ -1,119 +1,37 @@
 [
   {
-    "name": "forms-admin-surface-read",
-    "capability": "admin.surface.get",
-    "requestSchema": "contracts/forms-db/v1/admin-surface-request.schema.json",
-    "responseSchema": "contracts/forms-db/v1/admin-surface-response.schema.json",
-    "request": { "version": 1 },
-    "response": {
-      "version": 1,
-      "plugin": "forms-db",
-      "requiredCapabilities": ["admin.surface.get", "forms.list", "forms.delete"]
-    }
-  },
-  {
-    "name": "forms-list-page",
-    "capability": "forms.list",
-    "requestSchema": "contracts/forms-db/v1/list-request.schema.json",
-    "responseSchema": "contracts/forms-db/v1/list-response.schema.json",
-    "request": {
-      "site": "portal",
-      "schemaName": "contact",
-      "cursor": "opaque-cursor",
-      "limit": 50,
-      "filter": { "field": "email", "equals": "a@example.com" }
-    },
-    "response": {
-      "items": [{
-        "id": "frm_fixture",
-        "createdAt": "2026-01-01T00:00:00Z",
-        "site": "portal",
-        "schemaName": "contact",
-        "data": { "email": "a@example.com" }
-      }],
-      "nextCursor": "opaque-next-cursor"
-    }
-  },
-  {
-    "name": "forms-delete-success",
-    "capability": "forms.delete",
-    "requestSchema": "contracts/forms-db/v1/delete-request.schema.json",
-    "responseSchema": "contracts/forms-db/v1/delete-response.schema.json",
-    "request": { "site": "portal", "schemaName": "contact", "id": "frm_fixture" },
-    "response": { "deleted": true, "id": "frm_fixture" }
-  },
-  {
-    "name": "captcha-verify-valid-token",
-    "capability": "captcha.verify",
-    "requestSchema": "contracts/captcha/v1/verify-request.schema.json",
-    "responseSchema": "contracts/captcha/v1/verify-response.schema.json",
-    "request": { "token": "synthetic-captcha-token" },
-    "response": { "valid": true }
-  },
-  {
-    "name": "identity-http-response",
-    "capability": "identity.client.callback",
-    "requestSchema": "contracts/identity/v1/http-request.schema.json",
-    "responseSchema": "contracts/http/v1/response-action.schema.json",
-    "request": { "method": "GET", "path": "/identity/callback", "query": "code=fixture", "requestId": "fixture-identity-response" },
-    "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "session", "value": "synthetic-test-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }], "body": "" }
-  },
-  {
-    "name": "identity-http-request-full-context",
-    "capability": "identity.client.callback",
-    "requestSchema": "contracts/identity/v1/http-request.schema.json",
-    "responseSchema": "contracts/http/v1/response-action.schema.json",
-    "request": {
-      "method": "POST",
-      "path": "/identity/callback",
-      "query": "state=fixture",
-      "headers": { "content-type": "application/octet-stream", "x-request-mode": "interactive" },
-      "cookies": [{ "name": "liap-session", "value": "synthetic-inbound-value" }],
-      "body": "AAECAwQ=",
-      "requestId": "fixture-identity-request",
-      "remoteAddr": "203.0.113.7:43120",
-      "context": { "tenant": "fixture-tenant" }
-    },
-    "response": { "status": 200, "body": "" }
-  },
-  {
     "name": "http-stream-open-context",
-    "capability": "http.stream",
     "requestSchema": "contracts/protocol/v1/stream-open-context.schema.json",
     "responseSchema": "contracts/protocol/v1/http-stream-response-metadata.schema.json",
-    "request": { "version": 1, "kind": "http", "method": "POST", "path": "/upload", "headers": { "content-type": "application/octet-stream" }, "requestId": "fixture-stream-open" },
+    "request": {
+      "version": 1,
+      "kind": "http",
+      "method": "POST",
+      "path": "/upload",
+      "headers": { "content-type": "application/octet-stream" },
+      "requestId": "fixture-stream-open"
+    },
     "response": { "version": 1, "headers": { "content-type": "application/octet-stream" } }
   },
   {
     "name": "http-stream-response-start",
-    "capability": "http.stream",
     "requestSchema": "contracts/protocol/v1/stream-open-context.schema.json",
     "responseSchema": "contracts/protocol/v1/http-stream-response-metadata.schema.json",
     "request": { "version": 1, "kind": "http", "method": "GET", "path": "/events", "requestId": "fixture-response-start" },
     "response": { "version": 1, "headers": { "cache-control": "no-cache" }, "cookies": [{ "name": "stream-session", "value": "synthetic-stream-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }] }
   },
   {
-    "name": "http-stream-open-context-cookie",
-    "capability": "identity.client.callback",
+    "name": "http-stream-request-cookie-context",
     "requestSchema": "contracts/protocol/v1/stream-open-context.schema.json",
     "responseSchema": "contracts/protocol/v1/http-stream-response-metadata.schema.json",
-    "request": { "version": 1, "kind": "http", "method": "GET", "path": "/identity/callback", "cookies": [{ "name": "liap-session", "value": "synthetic-inbound-value" }], "requestId": "fixture-cookie-context" },
+    "request": { "version": 1, "kind": "http", "method": "GET", "path": "/callback", "cookies": [{ "name": "session", "value": "synthetic-inbound-value" }], "requestId": "fixture-cookie-context" },
     "response": { "version": 1, "headers": {} }
   },
   {
-    "name": "http-response-cookie-ordinary",
-    "capability": "identity.client.callback",
-    "requestSchema": "contracts/identity/v1/http-request.schema.json",
+    "name": "http-response-cookie-actions",
+    "requestSchema": "contracts/protocol/v1/stream-open-context.schema.json",
     "responseSchema": "contracts/http/v1/response-action.schema.json",
-    "request": { "method": "GET", "path": "/identity/callback", "requestId": "fixture-ordinary-cookie" },
-    "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "theme", "value": "synthetic-ordinary-value", "path": "/", "secure": true, "httpOnly": false, "sameSite": "Lax" }] }
-  },
-  {
-    "name": "http-response-cookie-httponly",
-    "capability": "identity.client.callback",
-    "requestSchema": "contracts/identity/v1/http-request.schema.json",
-    "responseSchema": "contracts/http/v1/response-action.schema.json",
-    "request": { "method": "GET", "path": "/identity/callback", "requestId": "fixture-httponly-cookie" },
-    "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "liap-session", "value": "synthetic-httponly-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }] }
+    "request": { "version": 1, "kind": "http", "method": "GET", "path": "/callback", "requestId": "fixture-cookie-actions" },
+    "response": { "status": 302, "headers": { "Location": "/" }, "cookies": [{ "name": "theme", "value": "synthetic-ordinary-value", "path": "/", "secure": true, "httpOnly": false, "sameSite": "Lax" }, { "name": "session", "value": "synthetic-httponly-value", "path": "/", "secure": true, "httpOnly": true, "sameSite": "Lax" }], "body": "" }
   }
 ]

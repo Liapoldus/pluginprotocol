@@ -15,8 +15,9 @@ describe("gRPC plugin protocol v1 conformance", () => {
     expect(existsSync(vectorsPath)).toBe(true);
     const vectors = JSON.parse(readFileSync(vectorsPath, "utf8"));
     expect(vectors.length).toBeGreaterThan(0);
-    expect(vectors.every((vector: { capability?: string; request?: unknown; response?: unknown }) =>
-      vector.capability && vector.request !== undefined && vector.response !== undefined)).toBe(true);
+    expect(vectors.every((vector: { name?: string; requestSchema?: string; responseSchema?: string; request?: unknown; response?: unknown }) =>
+      vector.name && vector.requestSchema && vector.responseSchema && vector.request !== undefined && vector.response !== undefined)).toBe(true);
+    expect(vectors.every((vector: { capability?: string }) => !vector.capability)).toBe(true);
     expect(JSON.stringify(vectors)).not.toContain("wireHex");
   });
 

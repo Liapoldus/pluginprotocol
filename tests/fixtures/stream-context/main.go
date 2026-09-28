@@ -5,11 +5,11 @@ import (
 	"os"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 )
 
 func main() {
-	tcp, err := transport.EncodeStreamOpenContext(pluginv1.StreamTransport_STREAM_TRANSPORT_TCP, "127.0.0.1:1001", "127.0.0.1:2002", "forms.example", "h2")
+	tcp, err := transport.EncodeStreamOpenContext(pluginv1.StreamTransport_STREAM_TRANSPORT_TCP, "127.0.0.1:1001", "127.0.0.1:2002", "fixture.example", "h2")
 	if err != nil {
 		os.Exit(1)
 	}

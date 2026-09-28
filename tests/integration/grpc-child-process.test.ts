@@ -63,7 +63,7 @@ describe("gRPC plugin child process", () => {
     expect(applied.settingsRevision).toBe("settings-r1");
 
     const response = await unary((callback) => client.call({
-      capability: "forms.submit",
+      capability: "fixture.submit",
       payload: new TextEncoder().encode('{"value":"hello"}'),
       grants: [],
     }, callback));
@@ -74,7 +74,7 @@ describe("gRPC plugin child process", () => {
       stream.once("data", (message) => resolve(message.sseEvent?.data ?? ""));
       stream.once("error", reject);
     });
-    stream.write({ capability: "forms.live", open: {
+    stream.write({ capability: "fixture.live", open: {
       transport: StreamTransport.STREAM_TRANSPORT_UNSPECIFIED,
       mode: InvocationMode.INVOCATION_MODE_SSE,
       connectionId: "child-stream-1",
@@ -90,12 +90,12 @@ describe("gRPC plugin child process", () => {
       stream.once("error", (error: { code: number }) => resolve(error.code));
       stream.once("data", () => reject(new Error("oversized stream message was accepted")));
     });
-    stream.write({ capability: "forms.live", open: {
+    stream.write({ capability: "fixture.live", open: {
       transport: StreamTransport.STREAM_TRANSPORT_TCP,
       connectionId: "oversized-stream-1",
       contextJson: new TextEncoder().encode(JSON.stringify({ kind: "tcp", source: "127.0.0.1:1001", destination: "127.0.0.1:2002" })),
     } });
-    stream.write({ capability: "forms.live", data: { payload: new Uint8Array(2 << 20), direction: StreamDirection.STREAM_DIRECTION_REQUEST } });
+    stream.write({ capability: "fixture.live", data: { payload: new Uint8Array(2 << 20), direction: StreamDirection.STREAM_DIRECTION_REQUEST } });
     expect(await status).toBe(8);
   });
 
@@ -105,7 +105,7 @@ describe("gRPC plugin child process", () => {
     });
     const code = await new Promise<number>((resolve) => {
       largeClient.call(
-        { capability: "forms.submit", payload: new Uint8Array(11 << 20), grants: [] },
+        { capability: "fixture.submit", payload: new Uint8Array(11 << 20), grants: [] },
         (error) => resolve(error?.code ?? 0),
       );
     });
@@ -115,21 +115,21 @@ describe("gRPC plugin child process", () => {
 
   it("propagates a unary deadline to the plugin process", async () => {
     const deadlineProbe = await unary((callback) => client.call({
-      capability: "forms.deadline-probe",
+      capability: "fixture.deadline-probe",
       payload: new TextEncoder().encode("{}"),
       grants: [],
     }, new Metadata(), { deadline: new Date(Date.now() + 10_000) }, callback));
     expect(JSON.parse(new TextDecoder().decode(deadlineProbe.payload))).toEqual({ hasDeadline: true });
 
     const before = await unary((callback) => client.call({
-      capability: "forms.cancelled",
+      capability: "fixture.cancelled",
       payload: new TextEncoder().encode("{}"),
       grants: [],
     }, callback));
     const observedBefore = JSON.parse(new TextDecoder().decode(before.payload)).deadlineObserved as number;
     const code = await new Promise<number>((resolve) => {
       client.call(
-        { capability: "forms.slow", payload: new TextEncoder().encode("{}"), grants: [] },
+        { capability: "fixture.slow", payload: new TextEncoder().encode("{}"), grants: [] },
         new Metadata(),
         { deadline: new Date(Date.now() + 1_000) },
         (error) => resolve(error?.code ?? 0),
@@ -143,7 +143,7 @@ describe("gRPC plugin child process", () => {
     let observedAfter = observedBefore;
     while (Date.now() < observationDeadline && observedAfter === observedBefore) {
       const response = await unary((callback) => client.call({
-        capability: "forms.cancelled",
+        capability: "fixture.cancelled",
         payload: new TextEncoder().encode("{}"),
         grants: [],
       }, callback));
@@ -155,14 +155,14 @@ describe("gRPC plugin child process", () => {
 
   it("propagates explicit unary cancellation to the plugin process", async () => {
     const before = await unary((callback) => client.call({
-      capability: "forms.cancelled",
+      capability: "fixture.cancelled",
       payload: new TextEncoder().encode("{}"),
       grants: [],
     }, callback));
     const countBefore = JSON.parse(new TextDecoder().decode(before.payload)).count as number;
     const code = new Promise<number>((resolve) => {
       const call = client.call({
-        capability: "forms.slow",
+        capability: "fixture.slow",
         payload: new TextEncoder().encode("{}"),
         grants: [],
       }, (error) => resolve(error?.code ?? 0));
@@ -174,7 +174,7 @@ describe("gRPC plugin child process", () => {
     let countAfter = countBefore;
     while (Date.now() < deadline && countAfter === countBefore) {
       const response = await unary((callback) => client.call({
-        capability: "forms.cancelled",
+        capability: "fixture.cancelled",
         payload: new TextEncoder().encode("{}"),
         grants: [],
       }, callback));
@@ -186,7 +186,7 @@ describe("gRPC plugin child process", () => {
 
   it("classifies RPC cancellation through the public Go client", async () => {
     const before = await unary((callback) => client.call({
-      capability: "forms.cancelled",
+      capability: "fixture.cancelled",
       payload: new TextEncoder().encode("{}"),
       grants: [],
     }, callback));
@@ -198,7 +198,7 @@ describe("gRPC plugin child process", () => {
     let countAfter = countBefore;
     while (Date.now() < deadline && countAfter === countBefore) {
       const response = await unary((callback) => client.call({
-        capability: "forms.cancelled",
+        capability: "fixture.cancelled",
         payload: new TextEncoder().encode("{}"),
         grants: [],
       }, callback));
@@ -212,7 +212,7 @@ describe("gRPC plugin child process", () => {
     const started = Date.now();
     const responses = await Promise.all(Array.from({ length: 4 }, () => unary((callback) => client.call(
       {
-        capability: "forms.delay",
+        capability: "fixture.delay",
         payload: new TextEncoder().encode('{"delayMs":250}'),
         grants: [],
       },

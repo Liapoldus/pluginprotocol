@@ -19,9 +19,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol"
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	pluginprotocol "github.com/Liapoldus/pluginprotocol/presentation/sdk"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 	"google.golang.org/grpc"
 )
 
@@ -30,7 +30,7 @@ type service struct {
 }
 
 func (service) Manifest(context.Context, *pluginv1.ManifestRequest) (*pluginv1.Manifest, error) {
-	return &pluginv1.Manifest{Name: "fixture", ProtocolVersion: pluginprotocol.ProtocolVersion, CapabilityDescriptors: []*pluginv1.CapabilityDescriptor{{Capability: "forms.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}}}, nil
+	return &pluginv1.Manifest{Name: "fixture", ProtocolVersion: pluginprotocol.ProtocolVersion, CapabilityDescriptors: []*pluginv1.CapabilityDescriptor{{Capability: "fixture.submit", Modes: []pluginv1.InvocationMode{pluginv1.InvocationMode_INVOCATION_MODE_CALL, pluginv1.InvocationMode_INVOCATION_MODE_TCP, pluginv1.InvocationMode_INVOCATION_MODE_UDP}}}}, nil
 }
 
 func (service) ConfigSchema(context.Context, *pluginv1.ConfigSchemaRequest) (*pluginv1.ConfigSchema, error) {
@@ -150,7 +150,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	capability := "forms.submit"
+	capability := "fixture.submit"
 	remoteServer, err := transport.ListenRemoteTLS(service{}, transport.RemoteServerOptions{
 		TLSCertificate: serverPair,
 		ClientRoots:    rootPool,

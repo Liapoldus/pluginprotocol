@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/Liapoldus/pluginprotocol/domain"
-	"github.com/Liapoldus/pluginprotocol/pluginv1"
 )
 
 var (
@@ -24,7 +23,7 @@ type StreamHandler = domain.StreamHandler
 
 type capabilityHandlers struct {
 	call    CallHandler
-	streams map[pluginv1.InvocationMode]StreamHandler
+	streams map[domain.InvocationMode]StreamHandler
 }
 
 // Registry stores capability handlers and derives the Manifest mode
@@ -46,7 +45,7 @@ func (registry *Registry) RegisterCall(capability string, handler CallHandler) e
 	defer registry.mu.Unlock()
 	entry := registry.capabilities[capability]
 	if entry == nil {
-		entry = &capabilityHandlers{streams: make(map[pluginv1.InvocationMode]StreamHandler)}
+		entry = &capabilityHandlers{streams: make(map[domain.InvocationMode]StreamHandler)}
 		registry.capabilities[capability] = entry
 	}
 	if entry.call != nil {
@@ -56,11 +55,11 @@ func (registry *Registry) RegisterCall(capability string, handler CallHandler) e
 	return nil
 }
 
-func (registry *Registry) RegisterStream(capability string, modes []pluginv1.InvocationMode, handler StreamHandler) error {
+func (registry *Registry) RegisterStream(capability string, modes []domain.InvocationMode, handler StreamHandler) error {
 	if registry == nil || capability == "" || handler == nil || len(modes) == 0 {
 		return ErrInvalidRegistration
 	}
-	unique := make(map[pluginv1.InvocationMode]struct{}, len(modes))
+	unique := make(map[domain.InvocationMode]struct{}, len(modes))
 	for _, mode := range modes {
 		if !validStreamMode(mode) {
 			return ErrInvalidRegistration
@@ -74,7 +73,7 @@ func (registry *Registry) RegisterStream(capability string, modes []pluginv1.Inv
 	defer registry.mu.Unlock()
 	entry := registry.capabilities[capability]
 	if entry == nil {
-		entry = &capabilityHandlers{streams: make(map[pluginv1.InvocationMode]StreamHandler)}
+		entry = &capabilityHandlers{streams: make(map[domain.InvocationMode]StreamHandler)}
 		registry.capabilities[capability] = entry
 	}
 	for mode := range unique {
@@ -88,7 +87,7 @@ func (registry *Registry) RegisterStream(capability string, modes []pluginv1.Inv
 	return nil
 }
 
-func (registry *Registry) CapabilityDescriptors() []*pluginv1.CapabilityDescriptor {
+func (registry *Registry) CapabilityDescriptors() []domain.CapabilityDescriptor {
 	if registry == nil {
 		return nil
 	}
@@ -99,18 +98,18 @@ func (registry *Registry) CapabilityDescriptors() []*pluginv1.CapabilityDescript
 		capabilities = append(capabilities, capability)
 	}
 	sort.Strings(capabilities)
-	descriptors := make([]*pluginv1.CapabilityDescriptor, 0, len(capabilities))
+	descriptors := make([]domain.CapabilityDescriptor, 0, len(capabilities))
 	for _, capability := range capabilities {
 		entry := registry.capabilities[capability]
-		modes := make([]pluginv1.InvocationMode, 0, len(entry.streams)+1)
+		modes := make([]domain.InvocationMode, 0, len(entry.streams)+1)
 		if entry.call != nil {
-			modes = append(modes, pluginv1.InvocationMode_INVOCATION_MODE_CALL)
+			modes = append(modes, domain.InvocationModeCall)
 		}
 		for mode := range entry.streams {
 			modes = append(modes, mode)
 		}
 		sort.Slice(modes, func(left, right int) bool { return modes[left] < modes[right] })
-		descriptors = append(descriptors, &pluginv1.CapabilityDescriptor{Capability: capability, Modes: modes})
+		descriptors = append(descriptors, domain.CapabilityDescriptor{Capability: capability, Modes: modes})
 	}
 	return descriptors
 }
@@ -124,7 +123,7 @@ func (registry *Registry) CallHandler(capability string) CallHandler {
 	return nil
 }
 
-func (registry *Registry) StreamHandler(capability string, mode pluginv1.InvocationMode) StreamHandler {
+func (registry *Registry) StreamHandler(capability string, mode domain.InvocationMode) StreamHandler {
 	registry.mu.RLock()
 	defer registry.mu.RUnlock()
 	if entry := registry.capabilities[capability]; entry != nil {
@@ -139,13 +138,13 @@ func (registry *Registry) HasCapability(capability string) bool {
 	return registry.capabilities[capability] != nil
 }
 
-func validStreamMode(mode pluginv1.InvocationMode) bool {
+func validStreamMode(mode domain.InvocationMode) bool {
 	switch mode {
-	case pluginv1.InvocationMode_INVOCATION_MODE_HTTP_STREAM,
-		pluginv1.InvocationMode_INVOCATION_MODE_WEBSOCKET,
-		pluginv1.InvocationMode_INVOCATION_MODE_SSE,
-		pluginv1.InvocationMode_INVOCATION_MODE_TCP,
-		pluginv1.InvocationMode_INVOCATION_MODE_UDP:
+	case domain.InvocationModeHTTPStream,
+		domain.InvocationModeWebSocket,
+		domain.InvocationModeSSE,
+		domain.InvocationModeTCP,
+		domain.InvocationModeUDP:
 		return true
 	default:
 		return false

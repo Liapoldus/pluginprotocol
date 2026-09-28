@@ -1,84 +1,78 @@
-# AGENTS.md — Liapoldus plugin protocol
+# AGENTS.md — Liapoldus Plugin Protocol
 
-This repository is the only owner of plugin IPC contracts and Go APIs consumed
-by `github.com/Liapoldus/core`. Canonical transport sources are split protobuf
-files under `proto/liapoldus/plugin/v1`; declarative capability schemas are in
-`contracts/`. Gateway documentation links here and must not fork `.proto` or
-JSON contract bodies.
+## Ownership and compatibility
 
-## Accepted transport direction
+This repository owns only generic wire/control/transport/security contracts and
+the reusable Go SDK consumed by Gateway Core and plugins. Protobuf sources live
+under `proto/liapoldus/plugin/v1`; generic protocol and shared HTTP schemas live
+under `contracts/`. Each plugin owns its Manifest, settings, capability payload,
+error, admin-surface and product conformance contracts in that plugin's
+repository. This repository must not contain product-specific capabilities or
+schemas.
 
-- Use gRPC over HTTP/2 and TCP. Local-supervised plugins use an assigned
-  `127.0.0.1:<port>` endpoint; remote plugins use an explicit fixed endpoint
-  protected by TLS and, for inter-machine production, mTLS. No public plugin
-  listener and no default unix socket.
-- Gateway owns spawning/shutdown/restart only for local instances. Remote
-  process lifecycle belongs to Docker, Kubernetes or another operator process
-  manager; Gateway only connects, performs handshake/health and dispatches.
-- Each remote workload replica receives a unique externally issued identity
-  which maps to one pre-registered logical plugin instance. A stable Docker or
-  Kubernetes Service may front multiple replicas; every newly established gRPC
-  connection must repeat TLS identity validation and protocol handshake, and
-  Ready replicas must agree on protocol version and release/Manifest/settings
-  digests. The versioned remote-listener contract fixes the workload bind and
-  container/target port at `0.0.0.0:50051` for standalone, Docker, and
-  Kubernetes; a Service may expose a different client-facing port. The Go SDK
-  helper `transport.ListenRemoteTLS` applies the contract's TLS 1.3 and
-  required-client-certificate policy. Workload identity supplies the server
-  certificate and a dedicated plugin-workload CA bundle; application config,
-  environment variables, and Bootstrap do not carry TLS key material. Gateway
-  does not become a CA; Management and plugin workload trust roots are separate.
-  Every remote plugin and GrantBroker TLS direction requires a caller-managed
-  `RemoteRevocationState` initialized with the matching trust pool and a fresh,
-  externally delivered RFC 5280 PEM CRL bundle. The SDK checks issuer name,
-  AuthorityKeyId, CRL signature, freshness, monotonic CRLNumber, v3 issuer
-  `cRLSign` usage and revoked serials against the TLS-verified chain. CRL
-  replacement or expiry closes active
-  channels; invalid signatures, missing issuer CRLs and revoked leaves fail
-  closed without insecure downgrade or Call replay. The workload identity
-  provider/operator owns bundle delivery and reconnection. Canonical details:
+The approved protocol namespace and Go module remain
+`liapoldus.plugin.v1` and `github.com/Liapoldus/pluginprotocol`. Do not change
+the major namespace or silently introduce compatibility fallbacks. Existing
+v1 field numbers and agreed JSON payload boundaries are preserved unless the
+owner explicitly approves an additive v1 contract change.
+
+## SDK responsibilities
+
+- Provide an idiomatic standalone Go SDK that owns gRPC server/client creation,
+  typed registration of unary capability handlers and bidirectional stream
+  handlers, control lifecycle, health, grants, workload TLS and revocation.
+- Keep registration generic: the protocol library must not know product names,
+  capability business rules, product adapters, or Gateway storage. Generated protobuf
+  types remain transport types; capability payloads stay versioned JSON.
+- Keep the package structure cohesive and shallow. Group code by protocol
+  responsibility (control/config, calls/streams, grants, credentials/security,
+  generated wire API); do not split files into packages solely for uniformity
+  and do not create circular package dependencies.
+- `ConfigApply` is a Gateway-to-plugin push operation. A plugin applies the
+  complete versioned JSON revision atomically in memory and acknowledges the
+  exact revision/digest before readiness. A plugin never pulls its application
+  config or reads it from environment variables, argv, or application files.
+- `DispatchApply` installs an atomic generation of capability/mode scope and
+  peer identities/endpoints. The acknowledgement is bound to the receiving
+  replica. SDK calls do not replay unknown unary outcomes; cancellation closes
+  associated streams.
+- The SDK owns workload mTLS implementation and reusable identity providers.
+  Local supervised launch exchanges ephemeral identity/pins through a private
+  inherited bootstrap pipe; ordinary RPCs then use mTLS. Remote workloads
+  support externally provisioned PEM credentials and SPIFFE Workload API.
+  Management and plugin-workload trust roots remain separate. Gateway is not a
+  certificate authority.
+- Remote certificate validation is fail-closed. Signed CRL bundles are
+  externally provisioned, checked against the verified chain, and updates or
+  expiry close affected channels. Invalid, stale, missing, rolled-back, or
+  revoked credentials never downgrade to plaintext. Canonical details are in
   `contracts/protocol/v1/remote-revocation.json`.
-- The v1 transport migration intentionally replaces the old v1.0.0
-  length-prefixed TCP framing with gRPC. Keep module import path and protocol
-  namespace at v1 as explicitly decided, and publish the next compatible Go
-  module tag (`v1.1.0`) despite the transport breaking change. Document this
-  exception prominently; old framing plugins are not supported and there is no
-  dual-stack fallback.
-- Control RPCs: `Bootstrap`, `Manifest`, `ConfigSchema`, `ConfigApply`,
-  `Shutdown`, `DispatchApply`. Bootstrap contains operational connection
-  information only; Gateway pushes plugin settings via `ConfigApply` before
-  health/readiness, while secrets are available only through scoped
-  `RedeemGrant`. Local processes receive only an executable path, no argv or
-  environment-based application configuration, and accept an inherited
-  loopback listener through `transport.ListenInherited`. `ConfigApply` binds
-  opaque config-secret references to instance/revision-scoped grants. `DispatchApply`
-  installs a monotonic per-replica data-plane generation and returns a
-  replica-bound acknowledgement. Health
-  uses standard `grpc.health.v1`. Generic unary `Call` carries a capability name
-  and versioned JSON bytes; bidirectional `Stream` carries streaming payloads
-  and typed events. Standard reflection is enabled for loopback `grpcurl`
-  diagnostics.
-- Keep manifest/settings/http-actions/admin-surface/admin-UI schemas and JSON
-  dispatch models stable. Do not introduce per-capability protobuf DTOs.
-- Preserve Gateway ownership of plugin process supervision, grants and
-  management policy. The Caddy Liapoldus data-plane handler owns public sockets
-  and directly dispatches calls/streams to plugins; the Gateway Management API
-  is not a user-traffic proxy. Never log/return raw secrets, cookies,
-  Authorization values, filesystem paths, private keys or grant handles.
+- gRPC health uses the standard `grpc.health.v1` service. Generic `Call` carries
+  a capability name and versioned JSON; `Stream` carries the agreed HTTP,
+  WebSocket, SSE and TCP/UDP lifecycle. Do not introduce per-capability
+  protobuf DTOs.
+- Core owns desired configuration, process supervision in `supervised` mode,
+  external endpoints in `external` mode, authorization policy and SQLite.
+  Plugins own product behavior and in-memory applied runtime state. The SDK
+  does not become a package manager, process supervisor or public Gateway API.
 
-## Implementation rules
+## Implementation and tests
 
-- Use Go 1.24+ and generated Go protobuf/gRPC code from repository-owned proto.
-- All tests live under `tests/` and use TypeScript with Vitest + tsx. Do not add
-  Go `*_test.go` files. Generated TypeScript stubs are test-only and are not
-  published as an npm package.
-- For each implementation increment, commit the failing red TS test before its
-  implementation. Focused TS tests precede full suite and implementation.
-- Replace old raw-wire-hex golden vectors with proto descriptor conformance and
-  JSON-schema request/response examples. Add malformed/oversized, deadlines,
-  cancellation, concurrency, bidirectional stream, bounded backpressure,
-  close-race, restart, and macOS/Linux build coverage.
-- Before milestone completion run `go vet ./...`, `go build ./...`, and the
-  complete TypeScript/Vitest suite. Do not claim full readiness while generated
-  sources, CI generation checks, Gateway child-process gRPC acceptance, or any
-  required test remain incomplete.
+- Use the Go version declared by `go.mod` and generated Go protobuf/gRPC code
+  from repository-owned proto sources. Generated TypeScript stubs are test-only
+  under `tests/` and are not published as an npm package.
+- All protocol tests live under `tests/` and use TypeScript/Vitest + tsx. Do not
+  add Go `*_test.go` files or test helpers in production packages.
+- Write a failing focused TypeScript test before implementation, then commit the
+  test and implementation together once the slice is green. Keep red state
+  local; do not create red-test-only commits.
+- Protocol slices should cover malformed/oversized data, schema conformance,
+  deadlines, cancellation, concurrency, bidirectional streams, bounded
+  backpressure, close races, mTLS identities, CRL rotation/revocation, and
+  reconnect behavior. Prefer real child-process fixtures for transport claims.
+- At a completed slice run its focused Vitest suite. Before milestone completion
+  run `make check`, `go vet ./...`, `go build ./...`, generated-source checks,
+  and applicable macOS/Linux builds. Do not claim readiness while Gateway or
+  plugin consumer conformance is absent.
+- Preserve unrelated dirty and untracked files. Do not publish, tag, push, or
+  rewrite history without explicit authorization.

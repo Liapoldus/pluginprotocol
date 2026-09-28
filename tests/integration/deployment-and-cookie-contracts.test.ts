@@ -12,7 +12,7 @@ describe("protocol v1 remote deployment and HTTP cookie contracts", () => {
     expect(deployment.protocolVersion).toBe("liapoldus.plugin.v1");
     expect(deployment.modes.remote.endpoint.required).toEqual(expect.arrayContaining(["address", "tls"]));
     expect(deployment.modes.remote.endpoint.properties.tls.required).toEqual(
-      expect.arrayContaining(["serverName", "ca", "gatewayControlIdentity", "caddyDataIdentity"]),
+      expect.arrayContaining(["serverName", "ca", "gatewayControlIdentity", "dataPlaneIdentity"]),
     );
     expect(deployment.modes.remote.fallback).toBe("none");
     expect(deployment.modes.remote.processOwner).toBe("external");
@@ -27,11 +27,5 @@ describe("protocol v1 remote deployment and HTTP cookie contracts", () => {
     );
     expect(schema.$defs.cookieAction.properties.httpOnly.type).toBe("boolean");
     expect(schema.$defs.cookieAction.properties.sameSite.enum).toEqual(["Strict", "Lax", "None"]);
-  });
-
-  it("composes identity HTTP actions from the shared cookie boundary", async () => {
-    const schema = await json("contracts/identity/v1/http-actions.schema.json");
-    expect(schema.allOf[0].$ref).toBe("../../http/v1/response-action.schema.json");
-    expect(schema.allOf[1].properties.identity.type).toBe("object");
   });
 });

@@ -31,7 +31,7 @@ describe("plugin v1 launch settings schemas", () => {
     expect(tls.ca).toEqual(expected);
     expect(tls.gatewayControlIdentity.properties.clientCertificate).toEqual(expected);
     expect(tls.gatewayControlIdentity.properties.clientKey).toMatchObject({ ...expected, minimumPermissions: "owner-read-only" });
-    expect(tls.caddyDataIdentity.properties.clientCertificate).toEqual(expected);
-    expect(tls.caddyDataIdentity.properties.clientKey).toMatchObject({ ...expected, minimumPermissions: "owner-read-only" });
+    expect(tls.dataPlaneIdentity.properties.clientCertificate).toEqual(expected);
+    expect(tls.dataPlaneIdentity.properties.clientKey).toMatchObject({ ...expected, minimumPermissions: "owner-read-only" });
   });
 });

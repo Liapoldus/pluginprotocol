@@ -19,6 +19,6 @@ describe("remote dispatch generation apply contract", () => {
     const deployment = JSON.parse(await readFile(`${root}/contracts/protocol/v1/remote-deployment.json`, "utf8"));
 
     expect(deployment.modes.remote.pluginAuthorization.gatewayControl.allowedRPCs).toContain("DispatchApply");
-    expect(deployment.modes.remote.pluginAuthorization.caddyData.allowedRPCs).not.toContain("DispatchApply");
+    expect(deployment.modes.remote.pluginAuthorization.dataPlaneClient.allowedRPCs).not.toContain("DispatchApply");
   });
 });

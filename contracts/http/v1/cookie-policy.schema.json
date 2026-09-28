@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/http/v1/cookie-policy.schema.json",
   "title": "Политика входящих HTTP cookies для binding plugin Liapoldus v1",
-  "description": "Gateway/Caddy-owned policy. One policy applies to exactly one plugin instance and one capability; it is not sent to the plugin.",
+  "description": "Host-owned policy. One policy applies to exactly one plugin instance and one capability; it is not sent to the plugin.",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "instanceId", "capability", "allowedNames"],

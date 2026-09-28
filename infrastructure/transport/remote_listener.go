@@ -9,7 +9,7 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/Liapoldus/pluginprotocol"
+	"github.com/Liapoldus/pluginprotocol/contracts"
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"google.golang.org/grpc"
 )
@@ -92,7 +92,7 @@ func (listener *RemoteListener) Addr() net.Addr {
 }
 
 func loadRemoteListenerContract() (remoteListenerContract, error) {
-	content, err := fs.ReadFile(pluginprotocol.ContractFiles(), "contracts/protocol/v1/remote-listener.json")
+	content, err := fs.ReadFile(contracts.Files(), "protocol/v1/remote-listener.json")
 	if err != nil {
 		return remoteListenerContract{}, ErrInvalidRemoteListenerContract
 	}
@@ -143,7 +143,7 @@ type remoteRevocationContract struct {
 }
 
 func loadRemoteRevocationContract() (remoteRevocationContract, error) {
-	content, err := fs.ReadFile(pluginprotocol.ContractFiles(), "contracts/protocol/v1/remote-revocation.json")
+	content, err := fs.ReadFile(contracts.Files(), "protocol/v1/remote-revocation.json")
 	if err != nil {
 		return remoteRevocationContract{}, ErrRemoteRevocation
 	}

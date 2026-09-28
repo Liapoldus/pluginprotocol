@@ -1,7 +1,7 @@
 {
   "protocolVersion": "liapoldus.plugin.v1",
   "rpc": "PluginService.DispatchApply",
-  "purpose": "Install one complete data-plane authorization generation on a connected plugin replica before Gateway activates a matching Caddy dispatch snapshot.",
+  "purpose": "Install one complete data-plane authorization generation on a connected plugin replica before the host activates a matching dispatch snapshot.",
   "request": {
     "required": [
       "generation",
@@ -46,11 +46,11 @@
     "releaseDigest": "must-equal-request-releaseDigest",
     "dispatchDigest": "non-empty opaque digest identifying the complete installed capability-to-mode scope; its encoding and canonicalization are implementation-defined in v1 and must not be used as a cross-implementation equality key"
   },
-  "activationBarrier": "acknowledge-every-ready-replica-before-caddy-activation",
+  "activationBarrier": "acknowledge-every-ready-replica-before-data-plane-activation",
   "reconnect": "a newly established control connection repeats TLS identity validation and handshake; Gateway reapplies the currently desired generation before the replica becomes Ready",
   "authorization": {
     "controlPlane": "Gateway-control identity may call DispatchApply",
-    "dataPlane": "Caddy-data identity may call only Call and Stream, authorized against the acknowledged active generation",
+    "dataPlane": "data-plane identity may call only Call and Stream, authorized against the acknowledged active generation",
     "transportFailure": "fail-closed; no insecure downgrade"
   },
   "grpcStatus": {

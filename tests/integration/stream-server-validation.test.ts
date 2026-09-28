@@ -49,12 +49,12 @@ describe("v1 Stream server-side lifecycle validation", () => {
   });
 
   it.each([
-    ["message before Open", (stream: ReturnType<PluginServiceClient["stream"]>) => { stream.write({ capability: "forms.live", httpRequestChunk: { payload: new Uint8Array([1]) } }); }],
+    ["message before Open", (stream: ReturnType<PluginServiceClient["stream"]>) => { stream.write({ capability: "fixture.live", httpRequestChunk: { payload: new Uint8Array([1]) } }); }],
     ["mode and context kind mismatch", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_HTTP_STREAM, { version: 1, kind: "sse", method: "GET", path: "/events", requestId: "request-1" }); }],
     ["missing required context field", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_HTTP_STREAM, { version: 1, kind: "http", method: "POST", path: "/upload" }); }],
     ["unknown context field", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_HTTP_STREAM, { ...httpContext(), unexpected: true }); }],
-    ["request chunk after request end_stream", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_HTTP_STREAM, httpContext()); stream.write({ capability: "forms.live", httpRequestChunk: { payload: new Uint8Array(), endStream: true } }); stream.write({ capability: "forms.live", httpRequestChunk: { payload: new Uint8Array([1]) } }); }],
-    ["repeated client Close", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_TCP, l4Context("tcp"), StreamTransport.STREAM_TRANSPORT_TCP); stream.write({ capability: "forms.live", close: { code: StreamCloseCode.STREAM_CLOSE_CODE_NORMAL } }); stream.write({ capability: "forms.live", close: { code: StreamCloseCode.STREAM_CLOSE_CODE_NORMAL } }); }],
+    ["request chunk after request end_stream", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_HTTP_STREAM, httpContext()); stream.write({ capability: "fixture.live", httpRequestChunk: { payload: new Uint8Array(), endStream: true } }); stream.write({ capability: "fixture.live", httpRequestChunk: { payload: new Uint8Array([1]) } }); }],
+    ["repeated client Close", (stream: ReturnType<PluginServiceClient["stream"]>) => { open(stream, InvocationMode.INVOCATION_MODE_TCP, l4Context("tcp"), StreamTransport.STREAM_TRANSPORT_TCP); stream.write({ capability: "fixture.live", close: { code: StreamCloseCode.STREAM_CLOSE_CODE_NORMAL } }); stream.write({ capability: "fixture.live", close: { code: StreamCloseCode.STREAM_CLOSE_CODE_NORMAL } }); }],
   ])("rejects %s on inbound frames", async (_name, writeInvalid) => {
     const stream = client.stream();
     const terminal = waitForTerminal(stream);
@@ -108,18 +108,18 @@ describe("v1 Stream server-side lifecycle validation", () => {
     const terminal = waitForTerminal(stream);
     const base = JSON.stringify(l4Context("tcp"));
     const oversized = base.slice(0, -1) + `,"padding":"${"x".repeat(limits.limits.contextBytes)}"}`;
-    stream.write({ capability: "forms.live", open: { transport: StreamTransport.STREAM_TRANSPORT_TCP, connectionId: "oversized-context", contextJson: new TextEncoder().encode(oversized) } });
+    stream.write({ capability: "fixture.live", open: { transport: StreamTransport.STREAM_TRANSPORT_TCP, connectionId: "oversized-context", contextJson: new TextEncoder().encode(oversized) } });
     stream.end();
     expect(await terminal).toBe(grpcStatus.RESOURCE_EXHAUSTED);
   });
 });
 
 function open(stream: ReturnType<PluginServiceClient["stream"]>, mode: InvocationMode, context: unknown, transport = StreamTransport.STREAM_TRANSPORT_UNSPECIFIED, connectionId = "stream-1"): void {
-  stream.write({ capability: "forms.live", open: { mode, transport, connectionId, contextJson: new TextEncoder().encode(JSON.stringify(context)) } });
+  stream.write({ capability: "fixture.live", open: { mode, transport, connectionId, contextJson: new TextEncoder().encode(JSON.stringify(context)) } });
 }
 
 function httpContext() { return { version: 1, kind: "http", method: "POST", path: "/upload", requestId: "request-1" }; }
-function wsContext() { return { version: 1, kind: "websocket", method: "GET", path: "/socket", requestId: "request-1", offeredSubprotocols: ["forms.v1"] }; }
+function wsContext() { return { version: 1, kind: "websocket", method: "GET", path: "/socket", requestId: "request-1", offeredSubprotocols: ["fixture.v1"] }; }
 function sseContext() { return { version: 1, kind: "sse", method: "GET", path: "/events", requestId: "request-1" }; }
 function l4Context(kind: "tcp" | "udp") { return { kind, source: "127.0.0.1:1001", destination: "127.0.0.1:2002" }; }
 

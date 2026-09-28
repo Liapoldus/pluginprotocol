@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Liapoldus/pluginprotocol"
+	"github.com/Liapoldus/pluginprotocol/domain"
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -281,7 +281,7 @@ func (c *Client) handshake(ctx context.Context, config []byte, settingsRevision 
 	if err != nil {
 		return Handshake{}, classifyRPCError(ctx, err)
 	}
-	if manifest.GetName() == "" || manifest.GetProtocolVersion() != pluginprotocol.ProtocolVersion {
+	if manifest.GetName() == "" || manifest.GetProtocolVersion() != domain.ProtocolVersion {
 		return Handshake{}, ErrProtocolViolation
 	}
 	schema, err := c.service.ConfigSchema(ctx, &pluginv1.ConfigSchemaRequest{})

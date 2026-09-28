@@ -7,7 +7,7 @@
     "local": {
       "processOwner": "gateway-supervisor",
       "endpoint": { "host": "127.0.0.1", "port": "gateway-assigned" },
-      "channelSecurity": "insecure-loopback-only",
+      "channelSecurity": { "contract": "local-workload-mtls.json" },
       "restartOwner": "gateway-supervisor"
     },
     "remote": {
@@ -18,7 +18,7 @@
         "properties": {
           "address": { "type": "fixed-host-port", "discovery": false },
           "tls": {
-            "required": ["serverName", "expectedServerIdentity", "ca", "gatewayControlIdentity", "caddyDataIdentity"],
+            "required": ["serverName", "expectedServerIdentity", "ca", "gatewayControlIdentity", "dataPlaneIdentity"],
             "properties": {
               "serverName": { "type": "dns-name-or-ip-san" },
               "expectedServerIdentity": {
@@ -38,7 +38,7 @@
                   "allowedRPCs": ["Bootstrap", "Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]
                 }
               },
-              "caddyDataIdentity": {
+              "dataPlaneIdentity": {
                 "required": ["identity", "clientCertificate", "clientKey", "allowedRPCs", "capabilityScope"],
                 "properties": {
                   "identity": { "type": "exact-uri-san", "format": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:data" },
@@ -63,7 +63,7 @@
           "identityFormat": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:control",
           "allowedRPCs": ["Bootstrap", "Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]
         },
-        "caddyData": {
+        "dataPlaneClient": {
           "identityFormat": "urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:data",
           "allowedRPCs": ["Call", "Stream"],
           "capabilityScope": "only capability and invocation-mode pairs in the active DispatchApply generation for this plugin instance"
@@ -89,7 +89,7 @@
         "scope": "per-logical-instance-and-replica",
         "settingsAndReleaseDigests": "must-equal-the-replica-local-active-settings-and-running-release-digests",
         "generation": "strictly-increasing; identical-repeat-is-idempotent; same-generation-different-request-is-rejected",
-        "activationBarrier": "gateway-requires-an-acknowledgement-from-every-ready-replica-before-caddy-activation",
+        "activationBarrier": "gateway-requires-an-acknowledgement-from-every-ready-replica-before-data-plane-activation",
         "acknowledgement": ["generation", "replicaIdentityUri", "manifestDigest", "settingsDigest", "releaseDigest", "dispatchDigest"]
       },
       "restartOwner": "external",

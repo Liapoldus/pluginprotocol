@@ -19,9 +19,9 @@ describe("plugin HTTP cookie boundary v1", () => {
     expect(schema["x-liapoldus-semantics"].forwarding).toMatch(/only.*allow-listed/i);
 
     const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
-    expect(validate({ version: 1, instanceId: "identity-main", capability: "identity.client.callback", allowedNames: ["liap-session"] })).toBe(true);
-    expect(validate({ version: 1, instanceId: "identity-main", capability: "identity.client.callback", allowedNames: ["liap-session", "liap-session"] })).toBe(false);
-    expect(validate({ version: 1, instanceId: "identity-main", capability: "identity.client.callback", allowedNames: ["*"] })).toBe(false);
+    expect(validate({ version: 1, instanceId: "fixture-instance", capability: "fixture.callback", allowedNames: ["session"] })).toBe(true);
+    expect(validate({ version: 1, instanceId: "fixture-instance", capability: "fixture.callback", allowedNames: ["session", "session"] })).toBe(false);
+    expect(validate({ version: 1, instanceId: "fixture-instance", capability: "fixture.callback", allowedNames: ["*"] })).toBe(false);
   });
 
   it("specifies filtering, atomic rejection, and redaction behavior without logging raw values", async () => {
@@ -77,8 +77,12 @@ describe("plugin HTTP cookie boundary v1", () => {
   it("conforms stream request cookies and ordinary/HttpOnly response actions", async () => {
     const vectors = await json("contracts/protocol/v1/json-payload-vectors.json");
     const names = vectors.map((vector: { name: string }) => vector.name);
-    expect(names).toContain("http-stream-open-context-cookie");
-    expect(names).toContain("http-response-cookie-ordinary");
-    expect(names).toContain("http-response-cookie-httponly");
+    expect(names).toContain("http-stream-request-cookie-context");
+    expect(names).toContain("http-response-cookie-actions");
+    const cookieVector = vectors.find((vector: { name: string }) => vector.name === "http-response-cookie-actions");
+    expect(cookieVector.response.cookies).toEqual(expect.arrayContaining([
+      expect.objectContaining({ httpOnly: false }),
+      expect.objectContaining({ httpOnly: true }),
+    ]));
   });
 });

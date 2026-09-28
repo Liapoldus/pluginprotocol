@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/transport"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 )
 
 type serverInfo struct {
@@ -65,7 +65,7 @@ func run(info serverInfo, mode string) error {
 		return err
 	}
 	defer client.Close()
-	secret, err := client.Redeem(ctx, "forms.submit", "opaque-handle", "database-password", "forms")
+	secret, err := client.Redeem(ctx, "fixture.submit", "opaque-handle", "database-password", "forms")
 	if err != nil {
 		return err
 	}

@@ -53,7 +53,7 @@ describe("pluginprotocol v1 universal Stream over a real gRPC child process", ()
     const manifest = await new Promise<any>((resolve, reject) => {
       client.manifest({}, (error, response) => error ? reject(error) : resolve(response));
     });
-    const descriptor = manifest.capabilityDescriptors.find((entry: any) => entry.capability === "forms.live");
+    const descriptor = manifest.capabilityDescriptors.find((entry: any) => entry.capability === "fixture.live");
     expect(descriptor?.modes).toEqual([
       InvocationMode.INVOCATION_MODE_HTTP_STREAM,
       InvocationMode.INVOCATION_MODE_WEBSOCKET,
@@ -63,14 +63,14 @@ describe("pluginprotocol v1 universal Stream over a real gRPC child process", ()
 
   it("streams HTTP upload chunks and a distinct response start/chunk sequence", async () => {
     const { stream, messages, finished } = collectStream();
-    stream.write({ capability: "forms.live", open: {
+    stream.write({ capability: "fixture.live", open: {
       transport: StreamTransport.STREAM_TRANSPORT_UNSPECIFIED,
       mode: InvocationMode.INVOCATION_MODE_HTTP_STREAM,
       connectionId: "http-stream-1",
       contextJson: new TextEncoder().encode(JSON.stringify({ version: 1, kind: "http", method: "POST", path: "/upload", requestId: "request-1" })),
     } });
-    stream.write({ capability: "forms.live", httpRequestChunk: { payload: new Uint8Array([0, 1]), endStream: false } });
-    stream.write({ capability: "forms.live", httpRequestChunk: { payload: new Uint8Array([255, 128]), endStream: true } });
+    stream.write({ capability: "fixture.live", httpRequestChunk: { payload: new Uint8Array([0, 1]), endStream: false } });
+    stream.write({ capability: "fixture.live", httpRequestChunk: { payload: new Uint8Array([255, 128]), endStream: true } });
     stream.end();
     await finished;
 
@@ -87,22 +87,22 @@ describe("pluginprotocol v1 universal Stream over a real gRPC child process", ()
 
   it("negotiates only an offered WebSocket subprotocol and preserves message boundaries", async () => {
     const { stream, messages, finished } = collectStream();
-    stream.write({ capability: "forms.live", open: {
+    stream.write({ capability: "fixture.live", open: {
       transport: StreamTransport.STREAM_TRANSPORT_UNSPECIFIED,
       mode: InvocationMode.INVOCATION_MODE_WEBSOCKET,
       connectionId: "websocket-1",
-      contextJson: new TextEncoder().encode(JSON.stringify({ version: 1, kind: "websocket", method: "GET", path: "/live", requestId: "request-2", offeredSubprotocols: ["forms.v1"] })),
+      contextJson: new TextEncoder().encode(JSON.stringify({ version: 1, kind: "websocket", method: "GET", path: "/live", requestId: "request-2", offeredSubprotocols: ["fixture.v1"] })),
     } });
-    stream.write({ capability: "forms.live", websocketMessage: {
+    stream.write({ capability: "fixture.live", websocketMessage: {
       kind: WebSocketMessageKind.WEBSOCKET_MESSAGE_KIND_TEXT,
       direction: StreamDirection.STREAM_DIRECTION_REQUEST,
       payload: new TextEncoder().encode("one complete message"),
     } });
-    stream.write({ capability: "forms.live", close: { code: StreamCloseCode.STREAM_CLOSE_CODE_NORMAL } });
+    stream.write({ capability: "fixture.live", close: { code: StreamCloseCode.STREAM_CLOSE_CODE_NORMAL } });
     stream.end();
     await finished;
 
-    expect(messages[0].websocketHandshake).toMatchObject({ accepted: true, subprotocol: "forms.v1" });
+    expect(messages[0].websocketHandshake).toMatchObject({ accepted: true, subprotocol: "fixture.v1" });
     expect(messages[1].websocketMessage).toMatchObject({
       kind: WebSocketMessageKind.WEBSOCKET_MESSAGE_KIND_TEXT,
       direction: StreamDirection.STREAM_DIRECTION_RESPONSE,
@@ -112,7 +112,7 @@ describe("pluginprotocol v1 universal Stream over a real gRPC child process", ()
 
   it("rejects a WebSocket subprotocol that the client did not offer", async () => {
     const { stream, messages, finished } = collectStream();
-    stream.write({ capability: "forms.live", open: {
+    stream.write({ capability: "fixture.live", open: {
       transport: StreamTransport.STREAM_TRANSPORT_UNSPECIFIED,
       mode: InvocationMode.INVOCATION_MODE_WEBSOCKET,
       connectionId: "websocket-2",
@@ -137,7 +137,7 @@ describe("pluginprotocol v1 universal Stream over a real gRPC child process", ()
 
   it("returns structured SSE event fields without serializing them in the plugin", async () => {
     const { stream, messages, finished } = collectStream();
-    stream.write({ capability: "forms.live", open: {
+    stream.write({ capability: "fixture.live", open: {
       transport: StreamTransport.STREAM_TRANSPORT_UNSPECIFIED,
       mode: InvocationMode.INVOCATION_MODE_SSE,
       connectionId: "sse-1",
@@ -146,7 +146,7 @@ describe("pluginprotocol v1 universal Stream over a real gRPC child process", ()
     stream.end();
     await finished;
 
-    expect(messages[0].sseEvent).toEqual({ data: "ready", event: "forms.ready", id: "event-1", retryMillis: 1500 });
+    expect(messages[0].sseEvent).toEqual({ data: "ready", event: "fixture.ready", id: "event-1", retryMillis: 1500 });
     expect(messages[1].close.code).toBe(StreamCloseCode.STREAM_CLOSE_CODE_NORMAL);
   });
 });

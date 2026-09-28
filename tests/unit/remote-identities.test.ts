@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
 describe("remote v1 mTLS identity separation", () => {
-  it("uses distinct replica, Gateway-control, and Caddy-data identities with bounded RPC scopes", async () => {
+  it("uses distinct replica, Gateway-control, and data-plane identities with bounded RPC scopes", async () => {
     const deployment = JSON.parse(await readFile(join(root, "contracts/protocol/v1/remote-deployment.json"), "utf8"));
     const remote = deployment.modes.remote;
     const tls = remote.endpoint.properties.tls;
@@ -16,7 +16,7 @@ describe("remote v1 mTLS identity separation", () => {
       "expectedServerIdentity",
       "ca",
       "gatewayControlIdentity",
-      "caddyDataIdentity",
+      "dataPlaneIdentity",
     ]));
     expect(tls.properties.expectedServerIdentity).toMatchObject({
       type: "unique-uri-san-per-replica",
@@ -25,7 +25,7 @@ describe("remote v1 mTLS identity separation", () => {
     });
 
     const control = tls.properties.gatewayControlIdentity;
-    const data = tls.properties.caddyDataIdentity;
+    const data = tls.properties.dataPlaneIdentity;
     expect(control.properties.identity.format).toBe("urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:control");
     expect(control.properties.allowedRPCs).toEqual(["Bootstrap", "Manifest", "ConfigSchema", "ConfigApply", "Shutdown", "DispatchApply", "grpc.health.v1"]);
     expect(data.properties.identity.format).toBe("urn:liapoldus:gateway:<deployment-id>:plugin:<instance-id>:data");
@@ -40,6 +40,6 @@ describe("remote v1 mTLS identity separation", () => {
     expect(data.properties.clientKey).toMatchObject({ $ref: "file-reference.schema.json", minimumPermissions: "owner-read-only" });
 
     expect(remote.pluginAuthorization.gatewayControl.allowedRPCs).toEqual(control.properties.allowedRPCs);
-    expect(remote.pluginAuthorization.caddyData.allowedRPCs).toEqual(data.properties.allowedRPCs);
+    expect(remote.pluginAuthorization.dataPlaneClient.allowedRPCs).toEqual(data.properties.allowedRPCs);
   });
 });

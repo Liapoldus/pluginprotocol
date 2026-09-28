@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	protocol "github.com/Liapoldus/pluginprotocol"
+	protocol "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 )
 
 type result struct {

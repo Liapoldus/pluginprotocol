@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Liapoldus/pluginprotocol"
+	"github.com/Liapoldus/pluginprotocol/contracts"
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -41,9 +41,9 @@ type remoteAuthorizationContract struct {
 				GatewayControl struct {
 					AllowedRPCs []string `json:"allowedRPCs"`
 				} `json:"gatewayControl"`
-				CaddyData struct {
+				DataPlaneClient struct {
 					AllowedRPCs []string `json:"allowedRPCs"`
-				} `json:"caddyData"`
+				} `json:"dataPlaneClient"`
 			} `json:"pluginAuthorization"`
 		} `json:"remote"`
 	} `json:"modes"`
@@ -121,7 +121,7 @@ func validRemoteIdentity(value string) bool {
 }
 
 func loadRemoteRPCPolicy() (remoteRPCPolicy, error) {
-	contract, err := fs.ReadFile(pluginprotocol.ContractFiles(), "contracts/protocol/v1/remote-deployment.json")
+	contract, err := fs.ReadFile(contracts.Files(), "protocol/v1/remote-deployment.json")
 	if err != nil {
 		return remoteRPCPolicy{}, err
 	}
@@ -136,8 +136,8 @@ func loadRemoteRPCPolicy() (remoteRPCPolicy, error) {
 		}
 		control[rpc] = struct{}{}
 	}
-	data := make(map[string]struct{}, len(decoded.Modes.Remote.PluginAuthorization.CaddyData.AllowedRPCs))
-	for _, rpc := range decoded.Modes.Remote.PluginAuthorization.CaddyData.AllowedRPCs {
+	data := make(map[string]struct{}, len(decoded.Modes.Remote.PluginAuthorization.DataPlaneClient.AllowedRPCs))
+	for _, rpc := range decoded.Modes.Remote.PluginAuthorization.DataPlaneClient.AllowedRPCs {
 		if rpc == "" {
 			return remoteRPCPolicy{}, ErrInvalidRemoteAuthorization
 		}

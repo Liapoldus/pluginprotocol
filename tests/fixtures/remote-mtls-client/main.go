@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/transport"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 )
 
 func main() {

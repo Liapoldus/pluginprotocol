@@ -17,9 +17,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol"
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	pluginprotocol "github.com/Liapoldus/pluginprotocol/presentation/sdk"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 	"google.golang.org/grpc"
 )
 
@@ -258,14 +258,14 @@ func runGrantBroker(creds credentials, emptyCRL, serverRevokedCRL, clientRevoked
 	defer client.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	if _, err := client.Redeem(ctx, "forms.submit", "fixture-handle", "fixture-purpose", "fixture-domain"); err != nil {
+	if _, err := client.Redeem(ctx, "fixture.submit", "fixture-handle", "fixture-purpose", "fixture-domain"); err != nil {
 		return nil, err
 	}
 	clientErr := clientRevocations.Update(serverRevokedCRL)
-	_, clientRedeemErr := client.Redeem(ctx, "forms.submit", "fixture-handle", "fixture-purpose", "fixture-domain")
+	_, clientRedeemErr := client.Redeem(ctx, "fixture.submit", "fixture-handle", "fixture-purpose", "fixture-domain")
 	clientClosed := clientRedeemErr != nil
 	serverErr := serverRevocations.Update(clientRevokedCRL)
-	_, serverRedeemErr := client.Redeem(ctx, "forms.submit", "fixture-handle", "fixture-purpose", "fixture-domain")
+	_, serverRedeemErr := client.Redeem(ctx, "fixture.submit", "fixture-handle", "fixture-purpose", "fixture-domain")
 	serverClosed := serverRedeemErr != nil
 	return result{"healthy": true, "clientUpdateClosed": clientErr == nil && clientClosed, "serverUpdateClosed": serverErr == nil && serverClosed}, nil
 }

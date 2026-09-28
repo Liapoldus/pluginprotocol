@@ -9,8 +9,8 @@ import (
 	"os"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/sdk"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	"github.com/Liapoldus/pluginprotocol/presentation/sdk"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 )
 
 type control struct {

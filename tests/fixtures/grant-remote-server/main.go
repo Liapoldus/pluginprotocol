@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
-	"github.com/Liapoldus/pluginprotocol/transport"
+	transport "github.com/Liapoldus/pluginprotocol/presentation/sdk"
 )
 
 const (
@@ -32,7 +32,7 @@ type broker struct {
 
 func (broker) RedeemGrant(ctx context.Context, request *pluginv1.RedeemGrantRequest) (*pluginv1.RedeemGrantResponse, error) {
 	identity, ok := transport.RemoteGrantClientIdentity(ctx)
-	if !ok || identity != clientIdentity || request.GetHandle() != "opaque-handle" || request.GetCapability() != "forms.submit" || request.GetPurpose() != "database-password" || request.GetDomain() != "forms" {
+	if !ok || identity != clientIdentity || request.GetHandle() != "opaque-handle" || request.GetCapability() != "fixture.submit" || request.GetPurpose() != "database-password" || request.GetDomain() != "forms" {
 		return nil, transport.ErrGrantDenied
 	}
 	return &pluginv1.RedeemGrantResponse{Secret: []byte("fixture-secret")}, nil

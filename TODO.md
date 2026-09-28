@@ -1,131 +1,75 @@
 # TODO — pluginprotocol
 
-Общий порядок Gateway migration описан в
-[roadmap Gateway v1](https://liapoldus.github.io/gateway/architecture/v1-migration-roadmap).
-Этот файл содержит только работу над единственным plugin IPC contract и его
-runtime library.
+Протокол — нейтральная библиотека wire, lifecycle, networking и workload
+security. Контракты Manifest/settings/capabilities/errors/admin UI и payload
+vectors принадлежат соответствующим репозиториям плагинов. Общий план миграции
+системы — в [Gateway roadmap](https://liapoldus.github.io/gateway/architecture/v1-migration-roadmap).
 
-## Transport и launch contract
+## Выполнено
 
-- [x] Закрепить local launch без application args/env/config files: только
-  абсолютный binary path и inherited loopback listener FD; operational
-  bootstrap передаётся typed RPC, настройки Gateway push-ит через `ConfigApply`.
-- [x] Добавить typed `Bootstrap` и SDK `ListenInherited`; удалить env-based
-  discovery plugin listener/GrantBroker endpoints. Bootstrap содержит только
-  instance ID и callback endpoint, не settings и не secret bytes.
-- [x] Закрепить `ConfigApply` readiness ordering и revision acknowledgement:
-  Gateway push-ит конфигурацию, plugin хранит её только in-memory, успешный
-  apply предшествует health/readiness.
-- [x] Добавить config-scoped secret grants: opaque Gateway-generated reference
-  IDs, exact instance/revision/reference binding, `RedeemConfig`, разделение
-  `CALL` и `CONFIG_APPLY`; исходные `file:` references/paths остаются на стороне
-  Gateway и не попадают в plugin protocol.
-- [x] Закрепить единый remote listener `0.0.0.0:50051` для standalone/Docker/
-  Kubernetes и добавить `ListenRemoteTLS`: TLS 1.3, обязательная проверка client
-  certificate, отдельный trust bundle plugin workload identities, no downgrade.
-- [x] Добавить обязательную signed CRL-проверку для обоих TLS-направлений remote
-  plugin и GrantBroker: монотонные CRLNumber, AuthorityKeyId/issuer signature,
-  требуемый `cRLSign` у v3 issuer по RFC 10007, freshness, fail-closed при
-  отсутствующем issuer, stale/invalid bundle или revoked serial; атомарная
-  замена и CRL expiry закрывают существующие каналы.
-  Доставку полного RFC 5280 PEM bundle, watch/update trigger и reconnect оставили
-  у workload identity provider/operator; SDK не загружает CRL сам, не делает
-  downgrade и не повторяет неизвестный Call. E2E проверяет отозванные обе стороны,
-  замену/истечение набора, rollback CRLNumber, запрет un-revoke и GrantBroker.
-- [x] Добавить real-child-process conformance для ConfigApply rotation:
-  успешная атомарная замена настроек отзывает прежние grants, неуспешная
-  активация сохраняет активные настройки и grants, restart применяет текущую
-  revision с заново выданными grants. Уточнить lifetime config grants как срок
-  активной revision в каноническом контракте.
-- [x] Подтвердить inherited listener FD real-child-process E2E: Vitest запускает
-  Go fixture, передаёт Gateway-owned listener как fd 3 и проверяет TCP accept и
-  response. `make check` включает этот тест и запускается CI matrix отдельно на
-  `macos-latest` и `ubuntu-latest`; локальный полный `make check` прошёл на
-  macOS.
+- [x] Сохранить namespace `liapoldus.plugin.v1` и Go module path.
+- [x] Разделить реализацию на четыре прикладных слоя: `domain/`,
+  `application/`, `infrastructure/`, `presentation/`.
+- [x] Вынести transport реализации в `infrastructure/transport/`, gRPC server
+  adapter — в `infrastructure/grpc/`, registration/use-case — в
+  `application/`, protocol abstractions — в `domain/`, public SDK facade — в
+  `presentation/sdk/`.
+- [x] Перевести Core и активные plugin consumers на единый публичный импорт
+  `github.com/Liapoldus/pluginprotocol/presentation/sdk`; старые корневые
+  `sdk/` и `transport/` compatibility packages удалены.
+- [x] Переместить capability-specific contracts `captcha`, `forms-db` и
+  `identity` из этого репозитория к соответствующим плагинам. Удалить их
+  product-specific conformance tests и перенести проверки к владельцам.
+- [x] Удалить `forms.*` и конкретное имя data-plane adapter из тестовых
+  fixtures/contracts; protocol boundary использует нейтральные identifiers.
+- [x] Оставить здесь только generic wire/control, transport/security и shared
+  HTTP contracts. Пакет `contracts` единолично встраивает generic assets;
+  `infrastructure/contracts` содержит только runtime-типы и валидаторы, а
+  публичный SDK и transport используют единый `ContractFiles()` без forwarding
+  package. В assets нет plugin-owned capability schemas.
 
-## Request/response и capability contracts
+## Открытые задачи
 
-- [x] Опубликовать `captcha.verify` v1 request/response/error contracts и
-  исполняемые negative vectors; выбор provider и его настройки принадлежат
-  plugin settings, клиент не передаёт provider.
-- [x] Опубликовать `forms.delete` request/response/error contract и negative
-  vectors. Повторное удаление отсутствующей записи возвращает стабильный,
-  non-retryable `not_found` (HTTP 404); клиент может считать желаемое отсутствие
-  достигнутым, но wire-результат не меняется на success.
-- [x] Связать страницу настроек admin UI с control RPC `ConfigSchema` и
-  `ConfigApply`, не объявляя их capability и не отправляя через `Call`.
-
-- [x] Зафиксировать versioned cookie policy для точной пары plugin instance и
-  capability, фильтрацию до dispatch, typed ordinary/HttpOnly response actions,
-  атомарное отклонение некорректного ответа и запрет раскрытия значений в
-  diagnostics; schema/vector conformance добавлен.
-- [x] Добавить публичный Go cookie API с strict JSON/schema decode, scope-aware
-  allow-list filtering, строгим Cookie-header parser, typed ordinary/HttpOnly
-  сериализацией, domain/public-suffix и prefix проверками, atomic response
-  rejection и generic sentinel errors. Реализация читает embedded versioned
-  assets и не копирует schema/semantic limits. Aggregate byte ceiling входного
-  Cookie header вычисляется из контрактных count/name/value bounds и разделителей.
-- [x] Добавить исполняемые GrantBroker vectors для успешной выдачи,
-  capability/purpose/domain scope denial и локального отказа на пустых
-  обязательных полях; клиентская диагностика не раскрывает secret bytes или
-  подробности отказа.
-- [x] Добавить исполняемый Stream error vector для превышения контрактного
-  лимита SSE `event`: vector связывает mutation с `stream-lifecycle.json`, а
-  real-child-process conformance подтверждает `RESOURCE_EXHAUSTED`.
-- [x] Добавить общий versioned error mapping без дублирования operation-specific
-  gRPC status contracts; executable child-process vectors покрывают локальную
-  ошибку JSON, ошибочный response JSON, application `CallResponse.code`,
-  generic gRPC failure, cancellation/deadline и GrantBroker denial.
-- [x] Добавить исполняемые vectors для синтаксически некорректного JSON и
-  неподдерживаемой версии payload schema; ожидаемая версия берётся из
-  канонической схемы, новый числовой лимит не вводится.
-- [x] Добавить исполняемые negative vectors для `stream-open-context.schema`
-  (missing required requestId, path.maxLength, headers.maxProperties,
-  cookies.maxItems); test-runner выводит граничные payloads из действующих
-  ограничений схемы и подтверждает их отклонение без копирования лимитов.
-- [x] Согласовать `identity/v1/http-request.schema.json` с общим Gateway
-  HTTPRequest JSON shape: bounded headers/cookies, base64 body, required
-  requestId, remoteAddr и string-valued context; добавить positive payload
-  conformance vector.
-- [x] Добавить TypeScript real-child-process conformance для bounded gRPC
-      writable backpressure, сохранения каждого принятого кадра, caller-owned
-      idle timeout/cancellation, gRPC deadline как максимальной длительности,
-      параллельных Stream и Close на фоне in-flight data.
-
-## Проверки и релиз
-
-- [x] На локальной macOS покрыть gRPC Stream deadline, cancellation,
-      bidirectional data, concurrent calls, bounded backpressure и orderly
-      close во время данных в `tests/integration/stream-runtime-conformance.test.ts`.
-- [x] Добавить real-child-process conformance для remote replica reconnect:
-      новый endpoint с сертификатом той же replica identity принимается при
-      overlap старого и нового trust roots; control identity сохраняет доступ к
-      Manifest, data identity остаётся запрещённой. После удаления старого root
-      старый endpoint отклоняется, новый остаётся доступен; insecure downgrade
-      отсутствует.
-- [ ] Gateway/workload manager владеет credential rotation и readiness barrier:
-      protocol SDK не меняет credentials уже открытого gRPC channel. Caller
-      загружает обновлённые endpoint/certificate/trust roots, создаёт новый
-      `DialRemoteContext`, повторяет handshake и требуемый control/data setup,
-      проверяет replica identity/Manifest/configuration/DispatchApply, и лишь
-      затем считает replica Ready. Неизвестный результат Call не replay-ится;
-      прерванный Stream закрывается. Удаление прежнего trust root — внешняя
-      rollout-операция после переключения всех требуемых клиентов; protocol
-      conformance доказывает TLS fail-closed на уже исключённом endpoint, но не
-      оркестрирует Gateway replicas или rollout.
-- [x] Проверить remote GrantBroker по TLS/mTLS и active-dispatch authorization
-      для control/data identities в real-child-process conformance.
-- [x] Запускать полный `make check` в CI на Ubuntu и macOS; workflow содержит
-      обе платформы в matrix.
-- [x] Зафиксировать typed `DispatchApply` v1: полная atomic capability→mode
-      generation на replica, сверка instance/settings/release с её активным
-      состоянием, идемпотентный повтор, отклонение stale/conflicting generation
-      со статусом `FAILED_PRECONDITION` без изменения прежнего scope и
-      replica-bound acknowledgement.
-      Пустой capabilities scope устанавливает deny-all и подтверждает generation
-      ACK-ом; отдельный real-child-process conformance проверяет поведение. Gateway
-      обязан дождаться подтверждения каждой Ready replica до Caddy activation.
-- [x] Нормализовать legacy L4 `Stream.Open` без явного mode до проверки
-  active-dispatch authorization; TCP и UDP проверены remote mTLS E2E.
-- [ ] Для каждого protocol release выполнять make check, go vet ./...,
-  go build ./... и generated Go/test TypeScript conformance.
+- [x] Убрать generated protobuf-типы из `domain/` и `application/`: определить
+  transport-neutral handler/request/stream/invocation-mode модели, а преобразование
+  protobuf ↔ модели оставить внутри `infrastructure/grpc/`. Внешние сигнатуры
+  `presentation/sdk` сохранены адаптерами; wire format и protobuf package не менялись.
+- [ ] Спроектировать и реализовать высокоуровневую SDK lifecycle API
+  (`Init`/`Run`/`Close`) с typed network/security profile. Plugin регистрирует
+  generic handlers и выбирает разрешённый профиль через API библиотеки; raw
+  listener, gRPC options и credential plumbing остаются advanced infrastructure
+  деталями. Это план, не текущая реализация.
+- [x] Предоставить supervised-local session facade: Gateway вызывает
+  `sdk.StartLocalSession`, plugin — `sdk.ServeInheritedLocalSession`. Facade
+  владеет inherited listener fd 3, bootstrap pipes fd 4/5, ephemeral identity
+  exchange, pinned mTLS, health gate и завершением дочернего процесса; argv/env
+  не используются. Проверено реальным child-process TypeScript conformance.
+- [ ] Перевести Core local-supervised launch на новый SDK facade и после
+  миграции consumers удалить прежние plaintext `DialContext` / `NewServer` API;
+  insecure fallback для local launch не добавлять.
+- [ ] Оформить transport profile API через typed SDK `Init`: разделить общую
+  network/security конфигурацию и plugin application settings; запретить env,
+  argv и application-config files для settings. Передавать transport profile
+  Core→plugin только по protocol-owned bootstrap/control API.
+- [ ] Для первого профиля зафиксировать gRPC/HTTP2 поверх TCP и workload mTLS.
+  Отключение шифрования разрешать только в явно обозначенном local test/dev
+  profile; remote и production profiles должны отказывать без TLS.
+- [ ] Добавлять альтернативный QUIC carrier только отдельным transport backend
+  с общим protocol conformance; переключатель конфигурации не должен делать
+  несовместимый carrier поверх существующего gRPC API.
+- [ ] Определить generic `NetworkProvider` / `SecurityProvider` SDK boundary,
+  lifecycle и ошибки и подтвердить, что выбор транспорта не раскрывает
+  plugin-specific понятия и не смешивает его с `ConfigApply`.
+- [ ] Уточнить, какие клиентские `HTTPRequest` / `L4Request` / `IdentityRequest`
+  types являются действительно общими boundary contracts; product-specific
+  schema и валидация должны оставаться в plugin repository.
+- [ ] Завершить facade `Init`/server/client composition и typed control lifecycle
+  registration; проверить atomic `ConfigApply`, `DispatchApply`, grants,
+  readiness, cancellation и graceful shutdown через реальные child-process
+  conformance tests.
+- [ ] Удалять любые новые compatibility aliases, generated duplicates и
+  legacy transport paths после того, как `rg` подтвердит отсутствие consumers.
+- [ ] Перед завершением каждого SDK milestone пройти TypeScript/Vitest suite,
+  `go vet ./...`, `go build ./...`, generated-source checks и macOS/Linux
+  child-process conformance. Не менять версию/тег и не публиковать пакет без
+  отдельного решения.

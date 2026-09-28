@@ -33,7 +33,7 @@ describe("remote plugin listener v1 contract", () => {
   it("provides a typed TLS listener SDK helper backed by the versioned contract", async () => {
     const source = await readFile(`${root}/infrastructure/transport/remote_listener.go`, "utf8");
     expect(source).toMatch(/func ListenRemoteTLS\(service pluginv1\.PluginServiceServer, options RemoteServerOptions\) \(\*RemoteListener, error\)/);
-    expect(source).toContain("ContractFiles()");
+    expect(source).toContain("contracts.Files()");
     expect(source).toContain("net.Listen(contract.Transport, contract.BindAddress)");
     expect(source).toContain("contract.BindAddress");
     expect(source).toContain("contract.Security.MinimumTLSVersion");

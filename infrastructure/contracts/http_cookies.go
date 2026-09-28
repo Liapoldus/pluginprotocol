@@ -1,4 +1,4 @@
-package pluginprotocol
+package contracts
 
 import (
 	"bytes"
@@ -14,6 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	protocolcontracts "github.com/Liapoldus/pluginprotocol/contracts"
 	"github.com/dlclark/regexp2"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"golang.org/x/net/idna"
@@ -107,7 +108,7 @@ func getCookieMetadata() (cookieContractMetadata, error) {
 
 func loadCookieMetadata() (cookieContractMetadata, error) {
 	var result cookieContractMetadata
-	responseDocument, err := contractDocument("contracts/http/v1/response-action.schema.json")
+	responseDocument, err := contractDocument("http/v1/response-action.schema.json")
 	if err != nil {
 		return result, err
 	}
@@ -115,7 +116,7 @@ func loadCookieMetadata() (cookieContractMetadata, error) {
 	if err != nil {
 		return result, err
 	}
-	policyDocument, err := contractDocument("contracts/http/v1/cookie-policy.schema.json")
+	policyDocument, err := contractDocument("http/v1/cookie-policy.schema.json")
 	if err != nil {
 		return result, err
 	}
@@ -189,7 +190,7 @@ func loadCookieMetadata() (cookieContractMetadata, error) {
 	if err != nil {
 		return result, err
 	}
-	streamDocument, err := contractDocument("contracts/protocol/v1/stream-open-context.schema.json")
+	streamDocument, err := contractDocument("protocol/v1/stream-open-context.schema.json")
 	if err != nil {
 		return result, err
 	}
@@ -202,10 +203,10 @@ func loadCookieMetadata() (cookieContractMetadata, error) {
 		return result, err
 	}
 	compiler := newContractCompiler()
-	if err := addContractResource(compiler, "contracts/http/v1/response-action.schema.json"); err != nil {
+	if err := addContractResource(compiler, "http/v1/response-action.schema.json"); err != nil {
 		return result, err
 	}
-	if err := addContractResource(compiler, "contracts/http/v1/cookie-pair.schema.json"); err != nil {
+	if err := addContractResource(compiler, "http/v1/cookie-pair.schema.json"); err != nil {
 		return result, err
 	}
 	if err := compiler.AddResource("urn:liapoldus:plugin:v1:request-cookie-pairs", arrayDocument); err != nil {
@@ -240,7 +241,7 @@ func addContractResource(compiler *jsonschema.Compiler, path string) error {
 }
 
 func contractDocument(path string) (any, error) {
-	raw, err := fs.ReadFile(contractAssets, path)
+	raw, err := fs.ReadFile(protocolcontracts.Files(), path)
 	if err != nil {
 		return nil, err
 	}

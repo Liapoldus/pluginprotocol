@@ -43,7 +43,7 @@ describe("DispatchApply v1 canonical contract", () => {
     expect(contract.request.capabilities.emptyCapabilities).toBe("deny-all");
     expect(contract.acknowledgement.replicaIdentityUri).toBe("must-equal-the-verified-remote-plugin-replica-URI-SAN-for-this-connection");
     expect(contract.acknowledgement.after).toBe("authorization-generation-is-active-for-this-replica");
-    expect(contract.activationBarrier).toBe("acknowledge-every-ready-replica-before-caddy-activation");
+    expect(contract.activationBarrier).toBe("acknowledge-every-ready-replica-before-data-plane-activation");
   });
 
   it("round-trips the canonical typed request and per-replica acknowledgement through generated v1 code", async () => {

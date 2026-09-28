@@ -17,6 +17,6 @@ describe("remote dispatch readiness contract", () => {
 
   it("requires the apply acknowledgement from every replica before activation", async () => {
     const deployment = JSON.parse(await readFile(`${root}/contracts/protocol/v1/remote-deployment.json`, "utf8"));
-    expect(deployment.modes.remote.dispatchApply.activationBarrier).toBe("gateway-requires-an-acknowledgement-from-every-ready-replica-before-caddy-activation");
+    expect(deployment.modes.remote.dispatchApply.activationBarrier).toBe("gateway-requires-an-acknowledgement-from-every-ready-replica-before-data-plane-activation");
   });
 });

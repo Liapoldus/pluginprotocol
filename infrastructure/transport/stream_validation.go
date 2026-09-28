@@ -9,7 +9,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/Liapoldus/pluginprotocol"
+	"github.com/Liapoldus/pluginprotocol/contracts"
 	"github.com/Liapoldus/pluginprotocol/pluginv1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -55,7 +55,7 @@ var (
 
 func loadStreamContract() (streamContract, error) {
 	streamContractOnce.Do(func() {
-		content, err := fs.ReadFile(pluginprotocol.ContractFiles(), "contracts/protocol/v1/stream-lifecycle.json")
+		content, err := fs.ReadFile(contracts.Files(), "protocol/v1/stream-lifecycle.json")
 		if err != nil {
 			streamContractErr = err
 			return
