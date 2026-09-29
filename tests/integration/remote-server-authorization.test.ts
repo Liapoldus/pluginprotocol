@@ -77,6 +77,22 @@ describe("remote plugin server authorization", () => {
     expect(await invoke("data", "call", "fixture.read")).toBe(false);
   }, 20_000);
 
+  it("uses the SDK dispatch barrier to reject an acknowledgement for another replica", async () => {
+    const accepted = await invokeRaw("control", "dispatch-sdk");
+    expect(accepted.accepted).toBe(true);
+    expect(accepted.response).toMatchObject({
+      generation: "1",
+      replicaIdentityUri: "urn:liapoldus:plugin:forms:replica:pod-1",
+      settingsDigest: expect.stringMatching(/^sha256:/),
+      releaseDigest: expect.stringMatching(/^sha256:/),
+      manifestDigest: expect.stringMatching(/^sha256:/),
+      dispatchDigest: expect.any(String),
+    });
+
+    const mismatched = await invokeRaw("control", "dispatch-sdk-wrong-replica");
+    expect(mismatched.accepted).toBe(false);
+  }, 20_000);
+
   it("permits only the data identity and active capability for Call and Stream", async () => {
     expect(await invoke("data", "call", "fixture.submit")).toBe(true);
     expect(await invoke("data", "call", "fixture.read")).toBe(false);

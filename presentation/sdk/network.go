@@ -33,6 +33,7 @@ var (
 	ErrDispatchGenerationPrecondition = infra.ErrDispatchGenerationPrecondition
 	ErrInvalidRemoteListenerContract  = infra.ErrInvalidRemoteListenerContract
 	ErrInvalidRemoteServerOptions     = infra.ErrInvalidRemoteServerOptions
+	ErrInvalidDispatchAcknowledgement = infra.ErrInvalidDispatchAcknowledgement
 )
 
 type Client = infra.Client

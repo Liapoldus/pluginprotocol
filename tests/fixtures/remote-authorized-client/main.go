@@ -65,6 +65,26 @@ func run() error {
 		_, err = client.Service().Manifest(ctx, &pluginv1.ManifestRequest{})
 	case "call":
 		_, err = client.Service().Call(ctx, &pluginv1.CallRequest{Capability: os.Args[8], Payload: []byte(`{}`)})
+	case "dispatch-sdk", "dispatch-sdk-wrong-replica":
+		request := &pluginv1.DispatchApplyRequest{
+			Generation: 1, InstanceId: "forms",
+			SettingsDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			ReleaseDigest:  "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			Capabilities: []*pluginv1.CapabilityDispatchScope{{Capability: "fixture.submit", Modes: []pluginv1.InvocationMode{
+				pluginv1.InvocationMode_INVOCATION_MODE_CALL,
+				pluginv1.InvocationMode_INVOCATION_MODE_TCP,
+				pluginv1.InvocationMode_INVOCATION_MODE_UDP,
+			}}},
+		}
+		expectedIdentity := "urn:liapoldus:plugin:forms:replica:pod-1"
+		if os.Args[7] == "dispatch-sdk-wrong-replica" {
+			expectedIdentity = "urn:liapoldus:plugin:forms:replica:another-pod"
+		}
+		var result *pluginv1.DispatchApplyResponse
+		result, err = client.ApplyDispatch(ctx, request, expectedIdentity)
+		if err == nil {
+			dispatchResponse, err = protojson.Marshal(result)
+		}
 	case "dispatch", "dispatch-conflict", "dispatch-empty", "dispatch-next", "dispatch-next-conflict", "dispatch-stale":
 		settingsDigest := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 		generation := uint64(1)

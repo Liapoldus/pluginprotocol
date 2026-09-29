@@ -20,16 +20,18 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 const DefaultMaxMessageBytes = 10 << 20
 
 var (
-	ErrInvalidEndpoint   = errors.New("plugin endpoint must be a TCP loopback address")
-	ErrProtocolViolation = errors.New("plugin protocol violation")
-	ErrUnavailable       = errors.New("plugin unavailable")
-	ErrCallRejected      = errors.New("plugin call rejected")
-	ErrInvalidRemoteTLS  = errors.New("remote plugin TLS configuration is invalid")
+	ErrInvalidEndpoint                = errors.New("plugin endpoint must be a TCP loopback address")
+	ErrProtocolViolation              = errors.New("plugin protocol violation")
+	ErrUnavailable                    = errors.New("plugin unavailable")
+	ErrCallRejected                   = errors.New("plugin call rejected")
+	ErrInvalidRemoteTLS               = errors.New("remote plugin TLS configuration is invalid")
+	ErrInvalidDispatchAcknowledgement = errors.New("plugin dispatch acknowledgement is invalid")
 )
 
 type Client struct {
@@ -308,6 +310,39 @@ func (c *Client) handshake(ctx context.Context, config []byte, settingsRevision 
 
 func (c *Client) Call(ctx context.Context, capability string, payload []byte) (*pluginv1.CallResponse, error) {
 	return c.CallWithGrants(ctx, capability, payload, nil)
+}
+
+// ApplyDispatch installs a complete dispatch generation and verifies the
+// replica-bound acknowledgement before returning it to the caller. The
+// expected identity must be the identity bound to this authenticated channel.
+func (c *Client) ApplyDispatch(ctx context.Context, request *pluginv1.DispatchApplyRequest, expectedReplicaIdentity string) (*pluginv1.DispatchApplyResponse, error) {
+	if c == nil || c.service == nil || ctx == nil || request == nil || !validRemoteIdentity(expectedReplicaIdentity) ||
+		request.GetGeneration() == 0 || request.GetInstanceId() == "" || !validSHA256Digest(request.GetSettingsDigest()) ||
+		!validSHA256Digest(request.GetReleaseDigest()) {
+		return nil, ErrProtocolViolation
+	}
+	manifest, err := c.service.Manifest(ctx, &pluginv1.ManifestRequest{})
+	if err != nil {
+		return nil, classifyRPCError(ctx, err)
+	}
+	if manifest == nil || manifest.GetName() == "" || manifest.GetProtocolVersion() != domain.ProtocolVersion {
+		return nil, ErrProtocolViolation
+	}
+	manifestBytes, err := (proto.MarshalOptions{Deterministic: true}).Marshal(manifest)
+	if err != nil {
+		return nil, ErrProtocolViolation
+	}
+	response, err := c.service.DispatchApply(ctx, request)
+	if err != nil {
+		return nil, classifyRPCError(ctx, err)
+	}
+	if response == nil || response.GetGeneration() != request.GetGeneration() ||
+		response.GetReplicaIdentityUri() != expectedReplicaIdentity || response.GetManifestDigest() != digest(manifestBytes) ||
+		response.GetSettingsDigest() != request.GetSettingsDigest() || response.GetReleaseDigest() != request.GetReleaseDigest() ||
+		response.GetDispatchDigest() == "" {
+		return nil, ErrInvalidDispatchAcknowledgement
+	}
+	return response, nil
 }
 
 // CallWithGrants sends opaque, call-scoped grant handles alongside a JSON
