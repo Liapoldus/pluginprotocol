@@ -684,8 +684,11 @@ func (x *ConfigField) GetDescription() string {
 }
 
 type ConfigSchema struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Fields        []*ConfigField         `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Fields []*ConfigField         `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty"`
+	// UTF-8 JSON Schema Draft 2020-12 for nested plugin settings. Empty only
+	// when the plugin accepts no application settings through ConfigApply.
+	JsonSchema    []byte `protobuf:"bytes,2,opt,name=json_schema,json=jsonSchema,proto3" json:"json_schema,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -723,6 +726,13 @@ func (*ConfigSchema) Descriptor() ([]byte, []int) {
 func (x *ConfigSchema) GetFields() []*ConfigField {
 	if x != nil {
 		return x.Fields
+	}
+	return nil
+}
+
+func (x *ConfigSchema) GetJsonSchema() []byte {
+	if x != nil {
+		return x.JsonSchema
 	}
 	return nil
 }
@@ -976,9 +986,11 @@ const file_liapoldus_plugin_v1_control_proto_rawDesc = "" +
 	"\brequired\x18\x03 \x01(\bR\brequired\x12!\n" +
 	"\fdefault_json\x18\x04 \x01(\tR\vdefaultJson\x12\x18\n" +
 	"\aoptions\x18\x05 \x03(\tR\aoptions\x12 \n" +
-	"\vdescription\x18\x06 \x01(\tR\vdescription\"H\n" +
+	"\vdescription\x18\x06 \x01(\tR\vdescription\"i\n" +
 	"\fConfigSchema\x128\n" +
-	"\x06fields\x18\x01 \x03(\v2 .liapoldus.plugin.v1.ConfigFieldR\x06fields\"\x93\x01\n" +
+	"\x06fields\x18\x01 \x03(\v2 .liapoldus.plugin.v1.ConfigFieldR\x06fields\x12\x1f\n" +
+	"\vjson_schema\x18\x02 \x01(\fR\n" +
+	"jsonSchema\"\x93\x01\n" +
 	"\x12ConfigApplyRequest\x12\x16\n" +
 	"\x06config\x18\x01 \x01(\fR\x06config\x12+\n" +
 	"\x11settings_revision\x18\x02 \x01(\tR\x10settingsRevision\x128\n" +

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Liapoldus/pluginprotocol/contracts/protocol/v1/config-schema.json",
+  "title": "Plugin ConfigSchema v1",
+  "protocolVersion": "liapoldus.plugin.v1",
+  "rpc": "PluginService.ConfigSchema",
+  "schemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "jsonSchema": {
+    "protobufField": "ConfigSchema.json_schema",
+    "fieldNumber": 2,
+    "encoding": "UTF-8 JSON bytes",
+    "maxBytes": 262144,
+    "document": "one JSON Schema Draft 2020-12 object schema describing the complete plugin-owned settings object accepted by ConfigApply",
+    "references": "local fragment references only; network and external-file references are forbidden",
+    "empty": "permitted only when the plugin accepts no application settings through ConfigApply"
+  },
+  "fields": {
+    "protobufField": "ConfigSchema.fields",
+    "fieldNumber": 1,
+    "role": "optional presentation hints; never a substitute for JSON Schema validation",
+    "compatibility": "existing v1 field and field numbers remain unchanged"
+  },
+  "validation": {
+    "owner": "plugin",
+    "gatewayProductSchemaValidation": false,
+    "requiredWhen": "plugin accepts non-empty application settings through ConfigApply",
+    "timing": "the plugin validates the complete candidate ConfigApply JSON against this schema before changing active settings",
+    "atomicity": "schema or settings validation failure preserves the previous active revision and its resources",
+    "transport": "Gateway forwards ConfigSchema.json_schema unchanged and may use it for generic rendering or client-side validation"
+  },
+  "rejection": {
+    "invalidJson": "INVALID_ARGUMENT",
+    "unsupportedDialect": "INVALID_ARGUMENT",
+    "remoteReference": "INVALID_ARGUMENT",
+    "overLimit": "RESOURCE_EXHAUSTED",
+    "readiness": "a plugin with non-empty settings and no valid json_schema must not acknowledge ConfigApply or report SERVING"
+  },
+  "security": {
+    "noNetworkResolution": true,
+    "noSecretValues": "the schema may describe secret-reference fields but must not contain secret values, source paths, or credentials",
+    "noProductKnowledgeInProtocol": true
+  }
+}

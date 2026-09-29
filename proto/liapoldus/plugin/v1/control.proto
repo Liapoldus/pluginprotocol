@@ -87,7 +87,12 @@ message ConfigField {
   string description = 6;
 }
 
-message ConfigSchema { repeated ConfigField fields = 1; }
+message ConfigSchema {
+  repeated ConfigField fields = 1;
+  // UTF-8 JSON Schema Draft 2020-12 for nested plugin settings. Empty only
+  // when the plugin accepts no application settings through ConfigApply.
+  bytes json_schema = 2;
+}
 
 // ConfigApply is a Gateway-pushed, atomic settings revision. config is the
 // versioned JSON document with opaque references only; grants contain no

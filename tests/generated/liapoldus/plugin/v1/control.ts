@@ -158,6 +158,11 @@ export interface ConfigField {
 
 export interface ConfigSchema {
   fields: ConfigField[];
+  /**
+   * UTF-8 JSON Schema Draft 2020-12 for nested plugin settings. Empty only
+   * when the plugin accepts no application settings through ConfigApply.
+   */
+  jsonSchema: Uint8Array;
 }
 
 /**
@@ -1249,13 +1254,16 @@ export const ConfigField: MessageFns<ConfigField> = {
 };
 
 function createBaseConfigSchema(): ConfigSchema {
-  return { fields: [] };
+  return { fields: [], jsonSchema: new Uint8Array(0) };
 }
 
 export const ConfigSchema: MessageFns<ConfigSchema> = {
   encode(message: ConfigSchema, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     for (const v of message.fields) {
       ConfigField.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.jsonSchema.length !== 0) {
+      writer.uint32(18).bytes(message.jsonSchema);
     }
     return writer;
   },
@@ -1281,6 +1289,14 @@ export const ConfigSchema: MessageFns<ConfigSchema> = {
             message.fields.push(ConfigField.decode(reader, reader.uint32()));
             continue;
           }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.jsonSchema = reader.bytes();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -1296,6 +1312,11 @@ export const ConfigSchema: MessageFns<ConfigSchema> = {
   fromJSON(object: any): ConfigSchema {
     return {
       fields: globalThis.Array.isArray(object?.fields) ? object.fields.map((e: any) => ConfigField.fromJSON(e)) : [],
+      jsonSchema: isSet(object.jsonSchema)
+        ? bytesFromBase64(object.jsonSchema)
+        : isSet(object.json_schema)
+        ? bytesFromBase64(object.json_schema)
+        : new Uint8Array(0),
     };
   },
 
@@ -1303,6 +1324,9 @@ export const ConfigSchema: MessageFns<ConfigSchema> = {
     const obj: any = {};
     if (message.fields?.length) {
       obj.fields = message.fields.map((e) => ConfigField.toJSON(e));
+    }
+    if (message.jsonSchema.length !== 0) {
+      obj.jsonSchema = base64FromBytes(message.jsonSchema);
     }
     return obj;
   },
@@ -1313,6 +1337,7 @@ export const ConfigSchema: MessageFns<ConfigSchema> = {
   fromPartial<I extends Exact<DeepPartial<ConfigSchema>, I>>(object: I): ConfigSchema {
     const message = createBaseConfigSchema();
     message.fields = object.fields?.map((e) => ConfigField.fromPartial(e)) || [];
+    message.jsonSchema = object.jsonSchema ?? new Uint8Array(0);
     return message;
   },
 };
