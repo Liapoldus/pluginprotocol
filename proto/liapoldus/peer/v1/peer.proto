@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package liapoldus.peer.v1;
+
+option go_package = "github.com/Liapoldus/pluginprotocol/infrastructure/peer/wire;wire";
+
+// This is the generic plugin-to-plugin wire contract. It carries only an opaque
+// method name and an opaque payload: it defines no plugin lifecycle, no
+// configuration distribution, no authorization grant and no product vocabulary.
+// Method names, payload contracts and access policy are supplied by the
+// consumer that embeds this library.
+
+// CallRequest opens a unary invocation. method is opaque and payload is an
+// opaque application payload; neither side interprets either.
+message CallRequest {
+  string method = 1;
+  bytes payload = 2;
+}
+
+// CallResult carries a successful unary response payload.
+message CallResult {
+  bytes payload = 1;
+}
+
+// Status is the carrier-independent failure taxonomy. code is the numeric value
+// of domain/peer.StatusCode. message must be a sanitized, non-sensitive summary:
+// credentials, keys, tokens and configuration values never appear on this wire.
+message Status {
+  uint32 code = 1;
+  string message = 2;
+}
+
+// Failure terminates a call or a stream with a Status.
+message Failure {
+  Status status = 1;
+}
+
+// OpenStream requests a bidirectional stream for an opaque method.
+message OpenStream {
+  string method = 1;
+}
+
+// StreamAccepted acknowledges OpenStream. The stream is established only once
+// the requesting peer receives this, so a rejected method is reported by the
+// request rather than by the first message.
+message StreamAccepted {}
+
+// Data carries one stream message. The receiver enforces its own
+// MaxMessageBytes, so an oversized message is rejected rather than buffered.
+message Data {
+  bytes payload = 1;
+}
+
+// Close signals that the sender will send no further Data on a stream. It is the
+// peer's cue to deliver io.EOF and is independent of session teardown.
+message Close {}
+
+// Ping and Pong form the liveness probe pair used to detect a dead connection.
+message Ping {
+  uint64 nonce = 1;
+}
+
+message Pong {
+  uint64 nonce = 1;
+}

@@ -56,7 +56,7 @@ func serve(mode string) error {
 		return err
 	}
 	plugin := &service{mode: mode}
-	server := sdk.NewServer(plugin, sdk.ServerOptions{InstanceID: "fixture-instance"})
+	server := sdk.NewServer(plugin, sdk.ServerOptions{})
 	plugin.server = server
 	fmt.Fprintln(os.Stdout, listener.Addr().String())
 	stopped := make(chan os.Signal, 1)

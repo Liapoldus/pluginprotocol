@@ -1,78 +1,106 @@
 # AGENTS.md — Liapoldus Plugin Protocol
 
-## Ownership and compatibility
+## Purpose and ownership
 
-This repository owns only generic wire/control/transport/security contracts and
-the reusable Go SDK consumed by Gateway Core and plugins. Protobuf sources live
-under `proto/liapoldus/plugin/v1`; generic protocol and shared HTTP schemas live
-under `contracts/`. Each plugin owns its Manifest, settings, capability payload,
-error, admin-surface and product conformance contracts in that plugin's
-repository. This repository must not contain product-specific capabilities or
-schemas.
+This repository owns a standalone, generic Go library for communication between
+plugins. It provides reusable mechanisms for plugins to register their own
+application methods, call other plugins, listen for calls, and exchange
+streaming messages. Method names, payloads, authorization policy, and business
+semantics are supplied by consumers; this library must not define them. Do not
+model product capabilities or plugin lifecycle concepts in this module.
 
-The approved protocol namespace and Go module remain
-`liapoldus.plugin.v1` and `github.com/Liapoldus/pluginprotocol`. Do not change
-the major namespace or silently introduce compatibility fallbacks. Existing
-v1 field numbers and agreed JSON payload boundaries are preserved unless the
-owner explicitly approves an additive v1 contract change.
+`pluginprotocol` is not the Plugin SDK and is not a Core control-plane client.
+It must not own or expose REST endpoints for configuration, `Reload`, config
+pull, `Rollback`, `Manifest`, health, readiness, process launch, installation,
+metrics, logs, or other plugin lifecycle operations. Those shared plugin/Core
+REST contracts and helpers belong to a separate standalone Plugin SDK Go module
+in the workspace-local `plugin-sdk/` directory. That SDK is independent of this
+module: neither module imports or requires the other. Its canonical Go module
+path and Git remote are not assigned; do not invent them.
 
-## SDK responsibilities
+Core stores desired plugin configuration in SQLite and provides it through the
+Plugin SDK REST boundary. Core notifies a plugin replica with `Reload` after a
+candidate generation is available; the plugin pulls the requested generation
+from Core. The protocol library must not distribute configuration or implement
+this lifecycle. The canonical architecture and migration plan are linked from
+the workspace Core roadmap.
 
-- Provide an idiomatic standalone Go SDK that owns gRPC server/client creation,
-  typed registration of unary capability handlers and bidirectional stream
-  handlers, control lifecycle, health, grants, workload TLS and revocation.
-- Keep registration generic: the protocol library must not know product names,
-  capability business rules, product adapters, or Gateway storage. Generated protobuf
-  types remain transport types; capability payloads stay versioned JSON.
-- Keep the package structure cohesive and shallow. Group code by protocol
-  responsibility (control/config, calls/streams, grants, credentials/security,
-  generated wire API); do not split files into packages solely for uniformity
-  and do not create circular package dependencies.
-- `ConfigApply` is a Gateway-to-plugin push operation. A plugin applies the
-  complete versioned JSON revision atomically in memory and acknowledges the
-  exact revision/digest before readiness. A plugin never pulls its application
-  config or reads it from environment variables, argv, or application files.
-- `DispatchApply` installs an atomic generation of capability/mode scope and
-  peer identities/endpoints. The acknowledgement is bound to the receiving
-  replica. SDK calls do not replay unknown unary outcomes; cancellation closes
-  associated streams.
-- The SDK owns workload mTLS implementation and reusable identity providers.
-  Local supervised launch exchanges ephemeral identity/pins through a private
-  inherited bootstrap pipe; ordinary RPCs then use mTLS. Remote workloads
-  support externally provisioned PEM credentials and SPIFFE Workload API.
-  Management and plugin-workload trust roots remain separate. Gateway is not a
-  certificate authority.
-- Remote certificate validation is fail-closed. Signed CRL bundles are
-  externally provisioned, checked against the verified chain, and updates or
-  expiry close affected channels. Invalid, stale, missing, rolled-back, or
-  revoked credentials never downgrade to plaintext. Canonical details are in
-  `contracts/protocol/v1/remote-revocation.json`.
-- gRPC health uses the standard `grpc.health.v1` service. Generic `Call` carries
-  a capability name and versioned JSON; `Stream` carries the agreed HTTP,
-  WebSocket, SSE and TCP/UDP lifecycle. Do not introduce per-capability
-  protobuf DTOs.
-- Core owns desired configuration, process supervision in `supervised` mode,
-  external endpoints in `external` mode, authorization policy and SQLite.
-  Plugins own product behavior and in-memory applied runtime state. The SDK
-  does not become a package manager, process supervisor or public Gateway API.
+## Transport and security boundary
+
+- Keep application registration and endpoint semantics independent from the
+  physical carrier. Supported v1 carrier choices are TCP and QUIC; a deployment
+  may select the carrier and security profile through generic configuration
+  without changing registered method names, payload contracts, or plugin call
+  sites.
+- Encryption may be explicitly disabled only for loopback/development profiles.
+  Remote peer connections always require authenticated, encrypted mTLS. No
+  fallback or downgrade from a failed secure profile is allowed.
+- Transport, connection management, listener/client setup, streams, and their
+  security adapters belong in `infrastructure/`. The generic API must not
+  contain product-specific methods or assume a particular plugin topology.
+- Define a common conformance surface for each supported carrier/profile.
+  Switching carriers must not silently weaken peer authentication, encryption,
+  authorization, cancellation, deadlines, or stream semantics. Do not claim a
+  carrier/profile is supported until its conformance tests pass.
+- The protocol can provide generic peer identity and transport security, but it
+  does not own Core's REST identity, plugin configuration secrets, or Core
+  authorization policy. Do not add Core REST credentials or config grants here.
+- No secrets may appear in errors, logs, traces, test output, or fixtures.
+
+## Architecture
+
+Use exactly four layers:
+
+- `domain/`: transport-independent protocol models and interfaces only.
+- `application/`: registration and communication use cases, without transport
+  details or product behavior.
+- `infrastructure/`: physical transports, cryptography, connections, and
+  adapters implementing application/domain interfaces.
+- `presentation/`: public Go API/facade for library consumers; expose generic
+  registration, call, listen, and stream operations only.
+
+Keep dependencies directed inward. Do not add a fifth layer, create cyclic
+dependencies, or split files/packages only for symmetry. Generated wire types
+must remain at the relevant infrastructure adapter boundary rather than
+leaking into domain/application APIs.
 
 ## Implementation and tests
 
-- Use the Go version declared by `go.mod` and generated Go protobuf/gRPC code
-  from repository-owned proto sources. Generated TypeScript stubs are test-only
-  under `tests/` and are not published as an npm package.
-- All protocol tests live under `tests/` and use TypeScript/Vitest + tsx. Do not
-  add Go `*_test.go` files or test helpers in production packages.
-- Write a failing focused TypeScript test before implementation, then commit the
-  test and implementation together once the slice is green. Keep red state
-  local; do not create red-test-only commits.
-- Protocol slices should cover malformed/oversized data, schema conformance,
-  deadlines, cancellation, concurrency, bidirectional streams, bounded
-  backpressure, close races, mTLS identities, CRL rotation/revocation, and
-  reconnect behavior. Prefer real child-process fixtures for transport claims.
+- Preserve existing user changes. Before editing, inspect `git status --short`
+  and the relevant diff; do not overwrite unrelated dirty or untracked files.
+- All automated tests belong under `tests/` and use TypeScript/Vitest + `tsx`.
+  Do not add Go `*_test.go` files or test helpers to production packages.
+- For behavior changes, add a focused failing TypeScript test before
+  implementation. Keep red state local; commit test and implementation together
+  only when the slice is green.
+- Test generic registration, malformed and oversized messages, deadlines,
+  cancellation, concurrency, bidirectional streams, bounded backpressure,
+  close races, peer identity, and carrier/profile conformance as applicable.
+  Use real child-process fixtures for transport claims.
 - At a completed slice run its focused Vitest suite. Before milestone completion
   run `make check`, `go vet ./...`, `go build ./...`, generated-source checks,
-  and applicable macOS/Linux builds. Do not claim readiness while Gateway or
-  plugin consumer conformance is absent.
-- Preserve unrelated dirty and untracked files. Do not publish, tag, push, or
-  rewrite history without explicit authorization.
+  and applicable macOS/Linux builds. Do not claim readiness while supported
+  carriers or plugin consumers lack conformance.
+- Do not publish, tag, push, or rewrite history without explicit authorization.
+
+## Migration rule
+
+Any existing Core/plugin lifecycle or product-adjacent API is legacy, not part
+of the target protocol. Before removing it, identify every consumer and test,
+move lifecycle REST ownership to Plugin SDK and product contracts to their
+plugin, then migrate consumers and conformance. Remove the legacy protocol API
+once that replacement is verified. Preserve unrelated user changes; do not
+leave legacy APIs as permanent compatibility layers.
+
+The approved final target is a generic plugin-to-plugin network library only.
+This decision supersedes historical descriptions, contracts, comments, and
+generated APIs that place Core lifecycle or product contracts here. Do not
+retain deprecated exports, compatibility shims, protocol fallbacks, dual
+lifecycle paths, or other permanent bridges after consumers migrate.
+
+Breaking removal must be coordinated across consumer repositories. Inventory
+and migrate every production consumer, fixture, test, module dependency, and
+generated-code reference before removing obsolete protocol sources and
+regenerating. Do not leave this module or a migrated consumer uncompilable.
+Coordinate the replacement diff and affected-repository conformance gates with
+their owners before landing removal; until then, preserve the existing sources.
