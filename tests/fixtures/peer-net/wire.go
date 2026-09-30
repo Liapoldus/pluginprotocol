@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math/rand"
 	"net"
 	"time"
 
@@ -54,8 +55,81 @@ func wireProbe(args []string) error {
 		})
 	case "close-race":
 		return wireCloseRace(*carrierName, *address, *profileName, *directory)
+	case "fuzz-framing":
+		return wireFuzzFraming(*address, 64)
 	default:
 		return fmt.Errorf("unknown wire case %q", *caseName)
+	}
+}
+
+// wireFuzzFraming sends a randomized corpus of malformed frames at the endpoint.
+// Every frame carries an unknown type, so the endpoint must reject it no matter how
+// the stream identifier, the declared length and the trailing bytes vary. The
+// randomized corpus turns the three hand-picked hostile cases into a property test
+// over the codec's rejection path, and the endpoint is proven still serving
+// afterwards by the caller.
+func wireFuzzFraming(address string, iterations int) error {
+	random := rand.New(rand.NewSource(1))
+	terminated := 0
+	for index := 0; index < iterations; index++ {
+		dropped, err := probeRawFrame(address, randomHostileFrame(random))
+		if err != nil {
+			return fmt.Errorf("fuzz frame %d: %w", index, err)
+		}
+		if !dropped {
+			return fmt.Errorf("fuzz frame %d: endpoint kept the connection open instead of dropping it", index)
+		}
+		terminated++
+	}
+	emit(map[string]any{
+		"ok":         true,
+		"role":       "wire",
+		"case":       "fuzz-framing",
+		"iterations": iterations,
+		"terminated": terminated,
+	})
+	return nil
+}
+
+// randomHostileFrame builds one frame whose type is never a valid frame type
+// (1..9). The body length is occasionally absurd so the codec's length guard is
+// exercised alongside the type guard.
+func randomHostileFrame(random *rand.Rand) []byte {
+	frameType := byte(10 + random.Intn(246))
+	var streamID uint64
+	if random.Intn(2) == 0 {
+		streamID = uint64(random.Int63())
+	}
+	bodyLength := uint32(random.Intn(1 << 16))
+	if random.Intn(8) == 0 {
+		bodyLength = (1 << 31) + uint32(random.Intn(1<<20))
+	}
+	body := make([]byte, random.Intn(16))
+	for index := range body {
+		body[index] = byte(random.Intn(256))
+	}
+	return append(hostileHeader(frameType, streamID, bodyLength), body...)
+}
+
+// probeRawFrame writes one frame and reports whether the endpoint dropped the
+// connection rather than leaving it open until the deadline.
+func probeRawFrame(address string, frame []byte) (bool, error) {
+	connection, err := net.Dial("tcp", address)
+	if err != nil {
+		return false, fmt.Errorf("dial: %w", err)
+	}
+	defer connection.Close()
+
+	if _, err := connection.Write(frame); err != nil {
+		return false, fmt.Errorf("write: %w", err)
+	}
+	_ = connection.SetReadDeadline(time.Now().Add(3 * time.Second))
+
+	buffer := make([]byte, 512)
+	for {
+		if _, err := connection.Read(buffer); err != nil {
+			return !isTimeout(err), nil
+		}
 	}
 }
 
@@ -162,7 +236,7 @@ func wireCloseRace(carrierName, address, profileName, directory string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	carrier, err := newCarrier(carrierName, profileName, directory, true)
+	carrier, err := newCarrier(carrierName, profileName, directory, true, fixtureLimits())
 	if err != nil {
 		return err
 	}

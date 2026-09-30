@@ -106,6 +106,16 @@ func facadeProbe(args []string) error {
 		return fmt.Errorf("stream end: got %v", err)
 	}
 
+	// The same consumer-supplied authorizer is enforced through the public facade:
+	// a denied call and a denied stream are refused, so a consumer cannot register
+	// a method and have it exempt from the policy.
+	if _, err := client.Call(callCtx, "example.denied", nil); !errors.Is(err, domainpeer.ErrUnauthorized) {
+		return fmt.Errorf("denied call through the facade: got %v", err)
+	}
+	if _, err := client.OpenStream(callCtx, "example.stream.denied"); !errors.Is(err, domainpeer.ErrUnauthorized) {
+		return fmt.Errorf("denied stream through the facade: got %v", err)
+	}
+
 	emit(map[string]any{
 		"ok":              true,
 		"role":            "facade",
@@ -117,6 +127,8 @@ func facadeProbe(args []string) error {
 		"peerIdentity":    client.Peer().URI,
 		"echo":            string(echoed.Payload),
 		"received":        received,
+		"callDenied":      true,
+		"streamDenied":    true,
 	})
 	_ = client.Close()
 	select {
@@ -134,8 +146,12 @@ func facadeProbe(args []string) error {
 func facadeRegistry() (publicpeer.Handler, error) {
 	return publicpeer.NewRegistry().
 		WithLimits(fixtureLimits()).
+		WithAuthorizer(fixtureAuthorizer{}).
 		RegisterCall("example.echo", func(_ context.Context, call publicpeer.Call) (publicpeer.Result, error) {
 			return publicpeer.Result{Payload: call.Payload}, nil
+		}).
+		RegisterCall("example.denied", func(_ context.Context, _ publicpeer.Call) (publicpeer.Result, error) {
+			return publicpeer.Result{Payload: []byte("handler-ran")}, nil
 		}).
 		RegisterStream("example.stream", func(stream publicpeer.Stream) error {
 			for {
@@ -147,6 +163,9 @@ func facadeRegistry() (publicpeer.Handler, error) {
 					return nil
 				}
 			}
+		}).
+		RegisterStream("example.stream.denied", func(publicpeer.Stream) error {
+			return nil
 		}).
 		Build()
 }

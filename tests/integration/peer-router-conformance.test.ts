@@ -90,6 +90,22 @@ describe("generic peer registration and dispatch", () => {
     if (fixture) await fixture.cleanup();
   });
 
+  it("hands a unary handler the identity of the peer it authenticated", async () => {
+    // A stream handler can ask the stream who opened it, but a unary handler had no
+    // way to learn the same thing, which forced a consumer to duplicate its identity
+    // logic outside the handler. The identity is the one the transport authenticated,
+    // never one the caller supplied in the request.
+    const response = await router.send({ op: "call", method: "example.whoami", caller_identity: "urn:test:authenticated-caller" });
+    expect(response.ok).toBe(true);
+    expect(decode(response.payload!)).toBe("urn:test:authenticated-caller");
+  });
+
+  it("never lets a caller dictate the identity its handler is told", async () => {
+    const response = await router.send({ op: "call", method: "example.whoami" });
+    expect(response.ok).toBe(true);
+    expect(decode(response.payload!)).toBe("urn:test:caller");
+  });
+
   it("exposes a fully resolved bounded budget", () => {
     expect(limits.max_message_bytes).toBeGreaterThan(0);
     expect(limits.max_stream_message_bytes).toBeGreaterThan(0);
@@ -138,6 +154,21 @@ describe("generic peer registration and dispatch", () => {
     });
     expect(response.ok).toBe(false);
     expect(response.error).toBe("context deadline exceeded");
+  });
+
+  it("isolates a panicking handler as a sanitized internal failure", async () => {
+    const response = await router.send({ op: "call", method: "example.panic", payload: "" });
+    expect(response.ok).toBe(false);
+    expect(response.error).toContain("peer: internal error");
+    const afterwards = await router.send({ op: "call", method: "example.echo", payload: encode("still alive") });
+    expect(afterwards.ok).toBe(true);
+    expect(decode(afterwards.payload!)).toBe("still alive");
+  });
+
+  it("isolates a panicking stream handler as a sanitized internal failure", async () => {
+    const response = await router.send({ op: "stream", method: "example.stream.panic", inbound: [] });
+    expect(response.ok).toBe(false);
+    expect(response.error).toContain("peer: internal error");
   });
 
   it("rejects a response larger than the negotiated limit", async () => {

@@ -28,9 +28,12 @@ const (
 	methodSlow          = "example.slow"
 	methodOversize      = "example.oversize"
 	methodBlock         = "example.block"
+	methodPanic         = "example.panic"
+	methodWhoami        = "example.whoami"
 	methodStreamEcho    = "example.stream.echo"
 	methodStreamFlood   = "example.stream.flood"
 	methodStreamBlocker = "example.stream.block"
+	methodStreamPanic   = "example.stream.panic"
 
 	defaultCallerIdentity = "urn:test:caller"
 )
@@ -221,6 +224,18 @@ func buildRegistry() *peer.Registry {
 		case <-time.After(time.Duration(options.HoldMS) * time.Millisecond):
 			return domainpeer.Result{}, nil
 		}
+	})
+
+	_ = registry.RegisterCall(methodPanic, func(context.Context, domainpeer.Call) (domainpeer.Result, error) {
+		panic("router panic detail")
+	})
+
+	_ = registry.RegisterCall(methodWhoami, func(_ context.Context, call domainpeer.Call) (domainpeer.Result, error) {
+		return domainpeer.Result{Payload: []byte(call.From.URI)}, nil
+	})
+
+	_ = registry.RegisterStream(methodStreamPanic, func(domainpeer.Stream) error {
+		panic("router stream panic detail")
 	})
 
 	_ = registry.RegisterStream(methodStreamEcho, func(stream domainpeer.Stream) error {

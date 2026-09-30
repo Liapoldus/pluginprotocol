@@ -86,21 +86,26 @@ leaking into domain/application APIs.
 ## Migration rule
 
 Any existing Core/plugin lifecycle or product-adjacent API is legacy, not part
-of the target protocol. Before removing it, identify every consumer and test,
-move lifecycle REST ownership to Plugin SDK and product contracts to their
-plugin, then migrate consumers and conformance. Remove the legacy protocol API
-once that replacement is verified. Preserve unrelated user changes; do not
-leave legacy APIs as permanent compatibility layers.
+of the target protocol. This repository has completed the in-repo removal of
+that legacy surface: the module now ships only the generic plugin-to-plugin
+network library (`domain/peer`, `application/peer`, `infrastructure/peer`,
+`presentation/peer`) and the `liapoldus.peer.v1` wire contract. Lifecycle REST
+ownership lives in the independent Plugin SDK; product contracts live in their
+plugin.
 
-The approved final target is a generic plugin-to-plugin network library only.
-This decision supersedes historical descriptions, contracts, comments, and
-generated APIs that place Core lifecycle or product contracts here. Do not
-retain deprecated exports, compatibility shims, protocol fallbacks, dual
-lifecycle paths, or other permanent bridges after consumers migrate.
+Do not reintroduce lifecycle, configuration distribution, grant, Core REST, or
+product capability concepts here, and do not retain deprecated exports,
+compatibility shims, protocol fallbacks, dual lifecycle paths, or other
+permanent bridges.
 
-Breaking removal must be coordinated across consumer repositories. Inventory
-and migrate every production consumer, fixture, test, module dependency, and
-generated-code reference before removing obsolete protocol sources and
-regenerating. Do not leave this module or a migrated consumer uncompilable.
-Coordinate the replacement diff and affected-repository conformance gates with
-their owners before landing removal; until then, preserve the existing sources.
+Removal is breaking for external consumers. Migrating those consumers belongs
+to their owning repositories and agents, not this module. When a consumer takes
+on a migration, hand off the exact breaking surface it must replace; do not add
+a compatibility layer to soften the break. Inventory every production consumer,
+fixture, test, module dependency, and generated-code reference; do not leave
+this module or a migrated consumer uncompilable.
+
+The recorded breaking surface is `docs/migration.md`: removed import paths and
+the removed exported API grouped by capability, with the owner of each
+replacement. Keep it accurate when the public surface changes, and never let it
+describe a fallback that this module does not ship.

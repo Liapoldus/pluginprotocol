@@ -28,6 +28,14 @@ type PeerIdentity struct {
 type Call struct {
 	Method  Method
 	Payload []byte
+	// From is the identity of the peer this call was authenticated as.
+	//
+	// It is filled in by the protocol from the authenticated session, never taken
+	// from the request, so a peer cannot claim to be somebody else by asking. A
+	// caller that constructs a Call in process has any value it set overwritten,
+	// and a deployment that does not authenticate its peers sees an empty identity
+	// rather than an unproven one.
+	From PeerIdentity
 }
 
 // Result is the response of a single unary Call.

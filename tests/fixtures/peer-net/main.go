@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -40,9 +41,24 @@ func main() {
 	}
 }
 
+// commands lists every subcommand, so a caller that mistypes one is told what
+// actually exists instead of only that the name is unknown.
+var commands = []struct {
+	name string
+	help string
+}{
+	{"server", "listen on an address and serve registered methods"},
+	{"client", "dial an address and run the client scenarios"},
+	{"facade", "exercise the public presentation/peer surface end to end"},
+	{"wire", "send a scripted sequence of raw frames"},
+	{"certs", "issue a certificate directory for the identity fixtures"},
+	{"tls", "report what a configured profile negotiates"},
+	{"soak", "recycle sessions and report goroutine counts"},
+}
+
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: peer-net <server|client> [flags]")
+		return fmt.Errorf("usage: peer-net <command> [flags]\ncommands: %s", usage())
 	}
 	switch args[0] {
 	case "facade":
@@ -53,13 +69,23 @@ func run(args []string) error {
 		return issueCertificateDirectory(args[1:])
 	case "tls":
 		return probeCertificate(args[1:])
+	case "soak":
+		return soakProbe(args[1:])
 	case "server":
 		return serve(args[1:])
 	case "client":
 		return call(args[1:])
 	default:
-		return fmt.Errorf("unknown command %q", args[0])
+		return fmt.Errorf("unknown command %q\nusage: peer-net <command> [flags]\ncommands: %s", args[0], usage())
 	}
+}
+
+func usage() string {
+	names := make([]string, 0, len(commands))
+	for _, command := range commands {
+		names = append(names, command.name+": "+command.help)
+	}
+	return strings.Join(names, "\n  ")
 }
 
 func emit(value map[string]any) {
@@ -95,18 +121,27 @@ func serve(args []string) error {
 	profileName := flags.String("security", "loopback", "security profile: loopback or mtls")
 	carrierName := flags.String("carrier", "tcp", "carrier: tcp or quic")
 	directory := flags.String("dir", "", "directory holding the generated certificates")
+	budget := flags.String("limits", "fixture", "resolved budget: fixture, or default to leave every limit unset")
 	if err := flags.Parse(args); err != nil {
 		return err
+	}
+	limits := fixtureLimits()
+	if *budget == "default" {
+		// A zero Limits leaves every field for the library to resolve, which is what a
+		// consumer that configures no bounds gets.
+		limits = domainpeer.Limits{}
+	} else if *budget != "fixture" {
+		return fmt.Errorf("unknown --limits %q, want fixture or default", *budget)
 	}
 	registry, err := newRegistry()
 	if err != nil {
 		return err
 	}
-	carrier, err := newCarrier(*carrierName, *profileName, *directory, false)
+	carrier, err := newCarrier(*carrierName, *profileName, *directory, false, limits)
 	if err != nil {
 		return err
 	}
-	listener, err := carrier.Listen(*address, peer.NewRouter(registry, fixtureLimits()))
+	listener, err := carrier.Listen(*address, peer.NewRouterWithAuthorizer(registry, limits, fixtureAuthorizer{}))
 	if err != nil {
 		return err
 	}
@@ -148,12 +183,14 @@ func call(args []string) error {
 	profileName := flags.String("security", "loopback", "security profile: loopback or mtls")
 	carrierName := flags.String("carrier", "tcp", "carrier: tcp or quic")
 	directory := flags.String("dir", "", "directory holding the generated certificates")
+	streams := flags.Int("streams", 2, "number of streams to hold open, used by the hold-streams probe")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if *address == "" || *scenario == "" {
 		return errors.New("client requires --addr and --scenario")
 	}
+	heldStreams = *streams
 	report, err := runScenario(*scenario, *address, *profileName, *directory, *carrierName)
 	if err != nil {
 		return fmt.Errorf("%s: %w", *scenario, err)
@@ -171,16 +208,27 @@ func withSession(
 	address, profileName, directory, carrierName string,
 	body func(context.Context, domainpeer.Session) (map[string]any, error),
 ) (map[string]any, error) {
+	return withSessionLimits(address, profileName, directory, carrierName, fixtureLimits(), body)
+}
+
+// withSessionLimits is withSession for a scenario that needs its own client budget,
+// which is how a caller can send a payload beyond a limit that is being observed
+// rather than being capped by the fixture's own bound.
+func withSessionLimits(
+	address, profileName, directory, carrierName string,
+	limits domainpeer.Limits,
+	body func(context.Context, domainpeer.Session) (map[string]any, error),
+) (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	carrier, err := newCarrier(carrierName, profileName, directory, true)
+	carrier, err := newCarrier(carrierName, profileName, directory, true, limits)
 	if err != nil {
 		return nil, err
 	}
 	// The client registers nothing, so an empty registry is enough to satisfy the
 	// engine. The client is the caller in every scenario.
-	session, err := carrier.Dial(ctx, address, peer.NewRouter(peer.NewRegistry(), fixtureLimits()))
+	session, err := carrier.Dial(ctx, address, peer.NewRouter(peer.NewRegistry(), limits))
 	if err != nil {
 		return nil, err
 	}
@@ -234,14 +282,18 @@ func issueCertificateDirectory(args []string) error {
 // The negative profiles exist so the suite can prove that an unauthenticated or
 // untrusted peer is refused. They are expressed as deliberately broken credentials,
 // never as a way to weaken a profile in production code.
-func newCarrier(carrierName, profileName, directory string, asClient bool) (domainpeer.Carrier, error) {
+// newCarrier builds the fixture carrier. The limits are passed in rather than read
+// from a global so a scenario can serve with the bounds a real consumer would get
+// instead of the fixture's deliberately small ones, on both the connection engine and
+// the codec that enforces the message size.
+func newCarrier(carrierName, profileName, directory string, asClient bool, limits domainpeer.Limits) (domainpeer.Carrier, error) {
 	switch carrierName {
 	case "tcp", "quic":
 	default:
 		return nil, fmt.Errorf("unknown carrier %q", carrierName)
 	}
 	configuration := tcp.Config{
-		Limits:    fixtureLimits(),
+		Limits:    limits,
 		KeepAlive: keepAlive,
 	}
 	switch profileName {
@@ -279,7 +331,7 @@ func newCarrier(carrierName, profileName, directory string, asClient bool) (doma
 		return quic.New(quic.Config{
 			Profile:   configuration.Profile,
 			Local:     configuration.Local,
-			Limits:    fixtureLimits(),
+			Limits:    limits,
 			KeepAlive: keepAlive,
 		})
 	}

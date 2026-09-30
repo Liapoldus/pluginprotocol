@@ -2,6 +2,7 @@ package peer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Liapoldus/pluginprotocol/domain/peer"
 )
@@ -60,7 +61,13 @@ func (router *Router) Limits() peer.Limits {
 // peer.ErrOverloaded once MaxConcurrentCalls invocations are already running. The
 // returned handler releases the reserved slot when it returns, so a caller that
 // gives up early cannot leak capacity.
-func (router *Router) PrepareCall(ctx context.Context, from peer.PeerIdentity, call peer.Call) (peer.CallHandler, error) {
+func (router *Router) PrepareCall(ctx context.Context, from peer.PeerIdentity, call peer.Call) (serve peer.CallHandler, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			serve = nil
+			err = fmt.Errorf("%w: authorization panic", peer.ErrInternal)
+		}
+	}()
 	if router == nil || router.registry == nil {
 		return nil, peer.ErrInvalidRegistration
 	}
@@ -70,7 +77,7 @@ func (router *Router) PrepareCall(ctx context.Context, from peer.PeerIdentity, c
 	if len(call.Payload) > router.limits.MaxMessageBytes {
 		return nil, peer.ErrMessageTooLarge
 	}
-	handler, ok := router.registry.LookupCall(call.Method)
+	registered, ok := router.registry.LookupCall(call.Method)
 	if !ok {
 		return nil, peer.ErrMethodNotFound
 	}
@@ -85,7 +92,11 @@ func (router *Router) PrepareCall(ctx context.Context, from peer.PeerIdentity, c
 	}
 	return func(ctx context.Context, call peer.Call) (peer.Result, error) {
 		defer release(router.callSlots)
-		result, err := handler(ctx, call)
+		// The handler is told who the caller was authenticated as, taken from the
+		// session the transport verified rather than from anything in the request,
+		// so a peer cannot name itself. Any value a caller pre-set is overwritten.
+		call.From = from
+		result, err := invokeSafely(registered, ctx, call)
 		if err != nil {
 			return peer.Result{}, err
 		}
@@ -104,14 +115,20 @@ func (router *Router) PrepareCall(ctx context.Context, from peer.PeerIdentity, c
 // peer.ErrOverloaded once MaxConcurrentStreams streams are already open. A refusal
 // here means the stream is never established, which is what makes a rejected
 // stream observable at the moment it is opened rather than on its first message.
-func (router *Router) PrepareStream(stream peer.Stream) (peer.StreamHandler, error) {
+func (router *Router) PrepareStream(stream peer.Stream) (serve peer.StreamHandler, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			serve = nil
+			err = fmt.Errorf("%w: authorization panic", peer.ErrInternal)
+		}
+	}()
 	if router == nil || router.registry == nil {
 		return nil, peer.ErrInvalidRegistration
 	}
 	if stream == nil || stream.Method() == "" {
 		return nil, peer.ErrMethodNotFound
 	}
-	handler, ok := router.registry.LookupStream(stream.Method())
+	registered, ok := router.registry.LookupStream(stream.Method())
 	if !ok {
 		return nil, peer.ErrMethodNotFound
 	}
@@ -123,7 +140,7 @@ func (router *Router) PrepareStream(stream peer.Stream) (peer.StreamHandler, err
 	}
 	return func(stream peer.Stream) error {
 		defer release(router.streamSlots)
-		return handler(stream)
+		return serveStreamSafely(registered, stream)
 	}, nil
 }
 
@@ -171,4 +188,30 @@ func release(slots chan struct{}) {
 	case <-slots:
 	default:
 	}
+}
+
+// invokeSafely runs a unary handler and converts a handler panic into
+// peer.ErrInternal. A misbehaving consumer handler is reported to its caller as a
+// failed call instead of taking down the endpoint process that hosts it, and the
+// panic detail is discarded so an unexpected value cannot leak to the peer.
+func invokeSafely(handler peer.CallHandler, ctx context.Context, call peer.Call) (result peer.Result, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			result = peer.Result{}
+			err = fmt.Errorf("%w: handler panic", peer.ErrInternal)
+		}
+	}()
+	return handler(ctx, call)
+}
+
+// serveStreamSafely is the streaming counterpart of invokeSafely: a panic in a
+// stream handler is reported on the stream as peer.ErrInternal and the stream ends
+// instead of terminating the process.
+func serveStreamSafely(handler peer.StreamHandler, stream peer.Stream) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("%w: handler panic", peer.ErrInternal)
+		}
+	}()
+	return handler(stream)
 }

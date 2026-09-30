@@ -11,11 +11,21 @@ export interface GoFixtureBinary {
   cleanup(): Promise<void>;
 }
 
+// fixtureBuildFlags lets a run build the Go fixtures with extra flags without
+// changing the default (fast) build. The race-detector run sets
+// LIAPOLDUS_PEER_FIXTURE_GOFLAGS=-race so every conformance scenario exercises
+// the real code under the memory model the shipped binary will use.
+function fixtureBuildFlags(): string[] {
+  return (process.env.LIAPOLDUS_PEER_FIXTURE_GOFLAGS ?? "")
+    .split(/\s+/)
+    .filter((flag) => flag.length > 0);
+}
+
 export async function buildGoFixture(repositoryRoot: string, packagePath: string): Promise<GoFixtureBinary> {
   const directory = await mkdtemp(join(tmpdir(), "liapoldus-plugin-fixture-"));
   const executable = join(directory, "fixture");
   try {
-    await execFileAsync("go", ["build", "-o", executable, packagePath], { cwd: repositoryRoot });
+    await execFileAsync("go", ["build", ...fixtureBuildFlags(), "-o", executable, packagePath], { cwd: repositoryRoot });
   } catch (error) {
     await rm(directory, { recursive: true, force: true });
     throw error;

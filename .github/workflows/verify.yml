@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  generated:
+  verify:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -27,6 +27,9 @@ jobs:
         with:
           version: 34.1
       - run: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
-      - run: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
       - run: npm ci --prefix tests
       - run: make check
+      # The race detector is a gate, not a suggestion: the same scenarios run with
+      # every Go fixture built under -race, so a data race in the transport or the
+      # connection engine fails the build instead of surfacing in production.
+      - run: make check-race

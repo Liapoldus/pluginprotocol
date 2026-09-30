@@ -17,11 +17,19 @@ Application API не меняется при выборе физического
 profile. Поддерживаемые v1 carrier — TCP и QUIC; оба проходят один и тот же
 набор conformance, поэтому смена carrier не ослабляет peer authentication,
 encryption, authorization, cancellation, deadlines, flow control или stream
-семантику. TCP и QUIC — внутренние plugin↔plugin варианты; они не предоставляют
-публичные TCP/UDP relay и не означают, что Server plugin включает Caddy-L4.
-Remote-соединение использует аутентификацию и шифрование без plaintext
-downgrade; небезопасный профиль может быть разрешён только для loopback/dev, а
+семантику. Единый wire contract — `liapoldus.peer.v1`; он переносит только opaque
+method name и opaque payload. Remote-соединение использует аутентификацию и
+шифрование без plaintext downgrade; небезопасный профиль может быть разрешён
+только для loopback/dev, а
 QUIC, будучи всегда зашифрованным, такого профиля не предлагает вовсе.
+
+## Использование
+
+Публичная поверхность — один пакет `presentation/peer`: регистрация методов,
+`Listen`/`Sessions`, `Dial`, `Call`, `OpenStream`, выбор carrier и security
+profile. Пошаговый разбор для потребителя — в
+[docs/consumer-guide.md](docs/consumer-guide.md); каждый пример там продублирован
+компилируемым fixture, который выполняет conformance suite.
 
 ## Явно вне владения библиотеки
 
@@ -32,3 +40,7 @@ rollback, Manifest, health/readiness, logging/metrics endpoints и capabilities
 schemas, ошибки и conformance vectors принадлежат репозиториям плагинов.
 
 Подробный backlog и критерий готовности находятся в [TODO.md](TODO.md).
+
+Потребитель, который использовал удалённые lifecycle, grant или gRPC API,
+начинает миграцию с [docs/migration.md](docs/migration.md): там перечислены
+удалённые package paths и exported API по capability и владельцу замены.

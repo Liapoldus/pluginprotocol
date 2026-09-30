@@ -3,14 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "generate": "make -C .. generate-ts",
+    "generate": "make -C .. generate-go",
     "test": "vitest run"
   },
   "devDependencies": {
-    "@grpc/grpc-js": "^1.14.5",
-    "ajv": "^8.20.0",
-    "ajv-formats": "^3.0.1",
-    "ts-proto": "^2.12.4",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"

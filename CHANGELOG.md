@@ -1,59 +1,73 @@
 # История изменений
 
-## v1.1.0 — planned: переход plugin transport на gRPC
+## Unreleased — generic plugin-to-plugin library
 
-Это breaking migration по прямому решению проекта, хотя module/protocol остаются
-в ветке v1. Plugin, собранные с `v1.0.0`, не совместимы с новым Gateway и
-должны обновляться синхронно. Сохранение версии не является обещанием
-wire-совместимости.
+Breaking: модуль приведён к целевой generic библиотеке. Удалён весь legacy
+lifecycle/product API — gRPC-транспорт (`infrastructure/{grpc,transport}`),
+`pluginv1`, `presentation/sdk`, embedded `contracts/`, `compatibility/`,
+control/plugin proto и соответствующие fixtures/tests. Единственный wire
+contract — `liapoldus.peer.v1`; carrier v1 — TCP и QUIC, remote-соединение
+только authenticated mTLS без downgrade. Публичный API — `presentation/peer`
+(registration, call, listen, bidirectional stream, consumer-supplied authorizer).
+`go.mod` оставляет только `quic-go` и `protobuf`. Миграция внешних consumers
+принадлежит их репозиториям.
 
-- TCP-loopback теперь использует gRPC/HTTP/2 вместо custom 4-byte framing.
-- Control surface включает typed `Manifest`, `ConfigSchema`, `ConfigApply` и
-  `Shutdown`; readiness обслуживает standard `grpc.health.v1`.
-- Local launch передаёт только binary path и inherited loopback listener FD;
-  plugin не получает application args/env и не читает application-config files.
-- Remote plugins используют одинаковый TCP bind `0.0.0.0:50051` в standalone,
-  Docker и Kubernetes; `ListenRemoteTLS` применяет versioned listener contract,
-  TLS 1.3, обязательный client certificate и dedicated workload trust bundle.
-- Добавлен operational-only typed `Bootstrap`; Gateway push-ит settings через
-  `ConfigApply` до health/readiness, а plugin хранит active revision in-memory.
-- Для remote plugin и GrantBroker mTLS добавлен обязательный внешний signed
-  RFC 5280 CRL bundle с уточнением RFC 10007: SDK проверяет
-  issuer/AuthorityKeyId/signature, `cRLSign` usage сертификата v3 issuer,
-  freshness и монотонный CRLNumber, отказывает revoked/uncovered peers и
-  закрывает активные каналы при замене CRL или истечении NextUpdate. Доставка и reconnect остаются
-  ответственностью workload identity provider/operator; downgrade и replay
-  неизвестного Call отсутствуют.
-- `ConfigApply` принимает opaque secret-reference IDs и instance/revision-bound
-  `CONFIG_APPLY` grants; source `file:` refs/paths остаются Gateway-owned, raw
-  secret bytes выдаются только через активный scoped GrantBroker redemption.
-- Unary capability dispatch выполняется через единый `Call`; потоковые вызовы
-  и события используют bidirectional `Stream`.
-- Declarative capability JSON Schemas, Gateway ownership/grants, JSON boundary
-  types, secret redaction и REST control plane Constructor не меняются.
-- Reflection включается на loopback для `grpcurl`.
-- Добавлен typed `GrantBroker.RedeemGrant` в v1 и opaque `ActiveGrant` metadata
-  на `CallRequest`: Gateway выдаёт секрет только в typed response активного
-  scoped-вызова, не через capability JSON.
-- Добавлен typed `DispatchApply`: Gateway применяет монотонную generation с
-  capability→invocation-mode scope к каждой replica; acknowledgement включает
-  identity replica и digest manifest/settings/release/dispatch. До применения
-  generation data RPC закрыты; повтор допускается только при полном совпадении.
-- Сырые framing wire-hex vectors удалены и заменены protobuf descriptor и JSON
-  payload conformance tests.
-- Добавлен versioned cookie boundary contract: входной allow-list scoped к паре
-  plugin instance/capability, типизированные обычные и HttpOnly response actions,
-  атомарное отклонение некорректных действий и обязательная redaction значений.
-- Добавлены Go helpers для strict cookie policy/action decode, строгого парсинга
-  Cookie headers и exact allow-list filtering; optional поля сохраняют
-  absent-versus-explicit semantics, а ошибки не отражают cookie values.
-- Входящие cookie пары повторно используют общий versioned cookie schema;
-  сериализуемость RFC cookie value/path, prefix rules, domain match, public
-  suffix запрет и limits проверяются по embedded contract assets.
+Добавлено в рамках этого же релиза:
+
+- Аутентифицированная identity вызывающей стороны в `domain/peer.Call.From`:
+  значение проставляет serving peer из сессии и оно не может быть запрошено
+  payload. Wire-контракт не изменился.
+- Изоляция panic в handler/resolver (`application/peer/router.go`): вызов
+  возвращает `ErrInternal` без деталей, последующие вызовы продолжают работать.
+- Public facade реэкспортирует классифицируемые ошибки (`ErrMethodNotFound`,
+  `ErrUnauthorized`, `ErrOverloaded`, `ErrMessageTooLarge`, `ErrSendQueueFull`,
+  `ErrStreamClosed`, `ErrInvalidRequest`, `ErrProtocolViolation`, `ErrInternal`,
+  `ErrUnavailable`, `ErrCanceled`, `ErrDeadlineExceeded`), чтобы consumer не
+  импортировал внутренние слои ради `errors.Is`.
+- Потребительская документация `docs/consumer-guide.md` с drift-guard тестом на
+  полноту публичной поверхности; каждый пример продублирован исполняемым fixture.
+- Soak/leak gate: переработка сессий с проверкой `runtime.NumGoroutine`,
+  детерминированный corpus враждебного framing, `make check-race` как gate в CI.
+  Probe запускается сценарием на каждой carrier/profile комбинации через
+  dedicated endpoint: assertion падает на намеренно внесённой утечке одного
+  goroutine на сессию.
+- Проверено, что незаданные `Limits` разрешаются в документированный
+  `DefaultLimits`: endpoint, у которого бюджет не настроен вовсе, обслуживает
+  payload больше собственной fixture-границы (1 KiB) и при этом сообщает конечную
+  величину bound, а не ноль и не «без ограничений». Проверено на всех
+  carrier/profile; assertion падает, если `WithDefaults` перестаёт применяться.
+- Проверено, что bounded stream budget освобождается ушедшим peer: заполнивший
+  budget клиент, убитый без закрытия, не оставляет слоты занятыми. Conformance
+  suite больше не зависит от порядка сценариев на общем endpoint — ранее Linux-прогон
+  мог упасть на проверке лимита из-за ещё не reap'нутых streams предыдущего
+  сценария.
+- Сценарии, намеренно расходующие общий serving budget (overload, hold-streams,
+  soak), подняли собственный endpoint. Иначе такой сценарий оставляет следующему
+  сценарию общий бюджет занятным, и падение приходило на посторонней проверке —
+  именно так проявился Linux-flake в `-race` прогоне.
+- Структурные unit-проверки, дублировавшие поведение (исходные regex по
+  legacy-импортам, структуре fixture, bounded budget, facade authorizer,
+  `WithDefaults`), удалены: эти свойства теперь утверждаются запущенными
+  child-process сценариями, а dependency-direction остаётся единственным
+  структурным guard. Усилены непокрытые инварианты: `domain/peer` без concrete
+  transports, `presentation/peer` без generated wire-типов, и двусторонний
+  docs-drift — теперь проверяется и каждый экспорт facade, а не только наличие
+  задокументированных имён.
+- `make check` собирает пакеты в `/dev/null`, чтобы гейт не оставлял
+  untracked бинарник fixture в корне репозитория.
+
+## v1.1.0 — abandoned (не выпущено)
+
+Планировавшийся переход plugin transport на gRPC был отменён и полностью
+удалён вместе со всем legacy lifecycle/control surface (см. Unreleased).
+Ничего из прежнего плана (typed `Manifest`/`ConfigSchema`/`ConfigApply`/
+`Bootstrap`/`DispatchApply`/`GrantBroker`, CRL bundle, cookie boundary,
+reflection на loopback) в модуле не осталось. Раздел сохранён только как
+история решения, а не как описание поддерживаемой функциональности.
 
 ## v1.0.0 — первый стабильный wire-контракт
 
-- Зафиксирован пакет `liapoldus.plugin.v1`.
+- Зафиксирован пакет `liapoldus.plugin.v1` (пакет удалён в Unreleased).
 - Использовались TCP frames с 4-byte length prefix и protobuf Envelope.
 - Wire-hex golden vectors фиксировали старый transport v1.0.0; они выведены из
   эксплуатации вместе с framing.

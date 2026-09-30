@@ -27,13 +27,29 @@ interface Report {
   peerIdentity?: string;
   echo?: string;
   upper?: string;
+  caller_identity?: string;
   request_too_large?: boolean;
   response_too_large?: boolean;
+  handler_panic?: boolean;
+  stream_panic?: boolean;
   received?: string[];
   accepted?: number;
   canceled?: boolean;
   overloaded?: boolean;
+  default_message_bytes?: number;
+  accepted_bytes?: number;
+  open?: number;
+  holding?: boolean;
   deadline?: boolean;
+  callDenied?: boolean;
+  streamDenied?: boolean;
+  iterations?: number;
+  terminated?: number;
+  sessions?: number;
+  concurrency?: number;
+  failures?: number;
+  goroutinesBefore?: number;
+  goroutinesAfter?: number;
 }
 
 interface Outcome {
@@ -98,8 +114,8 @@ class PeerNetServer {
     readonly report: Report,
   ) {}
 
-  static async start(carrier: string, profile: string): Promise<PeerNetServer> {
-    const child = startGoFixture(executable, {}, ["server", "--carrier", carrier, "--security", profile, "--dir", certificates]);
+  static async start(carrier: string, profile: string, extraArgs: string[] = []): Promise<PeerNetServer> {
+    const child = startGoFixture(executable, {}, ["server", "--carrier", carrier, "--security", profile, "--dir", certificates, ...extraArgs]);
     const lines = createInterface({ input: child.stdout });
     const announced = new Promise<Report>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("server did not announce an address")), 15_000);
@@ -117,6 +133,59 @@ class PeerNetServer {
   async stop(): Promise<void> {
     await stopChildProcess(this.child);
   }
+}
+
+// startHoldingClient starts a client that keeps its streams open and its process
+// alive, and resolves once the fixture reports what the serving peer admitted. It
+// exists so a test can observe the serving budget while a peer is deliberately
+// still connected.
+async function startHoldingClient(args: string[]): Promise<{ child: ChildProcessWithoutNullStreams; report: Report }> {
+  const child: ChildProcessWithoutNullStreams = startGoFixture(executable, {}, args);
+  const lines = createInterface({ input: child.stdout });
+  const report = await new Promise<Report>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${args.join(" ")} did not report`)), 60_000);
+    lines.once("line", (line) => {
+      clearTimeout(timer);
+      resolve(JSON.parse(line) as Report);
+    });
+  });
+  return { child, report };
+}
+
+// budgetIsFull reports whether the serving peer still refuses a fresh stream, which
+// is how a test can tell that the bounded budget is fully committed. The probe opens
+// a single stream, so asking the question does not fill the budget being asked about.
+async function budgetIsFull(server: PeerNetServer, combination: (typeof COMBINATIONS)[number]): Promise<boolean> {
+  const { report } = await runFixture(clientArgs(server, combination.carrier, combination.profile, "probe-stream"));
+  return !report.ok;
+}
+
+async function waitForFreeBudget(
+  server: PeerNetServer,
+  combination: (typeof COMBINATIONS)[number],
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (!(await budgetIsFull(server, combination))) return true;
+    if (Date.now() > deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
+
+// expectFreeBudget waits for the shared endpoint to have capacity again. The budget
+// is bounded per serving router and shared by every peer, so a scenario that
+// deliberately leaves a stream open still owns capacity for a moment after its own
+// process exits. Asserting the budget on top of that would make the result depend on
+// how quickly the serving peer reaped the previous peer instead of on the behaviour
+// under test. The patience is generous because the budget is released by the serving
+// peer after it observes the previous connection close, which under the race detector
+// can take noticeably longer than the work that caused it.
+async function expectFreeBudget(server: PeerNetServer, combination: (typeof COMBINATIONS)[number]): Promise<void> {
+  expect(
+    await waitForFreeBudget(server, combination, 30_000),
+    "the shared endpoint never returned a stream slot",
+  ).toBe(true);
 }
 
 beforeAll(async () => {
@@ -149,6 +218,35 @@ describe.each(COMBINATIONS)("carrier conformance over $name", (combination) => {
     expect(server.report.authenticated).toBe(combination.authenticated);
   });
 
+  it("recycles sessions without leaking goroutines", async () => {
+    // A single-session scenario cannot see a per-session leak, because the process
+    // exits straight afterwards. Cycling many sessions and demanding that the
+    // client return to its baseline goroutine count is what makes an accumulating
+    // read loop, probe loop or deadline timer observable.
+    const { report, code, stderr } = await runFixture([
+      "soak",
+      "--carrier",
+      combination.carrier,
+      "--addr",
+      server.address,
+      "--security",
+      combination.profile,
+      "--dir",
+      certificates,
+      "--sessions",
+      "40",
+      "--concurrency",
+      "4",
+    ]);
+    expect(stderr).toBe("");
+    expect(code).toBe(0);
+    expect(report.ok).toBe(true);
+    expect(report.failures).toBe(0);
+    expect(report.sessions).toBe(40);
+    expect(report.goroutinesBefore).toBeGreaterThan(0);
+    expect(report.goroutinesAfter).toBeLessThanOrEqual(report.goroutinesBefore! + 16);
+  });
+
   it("fails an in-flight call when the session is torn down, on every carrier", async () => {
     const { report, code } = await runFixture([
       "wire",
@@ -176,10 +274,81 @@ describe.each(COMBINATIONS)("carrier conformance over $name", (combination) => {
     expect(report.upper).toBe("HELLO");
   });
 
+  it("tells a handler only the identity the carrier authenticated", async () => {
+    // The remote identity is a property of the verified session, not something a
+    // request can state, so this is asserted on every combination: an encrypted one
+    // names the peer the certificate proved, and a loopback development profile
+    // reports no identity rather than an unproven one.
+    const { report } = await runFixture(clientArgs(server, combination.carrier, combination.profile, "unary"));
+    expect(report.ok).toBe(true);
+    expect(report.caller_identity).toBe(combination.authenticated ? "spiffe://liapoldus/dev/peer-net-client" : "");
+  });
+
   it("refuses an oversized request and an oversized response", async () => {
     const { report } = await runFixture(clientArgs(server, combination.carrier, combination.profile, "unary"));
     expect(report.request_too_large).toBe(true);
     expect(report.response_too_large).toBe(true);
+  });
+
+  it("applies default limits when a consumer sets none", async () => {
+    // A consumer is documented to get DefaultLimits for every field it leaves unset.
+    // That fallback is load-bearing rather than cosmetic: a zero MaxMessageBytes
+    // would reject every payload and a zero MaxConcurrentCalls would reject every
+    // call, so the resolved budget is observed from a peer that set no limits at all
+    // instead of from the source. The endpoint is dedicated for the same reason the
+    // concurrency tests use one: it has to serve with no configured budget, which the
+    // shared endpoint does not.
+    const dedicated = await PeerNetServer.start(combination.carrier, combination.profile, ["--limits", "default"]);
+    try {
+      const { report } = await runFixture(clientArgs(dedicated, combination.carrier, combination.profile, "default-limits"));
+      expect(report.ok).toBe(true);
+      // Larger than the fixture's own 1 KiB bound, so a registry that kept the
+      // fixture limits or failed to resolve them cannot pass this.
+      expect(report.accepted_bytes).toBe(64 * 1024);
+      // And the documented bound is finite and larger than the fixture's own, so
+      // "unset" resolves to a real budget rather than to zero or to no limit at all.
+      // That the resolved bound is enforced on the wire is asserted where it costs
+      // kilobytes: the hostile-framing scenario refuses requests and responses one
+      // byte past the configured bound on every carrier.
+      expect(report.default_message_bytes).toBeGreaterThan(64 * 1024);
+      expect(report.default_message_bytes).toBeLessThanOrEqual(16 * 1024 * 1024);
+    } finally {
+      await dedicated.stop();
+    }
+  });
+
+  it("releases every session it opens, so repeated calls cannot leak", async () => {
+    // Each other scenario opens one session and exits, so a read loop, probe loop or
+    // deadline timer left behind by Close would stay under the noise floor. Cycling
+    // many sessions accumulates it into a visible difference, which is what makes the
+    // close path worth asserting separately from the behaviour that precedes it.
+    //
+    // A dedicated endpoint, because the probe opens far more sessions than the
+    // fixture's own bound is sized for: on the shared one it would consume the stream
+    // budget the next scenario asserts on, and the failure would land somewhere
+    // unrelated.
+    const dedicated = await PeerNetServer.start(combination.carrier, combination.profile);
+    try {
+      const { report, code } = await runFixture(soakArgs(dedicated, combination.carrier, combination.profile, 40, 4), 180_000);
+      expect(report.ok, report.error).toBe(true);
+      expect(code).toBe(0);
+      expect(report.failures).toBe(0);
+      expect(report.sessions).toBe(40);
+      expect(report.concurrency).toBe(4);
+      // The probe samples until the count settles, then compares against the baseline
+      // it took after a warmup session. One leaked goroutine per session would put the
+      // final count far above this, so the slack is noise tolerance, not headroom.
+      expect(report.goroutinesBefore).toBeGreaterThan(0);
+      expect(report.goroutinesAfter ?? 0).toBeLessThanOrEqual((report.goroutinesBefore ?? 0) + 16);
+    } finally {
+      await dedicated.stop();
+    }
+  }, 240_000);
+
+  it("isolates a panicking handler instead of dropping the session", async () => {
+    const { report } = await runFixture(clientArgs(server, combination.carrier, combination.profile, "unary"));
+    expect(report.ok).toBe(true);
+    expect(report.handler_panic).toBe(true);
   });
 
   it("reports an unknown method without falling back to another handler", async () => {
@@ -200,11 +369,20 @@ describe.each(COMBINATIONS)("carrier conformance over $name", (combination) => {
   });
 
   it("exchanges stream messages in both directions", async () => {
+    await expectFreeBudget(server, combination);
     const { report } = await runFixture(clientArgs(server, combination.carrier, combination.profile, "stream"));
     expect(report.received).toEqual(["a", "b", "c"]);
   });
 
+  it("isolates a panicking stream handler instead of dropping the session", async () => {
+    await expectFreeBudget(server, combination);
+    const { report } = await runFixture(clientArgs(server, combination.carrier, combination.profile, "stream"));
+    expect(report.ok).toBe(true);
+    expect(report.stream_panic).toBe(true);
+  });
+
   it("refuses a bounded send queue rather than buffering without limit", async () => {
+    await expectFreeBudget(server, combination);
     const { report } = await runFixture(clientArgs(server, combination.carrier, combination.profile, "backpressure"));
     expect(report.accepted).toBeGreaterThan(0);
     // The bound is small and fixed, so an unbounded queue would keep accepting
@@ -213,15 +391,72 @@ describe.each(COMBINATIONS)("carrier conformance over $name", (combination) => {
   });
 
   it("ends the stream when the caller cancels it", async () => {
+    await expectFreeBudget(server, combination);
     const { report } = await runFixture(clientArgs(server, combination.carrier, combination.profile, "cancel-stream"));
     expect(report.ok).toBe(true);
     expect(report.canceled).toBe(true);
   });
 
   it("reports the concurrency limit to the peer instead of waiting on it", async () => {
-    const { report } = await runFixture(clientArgs(server, combination.carrier, combination.profile, "overloaded"));
+    // A dedicated endpoint, because the budget is bounded per serving router and
+    // shared by every peer: an endpoint reused by the scenarios above can still be
+    // releasing their streams, which would make this assertion depend on other tests
+    // rather than on the limit itself.
+    const dedicated = await PeerNetServer.start(combination.carrier, combination.profile);
+    try {
+      const { report } = await runFixture(clientArgs(dedicated, combination.carrier, combination.profile, "overloaded"));
+      expect(report.ok).toBe(true);
+      expect(report.overloaded).toBe(true);
+    } finally {
+      await dedicated.stop();
+    }
+  });
+
+  it("returns the serving budget when a peer disappears", async () => {
+    const dedicated = await PeerNetServer.start(combination.carrier, combination.profile);
+    // A peer that fills the budget and then vanishes, without closing anything: a
+    // bounded budget that a departed peer keeps holding is a denial of service that
+    // two dead connections are enough to cause.
+    const holder = await startHoldingClient([
+      "client",
+      "--carrier",
+      combination.carrier,
+      "--addr",
+      dedicated.address,
+      "--security",
+      combination.profile,
+      "--dir",
+      certificates,
+      "--scenario",
+      "hold-streams",
+      "--streams",
+      "2",
+    ]);
+    try {
+      expect(holder.report.ok).toBe(true);
+      expect(holder.report.open).toBe(2);
+      expect(holder.report.holding).toBe(true);
+      // While that peer is connected it owns the budget, so a second peer is refused
+      // rather than queued. Without this the recovery assertion below would pass
+      // against a budget that was never committed in the first place.
+      expect(await budgetIsFull(dedicated, combination), "the holding peer did not fill the serving budget").toBe(true);
+    } finally {
+      holder.child.kill("SIGKILL");
+    }
+    expect(
+      await waitForFreeBudget(dedicated, combination, 15_000),
+      "a departed peer kept consuming the serving budget",
+    ).toBe(true);
+    await dedicated.stop();
+  }, 90_000);
+
+  it("enforces the consumer authorization policy on the serving peer", async () => {
+    const { report } = await runFixture(clientArgs(server, combination.carrier, combination.profile, "authorization"));
     expect(report.ok).toBe(true);
-    expect(report.overloaded).toBe(true);
+    // An allowed method still runs, so the refusal cannot be a blanket denial.
+    expect(report.echo).toBe("allowed");
+    expect(report.callDenied).toBe(true);
+    expect(report.streamDenied).toBe(true);
   });
 });
 
@@ -376,6 +611,19 @@ describe("rejecting hostile framing without going down", () => {
     },
   );
 
+  it("rejects a randomized corpus of malformed frames without going down", async () => {
+    const { report, code } = await runFixture(["wire", "--addr", server.address, "--case", "fuzz-framing"]);
+    expect(code).toBe(0);
+    expect(report.ok).toBe(true);
+    expect(report.iterations).toBeGreaterThan(0);
+    expect(report.terminated).toBe(report.iterations);
+    // The corpus was dropped connection by connection; the endpoint must still
+    // complete an ordinary call afterwards.
+    const afterwards = await runFixture(clientArgs(server, "tcp", "loopback", "identity"));
+    expect(afterwards.report.ok).toBe(true);
+    expect(afterwards.report.echo).toBe("hello");
+  });
+
   it("stays serving after every hostile frame", async () => {
     const { report } = await runFixture(clientArgs(server, "tcp", "loopback", "identity"));
     expect(report.ok).toBe(true);
@@ -413,6 +661,21 @@ describe.each(COMBINATIONS)("public facade over $name", (combination) => {
     expect(report.authenticated).toBe(combination.authenticated);
     expect(report.echo).toBe("facade");
     expect(report.received).toEqual(["x", "y", "z"]);
+  });
+
+  it("enforces the authorization policy through the public facade", async () => {
+    const { report } = await runFixture([
+      "facade",
+      "--carrier",
+      combination.carrier,
+      "--security",
+      combination.profile,
+      "--dir",
+      certificates,
+    ]);
+    expect(report.ok).toBe(true);
+    expect(report.callDenied).toBe(true);
+    expect(report.streamDenied).toBe(true);
   });
 
   it("reports the identity both peers authenticated as", () => {
@@ -491,6 +754,24 @@ describe("refusing to leak secrets in failures", () => {
     }
   }, 120_000);
 });
+
+function soakArgs(server: PeerNetServer, carrier: string, profile: string, sessions: number, concurrency: number): string[] {
+  return [
+    "soak",
+    "--carrier",
+    carrier,
+    "--addr",
+    server.address,
+    "--security",
+    profile,
+    "--dir",
+    certificates,
+    "--sessions",
+    String(sessions),
+    "--concurrency",
+    String(concurrency),
+  ];
+}
 
 function clientArgs(server: PeerNetServer, carrier: string, profile: string, scenario: string): string[] {
   return [
