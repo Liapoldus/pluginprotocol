@@ -104,10 +104,15 @@ health/readiness, логи и метрики принадлежат незави
 В этом репозитории открытой работы нет. Пункты ниже внешние либо не проверены
 в текущей среде и не считаются PASS.
 
-- [ ] Миграция внешних consumers (`core`,
-  `plugins/{server,forms-db,captcha,identity}`), использующих удалённый legacy
-  API. Выполняется их репозиториями и агентами; breaking surface передан (см.
-  Handoff). Compatibility/aliases в этом модуле не добавляются.
+- [x] Core переведён на Plugin SDK REST и не зависит от этого модуля.
+- [ ] Мигрировать активные v1 consumers `plugins/{server,forms-db}` с удалённых
+  lifecycle exports на Plugin SDK REST и generic `presentation/peer`; сейчас
+  они не собираются (точные ошибки — в TODO их репозиториев и
+  `WORKSPACE_STATUS.md`). Не возвращать удалённый API.
+- [x] `plugins/{captcha,identity}` исключены из v1 и заморожены; их migration
+  не является текущей задачей и не даёт основания возвращать legacy API.
+- [ ] Third-party consumers вне workspace должны мигрировать самостоятельно;
+  compatibility/aliases в этом модуле не добавляются.
 - [ ] Third-party interop: не доказан без второй независимой реализации
   протокола. Заявлять соответствие нельзя.
 - [ ] Runtime conformance на `linux/arm64`: только cross-build, без исполнения.
@@ -137,6 +142,8 @@ gRPC cookie/HTTP/SSE/WebSocket helpers. Consumers: `core`,
 `plugins/{server,forms-db,captcha,identity}`.
 
 История: до этого среза модуль нёс legacy Core/Gateway lifecycle и gRPC
-transport. Ранее принятый план gRPC-миграции (v1.1.0) отменён и удалён — см.
+transport. Core уже мигрировал; Server/forms-db остаются красными активными
+потребителями. CAPTCHA/Identity заморожены и исключены из v1. Ранее принятый
+план gRPC-миграции (v1.1.0) отменён и удалён — см.
 [CHANGELOG.md](CHANGELOG.md). Прежние baseline-отчёты с иными числами тестов
 относятся к удалённому состоянию и здесь намеренно не сохраняются.

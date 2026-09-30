@@ -148,25 +148,27 @@ Replace with: a plugin that actually speaks HTTP owns its own HTTP semantics and
 translates them to and from the generic `Call`/`Stream` payload. The protocol
 carries opaque payloads and knows nothing about HTTP, cookies, SSE or WebSocket.
 
-## 4. Consumers that must act
+## 4. Consumer status and handoff
 
-Named consumers: `core`, `plugins/{server,forms-db,captcha,identity}`.
+The in-workspace status as of 2026-09-30 is:
 
-Per consumer, the work is the same shape:
+| Consumer | Status | Required action |
+| --- | --- | --- |
+| `core` | Migrated to Plugin SDK REST; it must not import this module. | No lifecycle migration remains. Use this module only for generic peer calls/streams if needed. |
+| `plugins/server` | Active v1 consumer; currently fails to compile against the removed API. | Replace lifecycle/config with Plugin SDK REST and peer communication with `presentation/peer`; adapt its current REST adapter to the actual SDK. |
+| `plugins/forms-db` | Active v1 consumer; currently fails to compile against the removed API. | Replace lifecycle/config with Plugin SDK REST and peer communication with `presentation/peer`. |
+| `plugins/captcha`, `plugins/identity` | Frozen and excluded from v1. | No work until explicitly unfrozen for a later version; do not restore compatibility exports for them. |
+| Third-party consumers | Not inventoried by this workspace. | Owners migrate independently; no deprecation aliases are provided. |
 
-1. Replace lifecycle/config calls with the Plugin SDK REST contract. Core keeps
-   desired configuration in SQLite and notifies a replica with `Reload`; the plugin
-   pulls the requested generation through the SDK.
-2. Replace plugin-to-plugin calls and streams with `presentation/peer`:
-   `NewRegistry` → `RegisterCall`/`RegisterStream`/`WithAuthorizer`/`Build`,
-   `Listen(ServerConfig)`, `Dial(ctx, ClientConfig)`, and the session methods
-   `Call(ctx, method, payload)` / `OpenStream(ctx, method)` /
-   `Recv`/`Send`/`CloseSend`/`Close`. Follow
-   [consumer-guide.md](consumer-guide.md).
-3. Replace product-specific methods, schemas and error taxonomies with local
-   definitions in the owning plugin; they were never this module's contract.
-4. Drop imports of the removed paths in section 2. There is no deprecation period
-   and no alias to migrate through; the removal is the migration.
+Active consumers that use peer communication replace it with
+`presentation/peer`: `NewRegistry` →
+`RegisterCall`/`RegisterStream`/`WithAuthorizer`/`Build`,
+`Listen(ServerConfig)`, `Dial(ctx, ClientConfig)`, and session methods
+`Call(ctx, method, payload)` / `OpenStream(ctx, method)` /
+`Recv`/`Send`/`CloseSend`/`Close`. Follow
+[consumer-guide.md](consumer-guide.md). Product-specific methods, schemas and
+error taxonomies belong in their owning plugin. There is no deprecation period
+or alias for removed paths.
 
 ## 5. Verifying the removal from your side
 
