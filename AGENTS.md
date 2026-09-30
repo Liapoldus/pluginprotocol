@@ -69,6 +69,12 @@ dependencies, or split files/packages only for symmetry. Generated wire types
 must remain at the relevant infrastructure adapter boundary rather than
 leaking into domain/application APIs.
 
+The v2 C ABI is a build adapter over the public `presentation/peer` facade, not
+a fifth layer or a second implementation. Keep its C-compatible API outside the
+four-layer dependency graph; it must expose only generic peer calls/listeners/
+streams and must never add Core lifecycle or product contracts. Non-Go bindings
+consume the ABI and do not reimplement wire/session/security behavior.
+
 ## Implementation and tests
 
 - Preserve existing user changes. Before editing, inspect `git status --short`

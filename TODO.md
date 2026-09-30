@@ -108,8 +108,9 @@ health/readiness, логи и метрики принадлежат незави
 
 ## Открытая работа
 
-В этом репозитории открытой работы нет. Пункты ниже внешние либо не проверены
-в текущей среде и не считаются PASS.
+В текущем Go-only v1 production scope новой локальной работы нет. Пункты ниже
+внешние либо не проверены и не считаются PASS; отдельный целевой backlog v2
+для C ABI находится ниже.
 
 - [x] Core переведён на Plugin SDK REST и не зависит от этого модуля.
 - [ ] Мигрировать активные v1 consumers `plugins/{server,forms-db}` с удалённых
@@ -120,8 +121,10 @@ health/readiness, логи и метрики принадлежат незави
   не является текущей задачей и не даёт основания возвращать legacy API.
 - [ ] Third-party consumers вне workspace должны мигрировать самостоятельно;
   compatibility/aliases в этом модуле не добавляются.
-- [ ] Third-party interop: не доказан без второй независимой реализации
-  протокола. Заявлять соответствие нельзя.
+- [ ] Независимый third-party wire interop пока не доказан. Будущий Python FFI
+  использует тот же Go engine через C ABI и подтверждает binding/ABI conformance,
+  но не является независимой реализацией протокола; заявлять независимый
+  interop без отдельной реализации нельзя.
 - [ ] Runtime conformance на `linux/arm64`: только cross-build, без исполнения.
 - [ ] Fuzzing engine (go-fuzz/libFuzzer). Есть детерминированный corpus
   враждебного framing; полноценный fuzz-гейт не внедрён.
@@ -134,6 +137,32 @@ health/readiness, логи и метрики принадлежат незави
 listeners, streams и transport/security primitives; четыре слоя и carrier
 conformance проверены; Core, Plugin SDK и продуктовые контракты отсутствуют.
 Миграция внешних consumers относится к их репозиториям.
+
+## План v2: native C ABI и языковые bindings
+
+- [ ] Спроектировать и реализовать versioned C ABI, которая вызывает текущий
+  Go public facade и остаётся вне четырёх production layers; не создавать
+  вторую session/wire/TLS реализацию.
+- [ ] Покрыть полный peer facade: listen/dial, unary calls и bidi streams через
+  opaque handles, length-delimited bytes, явное buffer ownership/free и bounded
+  poll/event queue без callbacks в foreign runtimes.
+- [ ] Принимать TLS certificate/private key/trust roots как length-delimited
+  PEM input; сохранить mTLS, peer identity и revocation semantics, не выводить
+  secret bytes в errors/logs.
+- [ ] Определить C ABI major отдельно от `liapoldus.peer.v1`: additive symbols
+  внутри major, breaking ABI — новый major; проверять public header и exported
+  symbols в CI.
+- [ ] Создать первый Python `cffi` binding к native Go library; не писать Python
+  framing/session/carrier/crypto engine. Другие языки не объявлять поддержанными
+  до отдельных bindings и conformance.
+- [ ] Собирать и тестировать native artifacts для Linux amd64/arm64, macOS
+  arm64 и Windows amd64; поставлять Python wheels с bundled library.
+- [ ] Проверить ABI memory ownership и invalid handles, полный unary/stream
+  event flow, queue bounds/backpressure, cancellation, deadlines, error mapping,
+  mTLS, secret redaction и реальные Go↔Python FFI child-process peers в обе
+  стороны.
+- [ ] Зафиксировать поддерживаемые CPython versions и wheel metadata при старте
+  implementation; установка wheel не требует Go или C toolchain.
 
 ## Handoff
 

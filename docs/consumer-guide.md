@@ -211,3 +211,15 @@ The Core↔plugin REST boundary and the shared plugin tooling belong to the sepa
 `plugin-sdk/` module. Product methods, schemas, error taxonomies and their
 conformance vectors belong to the plugin's own repository. Method names used in
 this guide (`demo.*`) are placeholders for names you own.
+
+## 10. Non-Go bindings planned for v2
+
+The v2 plan keeps this Go package as the only peer wire/session implementation
+and exposes its public facade through a versioned native C ABI. The first
+official non-Go binding is Python using `cffi`; it calls the same Go shared
+library and does not implement framing, sessions, carriers, or TLS a second
+time. The C ABI is planned to cover the full peer surface using opaque handles,
+length-delimited bytes, explicit buffer ownership, and a bounded event-polling
+API. Core lifecycle REST is outside this library and remains owned by Plugin
+SDK. These bindings and artifacts are planned only; they are not part of the
+current Go API or current support matrix.
