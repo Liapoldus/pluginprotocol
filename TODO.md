@@ -142,8 +142,9 @@ gRPC cookie/HTTP/SSE/WebSocket helpers. Consumers: `core`,
 `plugins/{server,forms-db,captcha,identity}`.
 
 История: до этого среза модуль нёс legacy Core/Gateway lifecycle и gRPC
-transport. Core уже мигрировал; Server/forms-db остаются красными активными
-потребителями. CAPTCHA/Identity заморожены и исключены из v1. Ранее принятый
+transport. Core уже мигрировал и в текущем `go.mod` от протокола не зависит;
+Server/forms-db остаются красными активными потребителями. CAPTCHA/Identity
+заморожены и исключены из v1. Ранее принятый
 план gRPC-миграции (v1.1.0) отменён и удалён — см.
 [CHANGELOG.md](CHANGELOG.md). Прежние baseline-отчёты с иными числами тестов
 относятся к удалённому состоянию и здесь намеренно не сохраняются.
