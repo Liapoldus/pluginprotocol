@@ -1,5 +1,12 @@
 # TODO — pluginprotocol
 
+## Документация
+
+- [x] Канонические protocol Markdown и Mermaid исходники живут в этом repo под
+  `docs/`; общий сайт импортирует pinned source revision и сохраняет прежние URL.
+- [ ] После изменения docs обновить источник, опубликовать owner commit и
+  синхронизировать pin в `liapoldus.github.io/docs-sources.json`.
+
 Цель экосистемы и порядок миграции: [Core roadmap](https://liapoldus.github.io/core/architecture/v1-migration-roadmap).
 Здесь перечислены только задачи generic plugin-to-plugin библиотеки.
 

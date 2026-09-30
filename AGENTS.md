@@ -15,8 +15,13 @@ pull, `Rollback`, `Manifest`, health, readiness, process launch, installation,
 metrics, logs, or other plugin lifecycle operations. Those shared plugin/Core
 REST contracts and helpers belong to a separate standalone Plugin SDK Go module
 in the workspace-local `plugin-sdk/` directory. That SDK is independent of this
-module: neither module imports or requires the other. Its canonical Go module
-path and Git remote are not assigned; do not invent them.
+module: neither module imports or requires the other. Its Go module path is
+`github.com/Liapoldus/pluginprotocol`, and its remote is
+`https://github.com/Liapoldus/pluginprotocol.git`.
+
+This repository owns its Markdown and Mermaid documentation under `docs/`.
+The unified VitePress site imports a pinned source revision; do not edit a
+duplicate copy in the site aggregator.
 
 Core stores desired plugin configuration in SQLite and provides it through the
 Plugin SDK REST boundary. Core notifies a plugin replica with `Reload` after a
