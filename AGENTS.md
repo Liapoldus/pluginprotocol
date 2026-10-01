@@ -15,9 +15,9 @@ pull, `Rollback`, `Manifest`, health, readiness, process launch, installation,
 metrics, logs, or other plugin lifecycle operations. Those shared plugin/Core
 REST contracts and helpers belong to a separate standalone Plugin SDK Go module
 in the workspace-local `plugin-sdk/` directory. That SDK is independent of this
-module: neither module imports or requires the other. Its Go module path is
-`github.com/Liapoldus/pluginprotocol`, and its remote is
-`https://github.com/Liapoldus/pluginprotocol.git`.
+module: neither module imports or requires the other. The SDK Go module path is
+`github.com/Liapoldus/plugin-sdk`, and its remote is
+`https://github.com/Liapoldus/plugin-sdk.git`.
 
 This repository owns its Markdown and Mermaid documentation under `docs/`.
 The unified VitePress site imports a pinned source revision; do not edit a

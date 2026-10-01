@@ -113,10 +113,11 @@ health/readiness, логи и метрики принадлежат незави
 для C ABI находится ниже.
 
 - [x] Core переведён на Plugin SDK REST и не зависит от этого модуля.
-- [ ] Мигрировать активные v1 consumers `plugins/{server,forms-db}` с удалённых
-  lifecycle exports на Plugin SDK REST и generic `presentation/peer`; сейчас
-  они не собираются (точные ошибки — в TODO их репозиториев и
-  `WORKSPACE_STATUS.md`). Не возвращать удалённый API.
+- [x] Активные v1 consumers `plugins/{server,forms-db}` переведены с удалённых
+  lifecycle exports на Plugin SDK REST и generic `presentation/peer`.
+  2026-10-01: оба `go test/build/vet ./...` и plugin TypeScript suites прошли;
+  реальный Server→forms-db child-process HTTP/peer mTLS тест прошёл.
+  Это не закрывает отдельный production Core→plugins gate.
 - [x] `plugins/{captcha,identity}` исключены из v1 и заморожены; их migration
   не является текущей задачей и не даёт основания возвращать legacy API.
 - [ ] Third-party consumers вне workspace должны мигрировать самостоятельно;
