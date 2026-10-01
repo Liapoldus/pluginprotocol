@@ -10,9 +10,12 @@ permissions:
 jobs:
   verify:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      PROTOC_VERSION: 34.1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -23,9 +26,23 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: tests/package-lock.json
-      - uses: arduino/setup-protoc@v3
-        with:
-          version: 34.1
+      # protoc comes from the pinned release asset rather than
+      # arduino/setup-protoc: that action resolves its download through an
+      # unauthenticated GitHub API call, which hosted runner IPs hit the
+      # anonymous rate limit for, and the resulting red gate says nothing about
+      # the transport. The version stays pinned because `make check` diffs the
+      # regenerated .pb.go files against the committed ones.
+      - name: Install protoc
+        run: |
+          set -euo pipefail
+          asset="protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          if [ "${RUNNER_OS}" = "macOS" ]; then
+            asset="protoc-${PROTOC_VERSION}-osx-aarch_64.zip"
+          fi
+          curl -sSfL --retry 3 -o "${RUNNER_TEMP}/protoc.zip" \
+            "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${asset}"
+          unzip -q -o "${RUNNER_TEMP}/protoc.zip" -d "${RUNNER_TEMP}/protoc"
+          echo "${RUNNER_TEMP}/protoc/bin" >> "${GITHUB_PATH}"
       - run: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
       - run: npm ci --prefix tests
       - run: make check
