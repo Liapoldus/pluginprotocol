@@ -37,7 +37,19 @@ export async function buildGoFixture(repositoryRoot: string, packagePath: string
 }
 
 export function startGoFixture(executable: string, options: SpawnOptions = {}, args: string[] = []): ChildProcessWithoutNullStreams {
-  return spawn(executable, args, { ...options, stdio: "pipe" });
+  return spawn(executable, args, {
+    ...options,
+    // quic-go probes the OS UDP receive buffer and logs a warning when it cannot
+    // reach its target, which is normal on hosted CI runners with a low rmem_max.
+    // The warning is a property of the host, not of the transport, so it is
+    // disabled here to keep a scenario's stderr a real failure signal.
+    env: {
+      ...process.env,
+      QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING: "true",
+      ...options.env,
+    },
+    stdio: "pipe",
+  });
 }
 
 export async function stopChildProcess(child: ChildProcess): Promise<void> {
