@@ -1,5 +1,18 @@
 # TODO — pluginprotocol
 
+## Повторная проверка — 2026-10-04
+
+Текущий worktree после stream regressions прошёл `make check` и
+`make check-race` на macOS и в Ubuntu 24.04.5 ARM64 VM под OrbStack
+(9 файлов / 138 тестов в каждом прогоне), вместе с generated-protobuf check,
+`go build ./...` и `go vet ./...`. macOS race gate занял около 121 секунды.
+Linux runtime gate проверен в OrbStack Ubuntu guest; hosted CI остаётся не
+проверен. Отдельный bare-metal host не требуется для v1.
+
+Проверка 2026-10-03: `make check` прошёл (8 файлов / 137 тестов),
+`go build ./...`, `go vet ./...` и `git diff --check` прошли. Полный native
+Linux conformance и опубликованные docs pins остаются отдельными gates.
+
 ## Документация
 
 - [x] Канонические protocol Markdown и Mermaid исходники живут в этом repo под
@@ -35,7 +48,13 @@ health/readiness, логи и метрики принадлежат незави
 единственный wire contract — `liapoldus.peer.v1`. Legacy lifecycle/product API
 удалён полностью; compatibility-слоя, aliases или fallback нет.
 
-Гейты, проверенные на текущем дереве (2026-09-30):
+Синхронизированный consumer status на 2026-10-01: Core, Server и forms-db
+собираются без удалённых lifecycle exports; полный Core→Server/forms-db smoke,
+Server/forms-db TypeScript suites и DB contract tests прошли. Этот результат не
+означает, что опубликованный semver tag соответствует текущему breaking API;
+module-version/release decision остаётся отдельным gate.
+
+Ранее проверенные гейты (2026-09-30):
 
 - `make check` зелёный на macOS и на Linux/amd64: `check-generated` (byte-identical),
   7 test files / 136 tests, `go vet ./...`, `go build -o /dev/null ./...`.
@@ -64,6 +83,11 @@ health/readiness, логи и метрики принадлежат незави
 - [x] Публичный authorization surface: `Authorizer`/`AllowAll`/`WithAuthorizer`;
   policy consumer-supplied, enforced на serving peer и для call, и для stream,
   одинаково через carrier и через facade.
+- [x] `presentation/peer.Message` доступен потребителям без импорта domain слоя.
+  `Stream.CloseSend` теперь half-close: удалённый `Recv` получает `io.EOF`, а
+  обратное направление и stream context остаются активными. Успешный возврат
+  handler упорядочивает queued frames перед terminal frame; ошибки не маскируются
+  ложным EOF. Child-process conformance: `tests/integration/stream-half-close.test.ts`.
 - [x] Legacy surface удалён (141 файл): `pluginv1/`, `presentation/sdk/`,
   `contracts/`, `compatibility/`, `infrastructure/{grpc,transport,contracts}/`,
   `proto/liapoldus/plugin/`, legacy fixtures и tests. Fixtures/tests урезаны до
@@ -106,6 +130,17 @@ health/readiness, логи и метрики принадлежат незави
   security profiles, error classification, ownership boundary) с drift-guard
   тестом и исполняемым дублем каждого примера.
 
+## Последняя проверка — 2026-10-03
+
+- `make check`: 8 test files / 137 tests, `go vet ./...` и `go build ./...` — PASS.
+- `make check-race`: 8 test files / 137 tests — PASS.
+- Linux/arm64: `docker run --rm ... golang:1.26-bookworm go run
+  ./tests/fixtures/stream-half-close` выполнил настоящий child-process сценарий
+  после stream half-close-изменения. Результат подтвердил EOF только на входе
+  сервера и получение ответа после закрытия клиентского направления.
+- `git diff --check` ранее прошёл. Полный `make check`/`make check-race` внутри
+  Linux-контейнера и полный Linux runtime matrix не запускались.
+
 ## Открытая работа
 
 В текущем Go-only v1 production scope новой локальной работы нет. Пункты ниже
@@ -115,9 +150,10 @@ health/readiness, логи и метрики принадлежат незави
 - [x] Core переведён на Plugin SDK REST и не зависит от этого модуля.
 - [x] Активные v1 consumers `plugins/{server,forms-db}` переведены с удалённых
   lifecycle exports на Plugin SDK REST и generic `presentation/peer`.
-  2026-10-01: оба `go test/build/vet ./...` и plugin TypeScript suites прошли;
-  реальный Server→forms-db child-process HTTP/peer mTLS тест прошёл.
-  Это не закрывает отдельный production Core→plugins gate.
+  Проверено 2026-10-02: `make check` и `make check-race` протокола; полные
+  Server/forms-db TypeScript и Go suites; Core→SDK→Server/forms-db real
+  child-process smoke на macOS и Linux/arm64 container. Native Linux host run
+  и release/version compatibility остаются внешними workspace gates.
 - [x] `plugins/{captcha,identity}` исключены из v1 и заморожены; их migration
   не является текущей задачей и не даёт основания возвращать legacy API.
 - [ ] Third-party consumers вне workspace должны мигрировать самостоятельно;
@@ -126,7 +162,13 @@ health/readiness, логи и метрики принадлежат незави
   использует тот же Go engine через C ABI и подтверждает binding/ABI conformance,
   но не является независимой реализацией протокола; заявлять независимый
   interop без отдельной реализации нельзя.
-- [ ] Runtime conformance на `linux/arm64`: только cross-build, без исполнения.
+- [x] Полный `make check` runtime conformance прошёл в Linux/arm64 контейнере
+  2026-10-04: 8 файлов / 137 тестов, все carrier/security scenarios, включая
+  QUIC/mTLS, half-close, close-race, cancellation и bounded session lifecycle;
+  generated protobuf byte check, Go vet и build также прошли. Контейнер
+  использовал Go 1.26.0, Node 24, protoc 34.1 и protoc-gen-go 1.36.12.
+  Linux guest runtime gate дополнительно прошёл в OrbStack 2026-10-04.
+  Hosted CI остаётся отдельно открытым.
 - [ ] Fuzzing engine (go-fuzz/libFuzzer). Есть детерминированный corpus
   враждебного framing; полноценный fuzz-гейт не внедрён.
 - [ ] Benchmarks: целевого нагрузочного измерения throughput/latency нет,
@@ -179,9 +221,10 @@ gRPC cookie/HTTP/SSE/WebSocket helpers. Consumers: `core`,
 `plugins/{server,forms-db,captcha,identity}`.
 
 История: до этого среза модуль нёс legacy Core/Gateway lifecycle и gRPC
-transport. Core уже мигрировал и в текущем `go.mod` от протокола не зависит;
-Server/forms-db остаются красными активными потребителями. CAPTCHA/Identity
-заморожены и исключены из v1. Ранее принятый
-план gRPC-миграции (v1.1.0) отменён и удалён — см.
+transport. Core, Server и forms-db мигрировали; текущие owner suites и
+объединённый Core→SDK→Server/forms-db child-process acceptance проходят.
+Native Linux host execution и согласование release/version остаются открытыми.
+CAPTCHA/Identity заморожены и исключены из v1. Ранее принятый план
+gRPC-миграции (v1.1.0) отменён и удалён — см.
 [CHANGELOG.md](CHANGELOG.md). Прежние baseline-отчёты с иными числами тестов
 относятся к удалённому состоянию и здесь намеренно не сохраняются.

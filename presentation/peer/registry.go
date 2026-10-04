@@ -73,6 +73,9 @@ type Call = domain.Call
 // Result is the outcome of a unary call.
 type Result = domain.Result
 
+// Message is one opaque payload frame sent or received on a bidirectional stream.
+type Message = domain.Message
+
 // Stream is one inbound bidirectional stream.
 type Stream = domain.Stream
 

@@ -152,7 +152,7 @@ describe("generic peer application boundary", () => {
 
 describe("removed legacy surface", () => {
   it("keeps only peer fixtures in the test fixture directory", async () => {
-    expect((await readdir(`${root}/tests/fixtures`)).sort()).toEqual(["peer-net", "peer-router"]);
+    expect((await readdir(`${root}/tests/fixtures`)).sort()).toEqual(["peer-net", "peer-router", "stream-half-close", "stream-terminal-drain"]);
   });
 
   it("does not import the Plugin SDK or any legacy root anywhere", async () => {
@@ -229,6 +229,7 @@ const PUBLIC_FACADE_SYMBOLS = [
   "Limits",
   "Listen",
   "Method",
+  "Message",
   "Network",
   "NetworkConfig",
   "NewRegistry",
@@ -291,6 +292,7 @@ describe("consumer documentation", () => {
     // Two names the extractor has to find for the comparison below to mean anything.
     expect(exported).toContain("RegistryBuilder");
     expect(exported).toContain("Dial");
+    expect(exported).toContain("Message");
     expect(exported.filter((symbol) => !guide.includes(symbol))).toEqual([]);
   });
 

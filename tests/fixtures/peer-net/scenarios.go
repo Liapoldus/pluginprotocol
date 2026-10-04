@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -272,7 +273,7 @@ func streamScenario(address, profileName, directory, carrierName string) (map[st
 			return nil, fmt.Errorf("close send: %w", err)
 		}
 		_, err = stream.Recv()
-		if !errors.Is(err, domainpeer.ErrStreamClosed) {
+		if !errors.Is(err, io.EOF) {
 			return nil, fmt.Errorf("clean end: got %v", err)
 		}
 

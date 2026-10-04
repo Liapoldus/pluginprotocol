@@ -86,6 +86,16 @@ async function runFixture(args: string[], timeout = 60_000): Promise<Outcome> {
   const lines = createInterface({ input: child.stdout });
   const stderr: string[] = [];
   child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk.toString()));
+  // Attach the exit listener before waiting for stdout. Fast Linux child
+  // processes can print their report and exit before the report is consumed;
+  // registering `once("exit")` afterwards would then wait forever.
+  const exited = new Promise<number | null>((resolve) => {
+    if (child.exitCode !== null) {
+      resolve(child.exitCode);
+      return;
+    }
+    child.once("exit", (value) => resolve(value));
+  });
 
   const reported = new Promise<Report>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`${args.join(" ")} did not report`)), timeout);
@@ -95,7 +105,7 @@ async function runFixture(args: string[], timeout = 60_000): Promise<Outcome> {
     });
   });
   const report = await reported;
-  const code = await new Promise<number | null>((resolve) => child.once("exit", (value) => resolve(value)));
+  const code = await exited;
   // A scenario either succeeds or explains itself. A bare failure with no report is
   // a defect, so the exit code and stderr are part of the failure text.
   if (!report.ok && code !== 1) {
@@ -248,7 +258,7 @@ describe.each(COMBINATIONS)("carrier conformance over $name", (combination) => {
   });
 
   it("fails an in-flight call when the session is torn down, on every carrier", async () => {
-    const { report, code } = await runFixture([
+    const { report, code, stderr } = await runFixture([
       "wire",
       "--carrier",
       combination.carrier,
@@ -515,7 +525,7 @@ describe("refusing peers that are not authenticated", () => {
     expect(report.ok).toBe(false);
     expect(code).toBe(1);
     expect(report.error).toBeDefined();
-  });
+  }, 20_000);
 
   it("refuses a peer that presents no certificate at all", async () => {
     const { report } = await runFixture(["tls", "--addr", server.address, "--dir", certificates, "--mode", "no-certificate"]);
@@ -644,7 +654,7 @@ describe("rejecting hostile framing without going down", () => {
 // every supported carrier and profile" is asserted rather than assumed.
 describe.each(COMBINATIONS)("public facade over $name", (combination) => {
   it("registers, calls and streams through presentation/peer", async () => {
-    const { report, code } = await runFixture([
+    const { report, code, stderr } = await runFixture([
       "facade",
       "--carrier",
       combination.carrier,
@@ -653,7 +663,7 @@ describe.each(COMBINATIONS)("public facade over $name", (combination) => {
       "--dir",
       certificates,
     ]);
-    expect(code).toBe(0);
+    expect(code, `${report.error ?? ""}\n${stderr}`).toBe(0);
     expect(report.ok).toBe(true);
     expect(report.carrier).toBe(combination.carrier);
     expect(report.securityProfile).toBe(combination.profileName);
@@ -673,7 +683,7 @@ describe.each(COMBINATIONS)("public facade over $name", (combination) => {
       "--dir",
       certificates,
     ]);
-    expect(report.ok).toBe(true);
+    expect(report.ok, report.error).toBe(true);
     expect(report.callDenied).toBe(true);
     expect(report.streamDenied).toBe(true);
   });
@@ -691,6 +701,7 @@ describe.each(COMBINATIONS)("public facade over $name", (combination) => {
       "--dir",
       certificates,
     ]).then(({ report }) => {
+      expect(report.ok, report.error).toBe(true);
       expect(report.localIdentity).toBe(CLIENT_IDENTITY);
       expect(report.peerIdentity).toBe(SERVER_IDENTITY);
     });

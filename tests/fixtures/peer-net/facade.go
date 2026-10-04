@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"path/filepath"
 	"time"
 
@@ -102,7 +103,7 @@ func facadeProbe(args []string) error {
 	if err := stream.CloseSend(); err != nil {
 		return fmt.Errorf("close send: %w", err)
 	}
-	if _, err := stream.Recv(); !errors.Is(err, domainpeer.ErrStreamClosed) {
+	if _, err := stream.Recv(); !errors.Is(err, io.EOF) {
 		return fmt.Errorf("stream end: got %v", err)
 	}
 

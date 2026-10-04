@@ -222,7 +222,7 @@ func (session *Session) serveFrame(live *stream, frame codec.Frame) error {
 		return nil
 
 	case codec.FrameCloseSend:
-		live.finishStream(nil)
+		live.closeInboundHalf()
 		return nil
 
 	case codec.FrameStreamEnd:
@@ -386,6 +386,13 @@ func (session *Session) openStream(streamID uint64, body []byte) {
 		session.mutex.Unlock()
 		if !stillOpen {
 			return
+		}
+		if err == nil || errors.Is(err, peer.ErrStreamClosed) {
+			if closeErr := live.CloseSend(); closeErr != nil {
+				err = closeErr
+			}
+		} else if flushErr := live.flushOutbound(); flushErr != nil {
+			err = flushErr
 		}
 
 		session.discardStream(streamID)

@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"io"
 	"sync"
 
 	"github.com/Liapoldus/pluginprotocol/domain/peer"
@@ -14,6 +15,8 @@ import (
 type outboundItem struct {
 	body      []byte
 	closeSend bool
+	barrier   bool
+	done      chan error
 }
 
 // stream is one live bidirectional stream, used for both a stream opened by this
@@ -33,12 +36,18 @@ type stream struct {
 	// inbound is the bounded queue between the connection read loop and Recv.
 	// Its capacity is MaxStreamQueueDepth, so a slow consumer stops the reader
 	// instead of growing memory.
-	inbound chan peer.Message
+	inbound       chan peer.Message
+	inboundMu     sync.Mutex
+	inboundClosed bool
+	inboundEOF    bool
 	// outbound is the bounded queue between Send and the wire. A full queue is
 	// reported as ErrSendQueueFull rather than blocking, which is the same
 	// backpressure signal the in-process reference implementation reports.
 	outbound    chan outboundItem
 	pumpOnce    sync.Once
+	sendMu      sync.Mutex
+	sendClosed  bool
+	sendEndErr  error
 	finishErr   error
 	finishOnce  sync.Once
 	sendEndOnce sync.Once
@@ -80,15 +89,43 @@ func (s *stream) Context() context.Context { return s.ctx }
 // its side of the stream and the queued messages were drained, and reports the
 // terminal error when the peer or the session ended the stream with a failure.
 func (s *stream) Recv() (peer.Message, error) {
+	// Once the stream context is canceled, both the context and any messages
+	// delivered before the terminal frame may be ready. Prefer the bounded
+	// inbound queue so a clean close does not discard data that the read loop
+	// already accepted from the wire.
 	select {
 	case message, ok := <-s.inbound:
-		if !ok {
-			return peer.Message{}, s.terminal()
-		}
-		return message, nil
+		return s.received(message, ok)
+	default:
+	}
+
+	select {
+	case message, ok := <-s.inbound:
+		return s.received(message, ok)
 	case <-s.ctx.Done():
+		// A cancellation may race with a final data frame. Check once more
+		// before returning the terminal state; the read loop cannot deliver
+		// more frames after it has closed this stream's inbound queue.
+		select {
+		case message, ok := <-s.inbound:
+			return s.received(message, ok)
+		default:
+		}
 		return peer.Message{}, s.settleCancelled()
 	}
+}
+
+func (s *stream) received(message peer.Message, ok bool) (peer.Message, error) {
+	if ok {
+		return message, nil
+	}
+	s.inboundMu.Lock()
+	halfClosed := s.inboundEOF
+	s.inboundMu.Unlock()
+	if halfClosed {
+		return peer.Message{}, io.EOF
+	}
+	return peer.Message{}, s.terminal()
 }
 
 // settleCancelled records why a stream stopped before its queue was drained. A
@@ -120,6 +157,11 @@ func (s *stream) Send(message peer.Message) error {
 	if err != nil {
 		return err
 	}
+	s.sendMu.Lock()
+	defer s.sendMu.Unlock()
+	if s.sendClosed {
+		return peer.ErrStreamClosed
+	}
 	select {
 	case s.outbound <- outboundItem{body: body}:
 		return nil
@@ -133,14 +175,36 @@ func (s *stream) Send(message peer.Message) error {
 // drained what was already in flight. It is safe to call more than once.
 func (s *stream) CloseSend() error {
 	s.sendEndOnce.Do(func() {
+		s.sendMu.Lock()
+		s.sendClosed = true
+		s.sendMu.Unlock()
+		written := make(chan error, 1)
 		// The close marker must not be dropped, so unlike Send it waits for room
 		// in the queue, bounded by the session ending.
 		select {
-		case s.outbound <- outboundItem{closeSend: true}:
+		case s.outbound <- outboundItem{closeSend: true, done: written}:
 		case <-s.ctx.Done():
+			s.sendEndErr = s.closeSendAfterTerminal()
+			return
+		}
+		select {
+		case s.sendEndErr = <-written:
+		case <-s.ctx.Done():
+			s.sendEndErr = s.closeSendAfterTerminal()
 		}
 	})
-	return nil
+	return s.sendEndErr
+}
+
+// A clean peer end can race the local close marker's write completion: the
+// peer may have already consumed the marker and finished the handler while the
+// local pump is still being scheduled. In that case CloseSend is complete even
+// though the stream context has already been canceled.
+func (s *stream) closeSendAfterTerminal() error {
+	if s.terminal() == peer.ErrStreamClosed {
+		return nil
+	}
+	return s.ctx.Err()
 }
 
 // startPump begins draining the outbound queue onto the wire.
@@ -160,8 +224,12 @@ func (s *stream) pump() {
 		case <-s.ctx.Done():
 			return
 		case item := <-s.outbound:
+			if item.barrier {
+				item.done <- nil
+				continue
+			}
 			if item.closeSend {
-				_ = s.session.writeFrame(codec.Frame{Type: codec.FrameCloseSend, StreamID: s.id})
+				item.done <- s.session.writeFrame(codec.Frame{Type: codec.FrameCloseSend, StreamID: s.id})
 				return
 			}
 			if err := s.session.writeFrame(frameData(s.id, item.body)); err != nil {
@@ -171,17 +239,60 @@ func (s *stream) pump() {
 	}
 }
 
+// flushOutbound waits until messages queued before the barrier have reached the
+// carrier. It does not close this endpoint's send direction.
+func (s *stream) flushOutbound() error {
+	done := make(chan error, 1)
+	select {
+	case s.outbound <- outboundItem{barrier: true, done: done}:
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	}
+	select {
+	case err := <-done:
+		return err
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	}
+}
+
 // deliver hands one message to the consumer. It blocks when the bounded queue is
 // full, which is the backpressure signal for the whole connection.
 func (s *stream) deliver(payload []byte) error {
 	if len(payload) > s.session.limits.MaxStreamMessageBytes {
 		return peer.ErrMessageTooLarge
 	}
+	s.inboundMu.Lock()
+	defer s.inboundMu.Unlock()
+	if s.inboundClosed {
+		return peer.ErrProtocolViolation
+	}
 	select {
 	case s.inbound <- peer.Message{Payload: payload}:
 		return nil
 	case <-s.ctx.Done():
 		return s.ctx.Err()
+	}
+}
+
+// closeInboundHalf signals that the peer will send no more messages but keeps
+// this endpoint's outbound direction and stream context alive.
+func (s *stream) closeInboundHalf() {
+	s.inboundMu.Lock()
+	defer s.inboundMu.Unlock()
+	if !s.inboundClosed {
+		s.inboundClosed = true
+		s.inboundEOF = true
+		close(s.inbound)
+	}
+}
+
+func (s *stream) closeInboundFinal() {
+	s.inboundMu.Lock()
+	defer s.inboundMu.Unlock()
+	if !s.inboundClosed {
+		s.inboundClosed = true
+		close(s.inbound)
 	}
 }
 
@@ -199,7 +310,7 @@ func (s *stream) finishStream(err error) {
 		s.finishErr = err
 		// Ending a stream always ends the handler serving it.
 		s.cancel()
-		close(s.inbound)
+		s.closeInboundFinal()
 	})
 }
 
