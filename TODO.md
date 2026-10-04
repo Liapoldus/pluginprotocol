@@ -10,7 +10,9 @@
 который уже был опубликован под module `v1.0.0`. `v2.0.0` опубликован в
 `origin/main`; обе platform CI jobs и tag CI прошли. Активные потребители
 Server/forms-db переведены на `/v2 v2.0.0`, локальные `replace` удалены;
-их hosted CI запущены. Wire namespace намеренно не менялся и остаётся v1.
+их hosted CI и Core cross-repository integration прошли. Tag CI v2.0.0
+прошёл; текущая v1 system release использует Go module v2.0.0 и peer wire v1.
+VitePress pin обновлён и сайт развёрнут. Wire namespace намеренно не менялся.
 
 ## Повторная проверка — 2026-10-04
 
@@ -29,8 +31,9 @@ Linux conformance и опубликованные docs pins остаются о�
 
 - [x] Канонические protocol Markdown и Mermaid исходники живут в этом repo под
   `docs/`; общий сайт импортирует pinned source revision и сохраняет прежние URL.
-- [ ] После изменения docs обновить источник, опубликовать owner commit и
-  синхронизировать pin в `liapoldus.github.io/docs-sources.json`.
+- [x] После изменения docs owner commit опубликован, pin
+  `93a1b57b14ad1d557c3c98d7c3c7b5e842d6aa9b` синхронизирован в
+  `liapoldus.github.io/docs-sources.json`; VitePress build/deployment прошли.
 
 Цель экосистемы и порядок миграции: [Core roadmap](https://liapoldus.github.io/core/architecture/v1-migration-roadmap).
 Здесь перечислены только задачи generic plugin-to-plugin библиотеки.
