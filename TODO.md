@@ -20,8 +20,9 @@ VitePress pin обновлён и сайт развёрнут. Wire namespace н
 `make check-race` на macOS и в Ubuntu 24.04.5 ARM64 VM под OrbStack
 (9 файлов / 138 тестов в каждом прогоне), вместе с generated-protobuf check,
 `go build ./...` и `go vet ./...`. macOS race gate занял около 121 секунды.
-Linux runtime gate проверен в OrbStack Ubuntu guest; hosted CI остаётся не
-проверен. Отдельный bare-metal host не требуется для v1.
+Linux runtime gate проверен в OrbStack Ubuntu guest; hosted CI на дату этого
+исторического snapshot-а ещё не был проверен и прошёл 2026-10-05. Отдельный
+bare-metal host не требуется для v1.
 
 Проверка 2026-10-03: `make check` прошёл (8 файлов / 137 тестов),
 `go build ./...`, `go vet ./...` и `git diff --check` прошли. Полный native
