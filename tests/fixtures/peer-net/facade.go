@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
-	domainpeer "github.com/Liapoldus/pluginprotocol/domain/peer"
-	publicpeer "github.com/Liapoldus/pluginprotocol/presentation/peer"
+	domainpeer "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	publicpeer "github.com/Liapoldus/pluginprotocol/v2/presentation/peer"
 )
 
 // facadeProbe exercises the public API end to end in one process: it builds a

@@ -12,8 +12,8 @@ package peer
 
 import (
 	"context"
-	"github.com/Liapoldus/pluginprotocol/application/peer"
-	domain "github.com/Liapoldus/pluginprotocol/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v2/application/peer"
+	domain "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
 )
 
 // Carrier names the physical transport a client or server speaks.

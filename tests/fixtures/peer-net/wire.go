@@ -9,8 +9,8 @@ import (
 	"net"
 	"time"
 
-	applicationpeer "github.com/Liapoldus/pluginprotocol/application/peer"
-	domainpeer "github.com/Liapoldus/pluginprotocol/domain/peer"
+	applicationpeer "github.com/Liapoldus/pluginprotocol/v2/application/peer"
+	domainpeer "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
 )
 
 // wireProbe sends hostile or abrupt traffic at a real server.

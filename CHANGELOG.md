@@ -1,5 +1,12 @@
 # История изменений
 
+## v2.0.0 — generic peer library
+
+Go module major `v2` отражает несовместимую замену прежнего публичного Go API;
+он не меняет wire version. Сетевой контракт этого релиза —
+`liapoldus.peer.v1`; import path Go module —
+`github.com/Liapoldus/pluginprotocol/v2`.
+
 ## Unreleased — generic plugin-to-plugin library
 
 Breaking: модуль приведён к целевой generic библиотеке. Удалён весь legacy

@@ -1,5 +1,15 @@
 # TODO — pluginprotocol
 
+## Повторная проверка — 2026-10-05
+
+После изменения Go module path на `github.com/Liapoldus/pluginprotocol/v2`
+локально прошли `make check` (10 файлов / 139 тестов), `make check-race`
+(10/139), `go test ./...`, `go vet ./...`, `go build ./...`,
+`make check-generated` и `git diff --check`. Wire namespace остался
+`liapoldus.peer.v1`. Go module `v2.0.0` выбран из-за breaking removal API,
+который уже был опубликован под module `v1.0.0`; tag и миграция активных
+consumers ещё не опубликованы.
+
 ## Повторная проверка — 2026-10-04
 
 Текущий worktree после stream regressions прошёл `make check` и
@@ -51,8 +61,8 @@ health/readiness, логи и метрики принадлежат незави
 Синхронизированный consumer status на 2026-10-01: Core, Server и forms-db
 собираются без удалённых lifecycle exports; полный Core→Server/forms-db smoke,
 Server/forms-db TypeScript suites и DB contract tests прошли. Этот результат не
-означает, что опубликованный semver tag соответствует текущему breaking API;
-module-version/release decision остаётся отдельным gate.
+означает, что consumers уже перешли на Go module major `v2`. Этот переход
+запланирован как часть текущего release gate; сетевой namespace остаётся v1.
 
 Ранее проверенные гейты (2026-09-30):
 
@@ -168,7 +178,8 @@ module-version/release decision остаётся отдельным gate.
   generated protobuf byte check, Go vet и build также прошли. Контейнер
   использовал Go 1.26.0, Node 24, protoc 34.1 и protoc-gen-go 1.36.12.
   Linux guest runtime gate дополнительно прошёл в OrbStack 2026-10-04.
-  Hosted CI остаётся отдельно открытым.
+  Hosted CI для revision до module-major migration проходил; повторный hosted
+  CI для текущего изменения import path нужно дождаться после push.
 - [ ] Fuzzing engine (go-fuzz/libFuzzer). Есть детерминированный corpus
   враждебного framing; полноценный fuzz-гейт не внедрён.
 - [ ] Benchmarks: целевого нагрузочного измерения throughput/latency нет,
@@ -223,7 +234,9 @@ gRPC cookie/HTTP/SSE/WebSocket helpers. Consumers: `core`,
 История: до этого среза модуль нёс legacy Core/Gateway lifecycle и gRPC
 transport. Core, Server и forms-db мигрировали; текущие owner suites и
 объединённый Core→SDK→Server/forms-db child-process acceptance проходят.
-Native Linux host execution и согласование release/version остаются открытыми.
+Native Linux host execution остаётся открытым. До выпуска `v2.0.0` обновить
+Server/forms-db на `/v2`, убрать их local replace и проверить их через
+опубликованный module; `liapoldus.peer.v1` и wire vectors при этом не менять.
 CAPTCHA/Identity заморожены и исключены из v1. Ранее принятый план
 gRPC-миграции (v1.1.0) отменён и удалён — см.
 [CHANGELOG.md](CHANGELOG.md). Прежние baseline-отчёты с иными числами тестов

@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/domain/peer"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/quic"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/security"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/tcp"
+	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/quic"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/security"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/tcp"
 )
 
 // NetworkConfig says which carrier a deployment uses. It is a deployment choice,

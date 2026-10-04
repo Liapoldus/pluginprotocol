@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/presentation/peer"
+	"github.com/Liapoldus/pluginprotocol/v2/presentation/peer"
 )
 
 func main() {

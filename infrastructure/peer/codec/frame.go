@@ -22,7 +22,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/Liapoldus/pluginprotocol/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
 	"google.golang.org/protobuf/proto"
 )
 

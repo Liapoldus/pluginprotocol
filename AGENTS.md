@@ -104,6 +104,11 @@ network library (`domain/peer`, `application/peer`, `infrastructure/peer`,
 ownership lives in the independent Plugin SDK; product contracts live in their
 plugin.
 
+The current Go import path uses module major `github.com/Liapoldus/pluginprotocol/v2`
+because the legacy Go API was removed. This Go module version is independent of
+the network contract version: peers continue to speak `liapoldus.peer.v1`.
+Never rename the wire namespace just to match the Go module major.
+
 Do not reintroduce lifecycle, configuration distribution, grant, Core REST, or
 product capability concepts here, and do not retain deprecated exports,
 compatibility shims, protocol fallbacks, dual lifecycle paths, or other

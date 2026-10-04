@@ -3,7 +3,7 @@
 How a plugin uses `pluginprotocol`. The whole public surface is one package:
 
 ```go
-import publicpeer "github.com/Liapoldus/pluginprotocol/presentation/peer"
+import publicpeer "github.com/Liapoldus/pluginprotocol/v2/presentation/peer"
 ```
 
 Everything below is generic: method names, payloads, authorization policy and

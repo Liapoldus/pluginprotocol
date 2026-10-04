@@ -19,9 +19,9 @@ import (
 
 	quicgo "github.com/quic-go/quic-go"
 
-	"github.com/Liapoldus/pluginprotocol/domain/peer"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/conn"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/security"
+	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/conn"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/security"
 )
 
 // Name is the stable carrier identifier used in conformance reporting.

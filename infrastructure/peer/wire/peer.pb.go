@@ -503,7 +503,7 @@ const file_liapoldus_peer_v1_peer_proto_rawDesc = "" +
 	"\x04Ping\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\x04R\x05nonce\"\x1c\n" +
 	"\x04Pong\x12\x14\n" +
-	"\x05nonce\x18\x01 \x01(\x04R\x05nonceBCZAgithub.com/Liapoldus/pluginprotocol/infrastructure/peer/wire;wireb\x06proto3"
+	"\x05nonce\x18\x01 \x01(\x04R\x05nonceBFZDgithub.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/wire;wireb\x06proto3"
 
 var (
 	file_liapoldus_peer_v1_peer_proto_rawDescOnce sync.Once

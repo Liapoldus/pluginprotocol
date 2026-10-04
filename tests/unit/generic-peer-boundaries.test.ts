@@ -298,7 +298,7 @@ describe("consumer documentation", () => {
 
   it("keeps the guide on the facade and off the layers below it", async () => {
     const guide = await readFile(`${root}/docs/consumer-guide.md`, "utf8");
-    expect(guide).toContain('import publicpeer "github.com/Liapoldus/pluginprotocol/presentation/peer"');
+    expect(guide).toContain('import publicpeer "github.com/Liapoldus/pluginprotocol/v2/presentation/peer"');
     for (const layer of ["pluginprotocol/domain", "pluginprotocol/application", "pluginprotocol/infrastructure", "pluginprotocol/pluginv1"]) {
       expect(guide, `the guide must not send a consumer into ${layer}`).not.toContain(layer);
     }
@@ -308,7 +308,7 @@ describe("consumer documentation", () => {
     const guide = await readFile(`${root}/docs/consumer-guide.md`, "utf8");
     expect(guide).toContain("tests/fixtures/peer-net/facade.go");
     const fixture = await readFile(`${root}/tests/fixtures/peer-net/facade.go`, "utf8");
-    expect(fixture).toContain("pluginprotocol/presentation/peer");
+    expect(fixture).toContain("pluginprotocol/v2/presentation/peer");
   });
 
   it("states what the library does not own", async () => {

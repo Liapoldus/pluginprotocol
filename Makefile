@@ -1,4 +1,4 @@
-MODULE := github.com/Liapoldus/pluginprotocol
+MODULE := github.com/Liapoldus/pluginprotocol/v2
 # The generic peer wire contract. It is generated for Go only: it has no service
 # definitions, so it needs no gRPC stubs, and the TypeScript side drives real Go
 # child processes instead of speaking the wire directly.

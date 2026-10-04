@@ -27,11 +27,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/application/peer"
-	domainpeer "github.com/Liapoldus/pluginprotocol/domain/peer"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/quic"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/security"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/tcp"
+	"github.com/Liapoldus/pluginprotocol/v2/application/peer"
+	domainpeer "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/quic"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/security"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/tcp"
 )
 
 func main() {

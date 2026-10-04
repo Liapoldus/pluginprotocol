@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/application/peer"
-	domainpeer "github.com/Liapoldus/pluginprotocol/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v2/application/peer"
+	domainpeer "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
 )
 
 const (

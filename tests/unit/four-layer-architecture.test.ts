@@ -37,8 +37,8 @@ describe("four-layer plugin protocol", () => {
 
   it("keeps the public facade a presentation wrapper over application peer", async () => {
     const facade = await packageSources(`${root}/presentation/peer`);
-    expect(facade).toMatch(/github\.com\/Liapoldus\/pluginprotocol\/application\/peer/);
-    expect(facade).toMatch(/github\.com\/Liapoldus\/pluginprotocol\/domain\/peer/);
+    expect(facade).toMatch(/github\.com\/Liapoldus\/pluginprotocol\/v2\/application\/peer/);
+    expect(facade).toMatch(/github\.com\/Liapoldus\/pluginprotocol\/v2\/domain\/peer/);
     // Choosing a carrier from a consumer's config is the facade's job, so it may reach
     // into infrastructure. What it may not do is re-export generated wire types, which
     // would put a generated contract into the public API surface; the assertion below

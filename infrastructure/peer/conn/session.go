@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/domain/peer"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/codec"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/wire"
+	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/codec"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/wire"
 )
 
 // unaryOutcome is the single response a unary call may produce: a payload, or a

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/presentation/peer"
+	"github.com/Liapoldus/pluginprotocol/v2/presentation/peer"
 )
 
 const messageCount = 32

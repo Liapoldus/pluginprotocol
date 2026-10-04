@@ -1,5 +1,10 @@
 # Liapoldus Plugin Protocol
 
+Текущая Go-библиотека выпускается как module major `v2` по правилам Go
+SemVer: её Go API несовместим с legacy module `v1.0.0`. Это версия Go module,
+а не wire-протокола: сетевой контракт остаётся `liapoldus.peer.v1`. Импорты
+текущей библиотеки используют путь `github.com/Liapoldus/pluginprotocol/v2/...`.
+
 `pluginprotocol` — независимая Go-библиотека для generic коммуникации между
 плагинами. Потребитель сам регистрирует методы, payloads и их прикладной смысл;
 библиотека предоставляет только registration/invocation, listener и stream

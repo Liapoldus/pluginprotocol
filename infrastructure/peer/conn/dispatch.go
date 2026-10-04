@@ -6,9 +6,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/domain/peer"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/codec"
-	"github.com/Liapoldus/pluginprotocol/infrastructure/peer/wire"
+	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/codec"
+	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/wire"
 )
 
 // readLoop is the single reader of a connection. Frames are decoded here and
