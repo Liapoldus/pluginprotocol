@@ -7,8 +7,10 @@
 (10/139), `go test ./...`, `go vet ./...`, `go build ./...`,
 `make check-generated` и `git diff --check`. Wire namespace остался
 `liapoldus.peer.v1`. Go module `v2.0.0` выбран из-за breaking removal API,
-который уже был опубликован под module `v1.0.0`; tag и миграция активных
-consumers ещё не опубликованы.
+который уже был опубликован под module `v1.0.0`. `v2.0.0` опубликован в
+`origin/main`; обе platform CI jobs и tag CI прошли. Активные потребители
+Server/forms-db переведены на `/v2 v2.0.0`, локальные `replace` удалены;
+их hosted CI запущены. Wire namespace намеренно не менялся и остаётся v1.
 
 ## Повторная проверка — 2026-10-04
 
