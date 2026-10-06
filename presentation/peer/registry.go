@@ -6,7 +6,7 @@
 //
 // A consumer chooses a carrier and a security profile here, and nothing else
 // changes: the same registered methods, the same payload contracts and the same
-// call sites work over TCP or QUIC. A remote endpoint always requires an
+// call sites work over TCP, QUIC, or an authenticated local IPC carrier. A remote endpoint always requires an
 // authenticated, encrypted profile, and there is no fallback from one that fails.
 package peer
 
@@ -25,6 +25,12 @@ const (
 	// CarrierQUIC carries the protocol over QUIC. It is always encrypted and
 	// always authenticates the peer, so it has no plaintext profile.
 	CarrierQUIC Carrier = "quic"
+	// CarrierUnix carries the protocol over an authenticated Unix domain socket.
+	// Its endpoint is a unix:///absolute/path URI and mTLS is mandatory.
+	CarrierUnix Carrier = "unix"
+	// CarrierPipe carries the protocol over an authenticated Windows named pipe.
+	// It is supported on standalone Windows hosts and always requires mTLS.
+	CarrierPipe Carrier = "pipe"
 )
 
 // ErrClosed reports an operation on an endpoint that is no longer serving.

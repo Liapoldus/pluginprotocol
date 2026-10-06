@@ -29,9 +29,11 @@ import (
 
 	"github.com/Liapoldus/pluginprotocol/v2/application/peer"
 	domainpeer "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	pipecarrier "github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/pipe"
 	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/quic"
 	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/security"
 	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/tcp"
+	unixcarrier "github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/unix"
 )
 
 func main() {
@@ -113,15 +115,22 @@ func fixtureLimits() domainpeer.Limits {
 // minutes.
 const keepAlive = 250 * time.Millisecond
 
+// clientServerName is the TLS name the unix carrier verifies the peer certificate
+// against. The default is the DNS SAN the fixture certificate carries; the client
+// flag overrides it so a scenario can prove that any other name is refused at the
+// handshake rather than accepted.
+var clientServerName = "localhost"
+
 // serve accepts connections until the process is asked to stop. Each connection
 // gets its own session, so one scenario cannot leak state into the next.
 func serve(args []string) error {
 	flags := flag.NewFlagSet("server", flag.ContinueOnError)
 	address := flags.String("addr", "127.0.0.1:0", "loopback address to listen on")
 	profileName := flags.String("security", "loopback", "security profile: loopback or mtls")
-	carrierName := flags.String("carrier", "tcp", "carrier: tcp or quic")
+	carrierName := flags.String("carrier", "tcp", "carrier: tcp, quic, unix, or pipe")
 	directory := flags.String("dir", "", "directory holding the generated certificates")
 	budget := flags.String("limits", "fixture", "resolved budget: fixture, or default to leave every limit unset")
+	dispatchLog := flags.String("dispatch-log", "", "file that receives one line per method the router dispatched")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -133,6 +142,10 @@ func serve(args []string) error {
 	} else if *budget != "fixture" {
 		return fmt.Errorf("unknown --limits %q, want fixture or default", *budget)
 	}
+	// The log is armed before the listener exists so that the very first accepted
+	// call is recorded, and so a peer refused at the handshake can be shown to have
+	// reached no handler at all.
+	dispatchLogPath = *dispatchLog
 	registry, err := newRegistry()
 	if err != nil {
 		return err
@@ -184,6 +197,7 @@ func call(args []string) error {
 	carrierName := flags.String("carrier", "tcp", "carrier: tcp or quic")
 	directory := flags.String("dir", "", "directory holding the generated certificates")
 	streams := flags.Int("streams", 2, "number of streams to hold open, used by the hold-streams probe")
+	serverName := flags.String("server-name", clientServerName, "TLS name the unix carrier verifies the server certificate against")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -191,6 +205,7 @@ func call(args []string) error {
 		return errors.New("client requires --addr and --scenario")
 	}
 	heldStreams = *streams
+	clientServerName = *serverName
 	report, err := runScenario(*scenario, *address, *profileName, *directory, *carrierName)
 	if err != nil {
 		return fmt.Errorf("%s: %w", *scenario, err)
@@ -288,7 +303,7 @@ func issueCertificateDirectory(args []string) error {
 // the codec that enforces the message size.
 func newCarrier(carrierName, profileName, directory string, asClient bool, limits domainpeer.Limits) (domainpeer.Carrier, error) {
 	switch carrierName {
-	case "tcp", "quic":
+	case "tcp", "quic", "unix", "pipe":
 	default:
 		return nil, fmt.Errorf("unknown carrier %q", carrierName)
 	}
@@ -333,6 +348,29 @@ func newCarrier(carrierName, profileName, directory string, asClient bool, limit
 			Local:     configuration.Local,
 			Limits:    limits,
 			KeepAlive: keepAlive,
+		})
+	}
+	if carrierName == "unix" {
+		return unixcarrier.New(unixcarrier.Config{
+			Profile: configuration.Profile,
+			Local:   configuration.Local,
+			// The name the server certificate is verified against. The default is the
+			// DNS SAN the fixture certificate carries, and the client can override it
+			// so a scenario can prove that any other name is refused at the handshake.
+			ServerName:       clientServerName,
+			Limits:           limits,
+			KeepAlive:        keepAlive,
+			HandshakeTimeout: 5 * time.Second,
+		})
+	}
+	if carrierName == "pipe" {
+		return pipecarrier.New(pipecarrier.Config{
+			Profile:          configuration.Profile,
+			Local:            configuration.Local,
+			ServerName:       "localhost",
+			Limits:           limits,
+			KeepAlive:        keepAlive,
+			HandshakeTimeout: 5 * time.Second,
 		})
 	}
 	return tcp.New(configuration)

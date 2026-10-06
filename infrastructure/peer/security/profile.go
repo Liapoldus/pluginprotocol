@@ -14,6 +14,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 )
@@ -50,6 +51,9 @@ type Credentials struct {
 	// empty, any peer chaining to PeerRoots is accepted; when it is set, a peer
 	// presenting any other identity is refused.
 	PeerIdentity string
+	// Revocation is required by production profiles that enforce the generic
+	// signed-CRL security contract. When set, it supplies the exact trust pool.
+	Revocation *RevocationManager
 }
 
 // Profile is a resolved transport security configuration. Carriers consume it and
@@ -69,8 +73,9 @@ type Profile struct {
 	// server and client are stored unexported: a carrier receives a clone through
 	// ServerConfig or ClientConfig and can add its own ALPN without changing the
 	// profile for every other user of it.
-	server *tls.Config
-	client *tls.Config
+	server     *tls.Config
+	client     *tls.Config
+	revocation *RevocationManager
 }
 
 // Name is the stable profile identifier used in conformance reporting.
@@ -134,8 +139,15 @@ func MTLS(credentials Credentials) (*Profile, error) {
 	if len(credentials.Certificate.Certificate) == 0 || credentials.Certificate.PrivateKey == nil {
 		return nil, errors.New("security: mTLS requires a certificate")
 	}
-	if credentials.PeerRoots == nil {
+	if credentials.PeerRoots == nil && credentials.Revocation == nil {
 		return nil, errors.New("security: mTLS requires a trust anchor for its peers")
+	}
+	peerRoots := credentials.PeerRoots
+	if credentials.Revocation != nil {
+		if peerRoots != nil {
+			return nil, errors.New("security: use the revocation manager trust pool, not a separate root pool")
+		}
+		peerRoots = credentials.Revocation.TrustRoots()
 	}
 	if credentials.PeerIdentity != "" && !strings.HasPrefix(credentials.PeerIdentity, "spiffe://") {
 		return nil, errors.New("security: mTLS requires a spiffe:// peer identity")
@@ -160,31 +172,41 @@ func MTLS(credentials Credentials) (*Profile, error) {
 		}
 	}
 
+	serverConfig := &tls.Config{
+		Certificates: []tls.Certificate{credentials.Certificate},
+		ClientCAs:    peerRoots,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		MinVersion:   tls.VersionTLS13,
+	}
+	clientConfig := &tls.Config{
+		Certificates:       []tls.Certificate{credentials.Certificate},
+		RootCAs:            peerRoots,
+		MinVersion:         tls.VersionTLS13,
+		InsecureSkipVerify: false,
+	}
+	if credentials.Revocation != nil {
+		verify := func(state tls.ConnectionState) error { return credentials.Revocation.VerifyChain(state.VerifiedChains) }
+		serverConfig.VerifyConnection = verify
+		clientConfig.VerifyConnection = verify
+	}
 	return &Profile{
 		name:          NameMTLS,
 		encrypted:     true,
 		authenticated: true,
 		pin:           credentials.PeerIdentity,
-		server: &tls.Config{
-			Certificates: []tls.Certificate{credentials.Certificate},
-			ClientCAs:    credentials.PeerRoots,
-			// Requiring and verifying the client certificate is what makes this
-			// mutual: a peer that presents none is refused, never downgraded.
-			ClientAuth: tls.RequireAndVerifyClientCert,
-			MinVersion: tls.VersionTLS13,
-			// This endpoint has already decided it is the one being contacted, and
-			// Go does not support client-side SPIFFE-style URI verification, so the
-			// expected peer identity is checked after the handshake instead of
-			// through ServerName.
-			ServerName: "",
-		},
-		client: &tls.Config{
-			Certificates:       []tls.Certificate{credentials.Certificate},
-			RootCAs:            credentials.PeerRoots,
-			MinVersion:         tls.VersionTLS13,
-			InsecureSkipVerify: false,
-		},
+		server:        serverConfig,
+		client:        clientConfig,
+		revocation:    credentials.Revocation,
 	}, nil
+}
+
+// TrackConnection applies the current revocation checkpoint atomically with
+// registration so a connection racing a bundle update cannot escape fencing.
+func (profile *Profile) TrackConnection(transport io.ReadWriteCloser, state tls.ConnectionState) (io.ReadWriteCloser, error) {
+	if profile == nil || profile.revocation == nil {
+		return transport, nil
+	}
+	return profile.revocation.TrackConnection(transport, state)
 }
 
 // LoopbackPlaintext resolves the development profile: no encryption, no

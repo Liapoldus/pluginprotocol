@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	pipecarrier "github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/pipe"
 	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/quic"
 	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/security"
 	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/tcp"
+	unixcarrier "github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/unix"
 )
 
 // NetworkConfig says which carrier a deployment uses. It is a deployment choice,
@@ -49,6 +51,9 @@ type SecurityConfig struct {
 	// PeerIdentity optionally pins the identity the peer must authenticate as.
 	// Empty accepts any peer that chains to Roots.
 	PeerIdentity string
+	// Revocation is the generic signed-CRL checkpoint shared by this endpoint.
+	// When configured it owns the exact trust roots; Roots must be nil.
+	Revocation *RevocationManager
 	// PlaintextLoopback requests the development profile: no encryption, no
 	// authentication, loopback endpoints only. It exists so a local process pair
 	// can be exercised without issuing certificates, and it is refused for any
@@ -210,6 +215,24 @@ func buildCarrier(network NetworkConfig, configuration SecurityConfig, limits Li
 			KeepAlive:        network.KeepAlive,
 			HandshakeTimeout: network.HandshakeTimeout,
 		})
+	case CarrierUnix:
+		return unixcarrier.New(unixcarrier.Config{
+			Profile:          profile,
+			Local:            localIdentity(profile, configuration),
+			ServerName:       network.ServerName,
+			Limits:           limits,
+			KeepAlive:        network.KeepAlive,
+			HandshakeTimeout: network.HandshakeTimeout,
+		})
+	case CarrierPipe:
+		return pipecarrier.New(pipecarrier.Config{
+			Profile:          profile,
+			Local:            localIdentity(profile, configuration),
+			ServerName:       network.ServerName,
+			Limits:           limits,
+			KeepAlive:        network.KeepAlive,
+			HandshakeTimeout: network.HandshakeTimeout,
+		})
 	default:
 		return nil, fmt.Errorf("peer: unknown carrier %q", network.Carrier)
 	}
@@ -222,7 +245,7 @@ func buildCarrier(network NetworkConfig, configuration SecurityConfig, limits Li
 // rather than degraded to something weaker.
 func resolveProfile(configuration SecurityConfig) (*security.Profile, error) {
 	if configuration.PlaintextLoopback {
-		if configuration.Identity != "" || len(configuration.Certificate.Certificate) > 0 || configuration.Roots != nil {
+		if configuration.Identity != "" || len(configuration.Certificate.Certificate) > 0 || configuration.Roots != nil || configuration.Revocation != nil {
 			return nil, errors.New("peer: the plaintext profile cannot be combined with credentials")
 		}
 		if configuration.PeerIdentity != "" {
@@ -238,6 +261,7 @@ func resolveProfile(configuration SecurityConfig) (*security.Profile, error) {
 		Certificate:  configuration.Certificate,
 		PeerRoots:    configuration.Roots,
 		PeerIdentity: configuration.PeerIdentity,
+		Revocation:   configuration.Revocation,
 	})
 }
 

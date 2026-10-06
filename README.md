@@ -50,9 +50,9 @@ schemas, ошибки и conformance vectors принадлежат репози
 начинает миграцию с [docs/migration.md](docs/migration.md): там перечислены
 удалённые package paths и exported API по capability и владельцу замены.
 
-## Другие языки — план v2
+## Другие языки — план v3
 
-В v2 Go остаётся единственной реализацией peer wire/session engine. Планируется
+В v3 Go остаётся единственной реализацией peer wire/session engine. Планируется
 версионированная C ABI над публичным Go facade и Python binding на `cffi`;
 Python не реализует framing, sessions, carriers или TLS независимо. C ABI
 покрывает полный peer API через opaque handles, length-delimited bytes и

@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -139,7 +140,7 @@ func (carrier *Carrier) Listen(endpoint string, handler peer.Handler) (peer.List
 }
 
 // session builds the engine session for one authenticated connection.
-func (carrier *Carrier) session(transport net.Conn, remote peer.PeerIdentity, role conn.Role, handler peer.Handler) peer.Session {
+func (carrier *Carrier) session(transport io.ReadWriteCloser, remote peer.PeerIdentity, role conn.Role, handler peer.Handler) peer.Session {
 	return conn.New(conn.Config{
 		Local:     carrier.cfg.Local,
 		Remote:    remote,
@@ -156,7 +157,7 @@ func (carrier *Carrier) session(transport net.Conn, remote peer.PeerIdentity, ro
 // It is the only place a peer identity enters the protocol, and it runs before
 // any protocol frame is exchanged: a peer that cannot be authenticated never
 // reaches the engine.
-func (carrier *Carrier) authenticate(ctx context.Context, raw net.Conn, endpoint string, inbound bool) (net.Conn, peer.PeerIdentity, error) {
+func (carrier *Carrier) authenticate(ctx context.Context, raw net.Conn, endpoint string, inbound bool) (io.ReadWriteCloser, peer.PeerIdentity, error) {
 	if !carrier.cfg.Profile.Encrypted() {
 		// The development profile authenticates nothing, so it reports an empty
 		// peer identity rather than inventing one.
@@ -195,7 +196,11 @@ func (carrier *Carrier) authenticate(ctx context.Context, raw net.Conn, endpoint
 	if err != nil {
 		return nil, peer.PeerIdentity{}, err
 	}
-	return secure, remote, nil
+	tracked, err := carrier.cfg.Profile.TrackConnection(secure, secure.ConnectionState())
+	if err != nil {
+		return nil, peer.PeerIdentity{}, err
+	}
+	return tracked, remote, nil
 }
 
 // serverName is the name the peer certificate is verified against when dialing.

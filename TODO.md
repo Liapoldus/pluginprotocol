@@ -49,7 +49,8 @@ Linux conformance и опубликованные docs pins остаются о�
 
 Протокол состоит ровно из четырёх слоёв: `domain/`, `application/`,
 `infrastructure/`, `presentation/`. Выбор физического транспорта не меняет
-прикладные регистрации и вызовы. Целевые carrier — TCP и QUIC. Отключение
+прикладные регистрации и вызовы. Подтверждённые carrier текущего release — TCP
+и QUIC. Отключение
 шифрования допустимо только для loopback/development; удалённая связь требует
 аутентифицированного mTLS без downgrade.
 
@@ -160,7 +161,7 @@ Server/forms-db TypeScript suites и DB contract tests прошли. Этот р
 ## Открытая работа
 
 В текущем Go-only v1 production scope новой локальной работы нет. Пункты ниже
-внешние либо не проверены и не считаются PASS; отдельный целевой backlog v2
+внешние либо не проверены и не считаются PASS; отдельный целевой backlog v3
 для C ABI находится ниже.
 
 - [x] Core переведён на Plugin SDK REST и не зависит от этого модуля.
@@ -198,7 +199,67 @@ listeners, streams и transport/security primitives; четыре слоя и ca
 conformance проверены; Core, Plugin SDK и продуктовые контракты отсутствуют.
 Миграция внешних consumers относится к их репозиториям.
 
-## План v2: native C ABI и языковые bindings
+### Milestone 2 — смешанные физические carriers
+
+- [ ] Завершить смешанные физические carriers. Unix domain socket реализация
+  добавлена как незавершённый v2-срез: `unix:///absolute/path`, обязательный
+  mTLS с явным TLS `ServerName`, ограниченные права сокета и безопасный отказ
+  от замены активного/non-socket пути. Начальные child-process проверки покрывают
+  unary, bidi stream, downgrade refusal и path permissions. Ещё не пройдены общий
+  conformance corpus и Linux CI. Windows named pipes реализованы как отдельный
+  standalone-host carrier с mandatory mTLS, explicit `ServerName`, DACL текущего
+  process account + SYSTEM, запретом замены существующего pipe и без fallback.
+  Общий `peer-net-conformance` corpus теперь включает pipe в Windows runner;
+  дополнительный child-process suite проверяет Windows listener. Эти тесты и
+  native `windows-latest` CI добавлены, но фактический native Windows результат
+  ещё не получен. Не обещать Windows container/Pod profile. Не менять method
+  registry, unary/stream wire semantics и `liapoldus.peer.v1`. Gate: единый
+  corpus для TCP/QUIC/UDS/pipe на поддерживаемых native платформах, включая
+  cancellation, deadlines, backpressure, close races, identity/revocation и
+  no-fallback.
+- [ ] Для всех локальных IPC завершить проверки обязательного mTLS и peer
+  identity, прав socket/pipe ACL и отсутствия скрытого TCP/QUIC fallback. Gate:
+  invalid/revoked cert, cancellation, deadlines, backpressure, close races и
+  mixed-placement child-process tests.
+- [x] Generic signed-CRL revocation surface: `presentation/peer` exposes a
+  manager configured from the exact root-DER set. It verifies issuer chains,
+  CRL signatures/numbers/freshness/extensions, requires a CRL for each trust root,
+  rejects per-issuer CRL-number rollback and removal of cumulative revoked serials,
+  and checks each mTLS verified chain fail-closed. The aggregate checkpoint is
+  bound to the canonical root-set SHA-256 and stores each accepted CRL SHA-256;
+  its aggregate JSON fields use stable lower-camel names; callers persist it
+  atomically and restore it with the same roots. Changed
+  bundles and earliest `NextUpdate` close tracked active sessions. The real
+  child-process TypeScript conformance scenario covers handshake, update fencing,
+  revocation/no-dispatch, exact-repeat idempotency, checkpoint restore, invalid
+  signature, CRL-number rollback, removed revocation, an intermediate CA chain,
+  unknown issuer, root-set mismatch, expiry and redaction. The aggregate checkpoint's stable
+  lower-camel JSON carries `BundleSHA256`, a self-verifying digest derived from
+  the checkpoint's own issuer/CRL/cumulative-serial state: restoring a stripped
+  or tampered checkpoint, one whose issuers omit a configured trust-root issuer,
+  or one with a negative revoked serial is rejected. A separate real carrier
+  matrix exercises TCP and QUIC and Unix on macOS/Linux, and named pipe on the
+  native Windows runner: it fences the prior session and proves a revoked peer's
+  reconnect cannot dispatch a call. TLS 1.3 may let client `Dial` return before
+  a server-side certificate rejection alert arrives, so the conformance gate
+  asserts rejection before application dispatch rather than relying on that
+  client-side timing. On macOS arm64 (2026-10-06), the revocation suites (2
+  files / 5 tests, incl. restore-guards) and full Vitest / `make check` passed
+  (15 files, 195 passed / 8 win32-gated skipped); `make check-race`, `go vet
+  ./...`, `go build ./...`, Linux/amd64 and Windows/amd64 full-module
+  cross-builds (incl. the Windows pipe fixture implementing `probe`/`inspect`
+  with x/sys GetSecurityInfo DACL read-back), and `git diff --check` passed.
+  The main CI matrix runs QUIC/Unix conformance on Ubuntu and macOS; the
+  dedicated native Windows job includes named-pipe CRL conformance and the
+  DACL/`probe` tests, but no Windows runner result has been observed here.
+  Native Linux CI and Windows named-pipe runtime results remain external
+  gates. The consumer atomically persists/restores the
+  checkpoint; Core lifecycle and product revocation endpoints are not added.
+- [ ] Windows container/Pod named-pipe profile объявлять поддерживаемым только
+  после отдельного native conformance; не считать standalone Windows host
+  доказательством контейнерной совместимости.
+
+## План v3: native C ABI и языковые bindings
 
 - [ ] Спроектировать и реализовать versioned C ABI, которая вызывает текущий
   Go public facade и остаётся вне четырёх production layers; не создавать
@@ -239,10 +300,12 @@ gRPC cookie/HTTP/SSE/WebSocket helpers. Consumers: `core`,
 
 История: до этого среза модуль нёс legacy Core/Gateway lifecycle и gRPC
 transport. Core, Server и forms-db мигрировали; текущие owner suites и
-объединённый Core→SDK→Server/forms-db child-process acceptance проходят.
-Native Linux host execution остаётся открытым. До выпуска `v2.0.0` обновить
-Server/forms-db на `/v2`, убрать их local replace и проверить их через
-опубликованный module; `liapoldus.peer.v1` и wire vectors при этом не менять.
+объединённый Core→SDK→Server/forms-db child-process acceptance прошли в
+зафиксированной на дату проверки версии. Server/forms-db используют `/v2
+v2.0.0` без локальных `replace`; это завершённая миграция, а не будущая задача.
+Дальнейшие изменения этих product repositories и их conformance отнесены к v3;
+в v2 текущие v1 пути допускаются только как неизменённые regression checks.
+Native Linux host execution остаётся открытым protocol gate.
 CAPTCHA/Identity заморожены и исключены из v1. Ранее принятый план
 gRPC-миграции (v1.1.0) отменён и удалён — см.
 [CHANGELOG.md](CHANGELOG.md). Прежние baseline-отчёты с иными числами тестов

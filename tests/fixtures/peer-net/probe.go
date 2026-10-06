@@ -8,8 +8,10 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -36,8 +38,13 @@ func probeCertificate(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
+	network, target, serverName, err := probeTarget(*address)
+	if err != nil {
+		return err
+	}
+
 	dialer := net.Dialer{}
-	raw, err := dialer.DialContext(ctx, "tcp", *address)
+	raw, err := dialer.DialContext(ctx, network, target)
 	if err != nil {
 		return fmt.Errorf("dial: %w", err)
 	}
@@ -47,7 +54,7 @@ func probeCertificate(args []string) error {
 	if err != nil {
 		return err
 	}
-	configuration := &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS13, ServerName: serverHost(*address)}
+	configuration := &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS13, ServerName: serverName}
 	switch *mode {
 	case "no-certificate":
 		// No client certificate at all.
@@ -144,6 +151,26 @@ func serverHost(address string) string {
 		host = address
 	}
 	return host
+}
+
+// probeTarget resolves a probe endpoint into the network to dial, the address to
+// dial it at, and the name the server certificate has to carry.
+//
+// The tcp form is unchanged: it dials the host:port the server announced and
+// verifies the certificate against that host. A unix:///absolute/path endpoint is
+// reached over the Unix-domain socket instead, where the filesystem path proves
+// nothing about identity, so the TLS name comes from the certificate's DNS SAN.
+// Anything else is an endpoint this probe will not guess at.
+func probeTarget(endpoint string) (network, target, serverName string, err error) {
+	if !strings.HasPrefix(endpoint, "unix://") {
+		return "tcp", endpoint, serverHost(endpoint), nil
+	}
+	parsed, parseErr := url.Parse(endpoint)
+	if parseErr != nil || parsed.Host != "" || parsed.User != nil ||
+		parsed.RawQuery != "" || parsed.Fragment != "" || !filepath.IsAbs(parsed.Path) {
+		return "", "", "", errors.New("tls: endpoint must be unix:///absolute/path")
+	}
+	return "unix", parsed.Path, "localhost", nil
 }
 
 // handshakeReason classifies a refusal without leaking any certificate material.

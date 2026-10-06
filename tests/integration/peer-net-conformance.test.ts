@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type ChildProcessWithoutNullStreams } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -69,6 +70,9 @@ const COMBINATIONS = [
   { name: "tcp/loopback", carrier: "tcp", profile: "loopback", profileName: "loopback-plaintext", encrypted: false, authenticated: false },
   { name: "tcp/mtls", carrier: "tcp", profile: "mtls", profileName: "mtls", encrypted: true, authenticated: true },
   { name: "quic/mtls", carrier: "quic", profile: "mtls", profileName: "mtls", encrypted: true, authenticated: true },
+  ...(process.platform === "win32"
+    ? [{ name: "pipe/mtls", carrier: "pipe", profile: "mtls", profileName: "mtls", encrypted: true, authenticated: true }]
+    : [{ name: "unix/mtls", carrier: "unix", profile: "mtls", profileName: "mtls", encrypted: true, authenticated: true }]),
 ] as const;
 
 const SERVER_IDENTITY = "spiffe://liapoldus/dev/peer-net-server";
@@ -122,10 +126,17 @@ class PeerNetServer {
     private readonly child: ChildProcessWithoutNullStreams,
     readonly address: string,
     readonly report: Report,
+    private readonly temporaryDirectory?: string,
   ) {}
 
   static async start(carrier: string, profile: string, extraArgs: string[] = []): Promise<PeerNetServer> {
-    const child = startGoFixture(executable, {}, ["server", "--carrier", carrier, "--security", profile, "--dir", certificates, ...extraArgs]);
+    const temporaryDirectory = carrier === "unix" ? await mkdtemp(join(tmpdir(), "liapoldus-peer-conformance-")) : undefined;
+    const address = temporaryDirectory !== undefined
+      ? ["--addr", `unix://${join(temporaryDirectory, "peer.sock")}`]
+      : carrier === "pipe"
+        ? ["--addr", `\\\\.\\pipe\\liapoldus-peer-${process.pid}-${randomUUID()}`]
+        : [];
+    const child = startGoFixture(executable, {}, ["server", "--carrier", carrier, "--security", profile, "--dir", certificates, ...address, ...extraArgs]);
     const lines = createInterface({ input: child.stdout });
     const announced = new Promise<Report>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("server did not announce an address")), 15_000);
@@ -137,11 +148,12 @@ class PeerNetServer {
     const report = await announced;
     expect(report.ok).toBe(true);
     if (report.addr === undefined) throw new Error("server announced no address");
-    return new PeerNetServer(child, report.addr, report);
+    return new PeerNetServer(child, report.addr, report, temporaryDirectory);
   }
 
   async stop(): Promise<void> {
     await stopChildProcess(this.child);
+    if (this.temporaryDirectory !== undefined) await rm(this.temporaryDirectory, { recursive: true, force: true });
   }
 }
 
@@ -468,6 +480,16 @@ describe.each(COMBINATIONS)("carrier conformance over $name", (combination) => {
     expect(report.callDenied).toBe(true);
     expect(report.streamDenied).toBe(true);
   });
+
+  it.each([
+    { name: "an untrusted certificate chain", profile: "mtls-untrusted-client" },
+    { name: "a certificate with the wrong peer identity", profile: "mtls-wrong-identity" },
+  ])("refuses $name", async ({ profile }) => {
+    const { report, code } = await runFixture(clientArgs(server, combination.carrier, profile, "identity"));
+    expect(report.ok).toBe(false);
+    expect(code).toBe(1);
+    expect(report.error).toBeDefined();
+  }, 30_000);
 });
 
 describe("authenticated profile identity", () => {
@@ -742,6 +764,26 @@ describe("refusing combinations a carrier cannot offer", () => {
     ]);
     expect(report.ok).toBe(false);
     expect(report.error).toContain("carrier");
+  });
+
+  it.runIf(process.platform !== "win32")("refuses named pipes on non-Windows hosts instead of falling back to TCP", async () => {
+    const { report, code } = await runFixture([
+      "client",
+      "--carrier",
+      "pipe",
+      "--addr",
+      "127.0.0.1:1",
+      "--security",
+      "mtls",
+      "--dir",
+      certificates,
+      "--scenario",
+      "identity",
+    ]);
+    expect(code).toBe(1);
+    expect(report.ok).toBe(false);
+    expect(report.error).toContain("Windows named pipes require a standalone Windows host");
+    expect(report.error).not.toContain("connection refused");
   });
 });
 

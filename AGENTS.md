@@ -37,9 +37,10 @@ the workspace Core roadmap.
   may select the carrier and security profile through generic configuration
   without changing registered method names, payload contracts, or plugin call
   sites.
-- Encryption may be explicitly disabled only for loopback/development profiles.
-  Remote peer connections always require authenticated, encrypted mTLS. No
-  fallback or downgrade from a failed secure profile is allowed.
+- The v1 loopback/development profile may explicitly disable encryption;
+  production v2 carriers, including Unix sockets and Windows named pipes,
+  require authenticated mTLS. No fallback or downgrade from a failed secure
+  profile is allowed.
 - Transport, connection management, listener/client setup, streams, and their
   security adapters belong in `infrastructure/`. The generic API must not
   contain product-specific methods or assume a particular plugin topology.
@@ -69,7 +70,7 @@ dependencies, or split files/packages only for symmetry. Generated wire types
 must remain at the relevant infrastructure adapter boundary rather than
 leaking into domain/application APIs.
 
-The v2 C ABI is a build adapter over the public `presentation/peer` facade, not
+The v3 C ABI is a build adapter over the public `presentation/peer` facade, not
 a fifth layer or a second implementation. Keep its C-compatible API outside the
 four-layer dependency graph; it must expose only generic peer calls/listeners/
 streams and must never add Core lifecycle or product contracts. Non-Go bindings

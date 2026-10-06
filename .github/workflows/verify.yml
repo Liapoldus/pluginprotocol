@@ -50,3 +50,20 @@ jobs:
       # every Go fixture built under -race, so a data race in the transport or the
       # connection engine fails the build instead of surfacing in production.
       - run: make check-race
+
+  windows-pipe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - run: npm ci --prefix tests
+      - run: go build ./...
+      - run: go vet ./...
+      - run: npm exec --prefix tests -- vitest run tests/integration/peer-net-conformance.test.ts tests/integration/windows-pipe-carrier.test.ts tests/integration/revocation-carriers.test.ts

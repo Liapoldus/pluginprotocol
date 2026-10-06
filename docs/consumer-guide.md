@@ -87,9 +87,9 @@ if err := server.Sessions(ctx); err != nil && !errors.Is(err, context.Canceled) 
 
 | Field | Meaning |
 | --- | --- |
-| `Carrier` | `CarrierTCP` or `CarrierQUIC`; the only deployment-specific choice |
+| `Carrier` | `CarrierTCP`, `CarrierQUIC`, `CarrierUnix`, or `CarrierPipe`; the only deployment-specific choice |
 | `Endpoint` | address to listen on or dial; `":0"` binds an ephemeral port |
-| `ServerName` | name the peer certificate is verified against when dialing; empty uses the host of `Endpoint` |
+| `ServerName` | name the peer certificate is verified against when dialing; empty uses the host of `Endpoint`; required for local IPC carriers |
 | `KeepAlive` | liveness probe interval; zero disables probing |
 | `HandshakeTimeout` | bounds authentication; zero uses a carrier default |
 
@@ -174,11 +174,25 @@ with, so policy and handler always agree about who the caller was.
 ## 6. Changing the carrier changes nothing else
 
 `Carrier` is the only deployment-specific choice in the public API. Switching
-`CarrierTCP` to `CarrierQUIC` keeps the registered method names, the payload
-contracts, the authorization decisions, cancellation, deadlines, bounded
-concurrency and stream semantics identical, because all of them are resolved
-above the carrier. Both carriers run the same conformance suite; neither is
-claimed as supported until that suite passes for it.
+carriers keeps registered method names, payload contracts, authorization
+decisions, cancellation, deadlines, bounded concurrency and stream semantics
+identical, because all of them are resolved above the carrier. `CarrierUnix`
+uses a `unix:///absolute/path` endpoint and requires mutual TLS;
+`NetworkConfig.ServerName` must explicitly name the DNS SAN in the peer
+certificate because a socket path is not a TLS identity. Its socket directory
+must already exist and must not be group- or world-writable. Unix carrier
+conformance is being added for v2; it is not yet part of the supported-carrier
+matrix until the complete shared suite passes.
+
+On a standalone Windows host, `CarrierPipe` uses an explicit Windows endpoint
+such as `\\.\pipe\liapoldus-peer-name`. It always requires mutual TLS and an
+explicit `ServerName` matching the peer certificate DNS SAN; the pipe ACL is an
+additional OS boundary, not a substitute for peer identity. The listener DACL
+grants access only to the process account and SYSTEM. A pipe-name collision is
+rejected rather than replaced, and a failed pipe connection never falls back to
+TCP or QUIC. Windows container/Pod named-pipe placement is not part of this
+support claim. The carrier remains experimental until native Windows child-
+process conformance passes in CI.
 
 ## 7. Security profiles
 
@@ -193,6 +207,60 @@ An encrypted endpoint is refused if it cannot authenticate the other side, and a
 failed secure handshake never falls back to an insecure one. `PlaintextLoopback`
 cannot be combined with credentials, and it cannot pin a peer it does not
 authenticate. Certificate material and profile details never appear in errors.
+### Signed CRL revocation
+
+For a revocation-enforced profile, construct one `publicpeer.RevocationManager`
+from the exact DER trust-root set, apply a complete signed CRL bundle before
+opening endpoints, and pass the manager in `SecurityConfig.Revocation` instead
+of `Roots`. The manager builds its own trust pool; callers must not supply a
+second root pool. Every configured trust root must have a current CRL, every
+intermediate issuer in a peer's verified chain must be represented, and the
+issuer certificate and CRL signature must validate to that root set.
+
+```go
+manager, err := publicpeer.NewRevocationManager(rootDER, restoredCheckpoint)
+if err != nil { return err }
+defer manager.Close()
+
+checkpoint, err := manager.Apply(bundle)
+if err != nil { return err } // fail closed: do not start or reload the endpoint
+if err := persistCheckpointAtomically(checkpoint); err != nil { return err }
+
+securityConfig := publicpeer.SecurityConfig{
+    Identity: "spiffe://liapoldus/prod/orders",
+    Certificate: certificate,
+    Revocation: manager,
+}
+```
+
+`publicpeer.RevocationBundle` contains a complete set of `publicpeer.SignedCRL`
+issuer-certificate/CRL
+DER pairs. Each signed CRL's number is the monotonic version for its issuer; the
+bundle has no unsigned sequence field. CRLs must be signed by their CA, current,
+have a CRL number, and contain only supported extensions. The manager rejects an
+unknown issuer, invalid signature, expired CRL, CRL-number rollback, issuer-set
+change, and removal of a previously revoked serial. An exact repeated bundle is
+idempotent. `publicpeer.CanonicalTrustRootsDigest` exposes the canonical digest
+calculation, and each `publicpeer.IssuerCheckpoint` records its accepted CRL
+number, digest, expiry, and cumulative serials. `CRLCheckpoint` is one aggregate checkpoint bound to the SHA-256 digest of the
+sorted exact root DER set; it records each accepted CRL's SHA-256 and the
+cumulative revoked serials, plus a `BundleSHA256` digest derived from the
+checkpoint's own issuer, CRL, and cumulative-serial state. Restoring a
+checkpoint is rejected when any of that state was stripped or tampered with
+(the digest no longer matches), when its issuers omit a configured trust-root
+issuer, or when it carries a negative revoked serial. Persist it atomically and
+restore it with the same roots. A checkpoint for another root set is rejected.
+
+TLS handshakes check the active CRLs after normal chain verification. Missing,
+expired, or revoked status fails closed. Applying a changed bundle closes every
+session tracked by that manager; reaching the earliest CRL `NextUpdate` also
+closes those sessions. New handshakes remain refused until a valid bundle is
+applied. With TLS 1.3 a client may return from `Dial` before it observes the
+server's certificate-rejection alert; such a connection is not accepted for
+dispatch, and its first operation fails. The carrier conformance matrix checks
+that no call reaches the handler after revocation. The library does not fetch
+CRLs, persist checkpoints, or distribute them; the consumer owns those
+operations and must not log bundle or credential bytes.
 
 ## 8. Classifying failures
 
@@ -212,9 +280,9 @@ The Core↔plugin REST boundary and the shared plugin tooling belong to the sepa
 conformance vectors belong to the plugin's own repository. Method names used in
 this guide (`demo.*`) are placeholders for names you own.
 
-## 10. Non-Go bindings planned for v2
+## 10. Non-Go bindings planned for v3
 
-The v2 plan keeps this Go package as the only peer wire/session implementation
+The v3 plan keeps this Go package as the only peer wire/session implementation
 and exposes its public facade through a versioned native C ABI. The first
 official non-Go binding is Python using `cffi`; it calls the same Go shared
 library and does not implement framing, sessions, carriers, or TLS a second

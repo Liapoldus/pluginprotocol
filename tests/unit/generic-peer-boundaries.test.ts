@@ -152,7 +152,7 @@ describe("generic peer application boundary", () => {
 
 describe("removed legacy surface", () => {
   it("keeps only peer fixtures in the test fixture directory", async () => {
-    expect((await readdir(`${root}/tests/fixtures`)).sort()).toEqual(["peer-net", "peer-router", "stream-half-close", "stream-terminal-drain"]);
+    expect((await readdir(`${root}/tests/fixtures`)).sort()).toEqual(["peer-net", "peer-router", "revocation-security", "stream-half-close", "stream-terminal-drain", "windows-pipe"]);
   });
 
   it("does not import the Plugin SDK or any legacy root anywhere", async () => {

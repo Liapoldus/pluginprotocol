@@ -10,6 +10,7 @@ package quic
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -134,7 +135,12 @@ func (carrier *Carrier) Dial(ctx context.Context, endpoint string, handler peer.
 		_ = connection.CloseWithError(0, "session stream unavailable")
 		return nil, fmt.Errorf("quic: open session stream: %w", err)
 	}
-	return carrier.session(newTransport(connection, stream), remote, conn.RoleClient, handler), nil
+	session, err := carrier.session(newTransport(connection, stream), connection.ConnectionState().TLS, remote, conn.RoleClient, handler)
+	if err != nil {
+		_ = connection.CloseWithError(0, "revocation state changed")
+		return nil, err
+	}
+	return session, nil
 }
 
 // Listen accepts sessions on endpoint.
@@ -179,7 +185,12 @@ func (carrier *Carrier) serverName(endpoint string) string {
 	return host
 }
 
-func (carrier *Carrier) session(transport io.ReadWriteCloser, remote peer.PeerIdentity, role conn.Role, handler peer.Handler) peer.Session {
+func (carrier *Carrier) session(transport io.ReadWriteCloser, state tls.ConnectionState, remote peer.PeerIdentity, role conn.Role, handler peer.Handler) (peer.Session, error) {
+	tracked, err := carrier.cfg.Profile.TrackConnection(transport, state)
+	if err != nil {
+		_ = transport.Close()
+		return nil, err
+	}
 	return conn.New(conn.Config{
 		Local:     carrier.cfg.Local,
 		Remote:    remote,
@@ -187,7 +198,7 @@ func (carrier *Carrier) session(transport io.ReadWriteCloser, remote peer.PeerId
 		Limits:    carrier.cfg.Limits,
 		Handler:   handler,
 		KeepAlive: carrier.cfg.KeepAlive,
-	}, transport)
+	}, tracked), nil
 }
 
 // listener accepts inbound connections and turns each into a session.
@@ -226,7 +237,12 @@ func (l *listener) Accept(ctx context.Context) (peer.Session, error) {
 			_ = connection.CloseWithError(0, "peer identity rejected")
 			continue
 		}
-		return l.carrier.session(newTransport(connection, stream), remote, conn.RoleServer, l.handler), nil
+		session, err := l.carrier.session(newTransport(connection, stream), connection.ConnectionState().TLS, remote, conn.RoleServer, l.handler)
+		if err != nil {
+			_ = connection.CloseWithError(0, "revocation state changed")
+			continue
+		}
+		return session, nil
 	}
 }
 

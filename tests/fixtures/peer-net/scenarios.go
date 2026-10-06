@@ -133,6 +133,7 @@ func newRegistry() (*peer.Registry, error) {
 type fixtureAuthorizer struct{}
 
 func (fixtureAuthorizer) AuthorizeCall(_ domainpeer.PeerIdentity, method domainpeer.Method) error {
+	recordDispatch("call", method)
 	if method == "example.denied" {
 		return domainpeer.ErrUnauthorized
 	}
@@ -140,10 +141,33 @@ func (fixtureAuthorizer) AuthorizeCall(_ domainpeer.PeerIdentity, method domainp
 }
 
 func (fixtureAuthorizer) AuthorizeStream(_ domainpeer.PeerIdentity, method domainpeer.Method) error {
+	recordDispatch("stream", method)
 	if method == "example.stream.denied" {
 		return domainpeer.ErrUnauthorized
 	}
 	return nil
+}
+
+// dispatchLogPath, when the server command sets it, receives one line per method
+// the serving router dispatched. It exists so a test can prove that a peer refused
+// at the handshake reached no handler at all: the file stays absent or empty until
+// a call the endpoint actually admitted arrives.
+var dispatchLogPath string
+
+// recordDispatch appends one line for an authorized dispatch. The authorizer runs
+// above the carrier on every inbound call, so this is the last common point before
+// the registered handler, and it never sees a peer that never got past the
+// handshake.
+func recordDispatch(kind string, method domainpeer.Method) {
+	if dispatchLogPath == "" {
+		return
+	}
+	file, err := os.OpenFile(dispatchLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, _ = fmt.Fprintf(file, "%s %s\n", kind, method)
 }
 
 func runScenario(name, address, profileName, directory, carrierName string) (map[string]any, error) {

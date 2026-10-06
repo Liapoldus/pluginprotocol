@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -23,11 +24,30 @@ import (
 // than an assumption.
 func facadeProbe(args []string) error {
 	flags := flag.NewFlagSet("facade", flag.ContinueOnError)
-	carrierName := flags.String("carrier", "tcp", "carrier: tcp or quic")
+	carrierName := flags.String("carrier", "tcp", "carrier: tcp, quic, unix, or pipe")
 	profileName := flags.String("security", "loopback", "security profile: loopback or mtls")
 	directory := flags.String("dir", "", "directory holding the generated certificates")
+	endpoint := flags.String("endpoint", "127.0.0.1:0", "server endpoint; unix carrier uses unix:///absolute/path")
+	emptyServerName := flags.Bool("empty-server-name", false, "force an empty TLS server name, to prove the carrier refuses it")
 	if err := flags.Parse(args); err != nil {
 		return err
+	}
+	// The carrier decides whether a server name is required for this endpoint, so
+	// the probe has to be able to hand it an empty one rather than assuming it.
+	serverName := facadeServerName(*carrierName)
+	if *emptyServerName {
+		serverName = ""
+	}
+	if *carrierName == "unix" && *endpoint == "127.0.0.1:0" {
+		directory, err := os.MkdirTemp("", "liapoldus-peer-facade-")
+		if err != nil {
+			return fmt.Errorf("create Unix socket directory: %w", err)
+		}
+		defer os.RemoveAll(directory)
+		*endpoint = "unix://" + filepath.Join(directory, "peer.sock")
+	}
+	if *carrierName == "pipe" && *endpoint == "127.0.0.1:0" {
+		*endpoint = fmt.Sprintf(`\\.\pipe\liapoldus-peer-facade-%d-%d`, os.Getpid(), time.Now().UnixNano())
 	}
 
 	serverHandler, err := facadeRegistry()
@@ -43,7 +63,12 @@ func facadeProbe(args []string) error {
 	defer cancel()
 
 	server, err := publicpeer.Listen(publicpeer.ServerConfig{
-		Network:  publicpeer.NetworkConfig{Carrier: publicpeer.Carrier(*carrierName), Endpoint: "127.0.0.1:0", KeepAlive: keepAlive},
+		Network: publicpeer.NetworkConfig{
+			Carrier:    publicpeer.Carrier(*carrierName),
+			Endpoint:   *endpoint,
+			ServerName: serverName,
+			KeepAlive:  keepAlive,
+		},
 		Security: serverSecurity,
 		Handler:  serverHandler,
 		Limits:   fixtureLimits(),
@@ -62,9 +87,10 @@ func facadeProbe(args []string) error {
 	}
 	client, err := publicpeer.Dial(ctx, publicpeer.ClientConfig{
 		Network: publicpeer.NetworkConfig{
-			Carrier:   publicpeer.Carrier(*carrierName),
-			Endpoint:  server.Addr(),
-			KeepAlive: keepAlive,
+			Carrier:    publicpeer.Carrier(*carrierName),
+			Endpoint:   server.Addr(),
+			ServerName: serverName,
+			KeepAlive:  keepAlive,
 		},
 		Security: clientSecurity,
 		Handler:  clientHandler,
@@ -140,6 +166,13 @@ func facadeProbe(args []string) error {
 	default:
 	}
 	return nil
+}
+
+func facadeServerName(carrier string) string {
+	if carrier == "unix" || carrier == "pipe" {
+		return "localhost"
+	}
+	return ""
 }
 
 // facadeRegistry registers the two methods the probe needs: one unary and one
