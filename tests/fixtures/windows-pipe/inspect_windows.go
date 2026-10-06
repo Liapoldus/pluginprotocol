@@ -25,6 +25,7 @@ const (
 func inspect(args []string) error {
 	flags := flag.NewFlagSet("inspect", flag.ContinueOnError)
 	endpoint := flags.String("addr", "", "Windows named-pipe endpoint")
+	_ = flags.String("dir", "", "certificate directory (keys peer fixture contract)")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -107,12 +108,32 @@ func inspect(args []string) error {
 	if err != nil {
 		return fmt.Errorf("pipe: cannot read pipe DACL: %w", err)
 	}
-	sddl := readBack.String()
+	var allowsUser, allowsSystem, allowsEveryone bool
+	if dacl != nil {
+		for index := uint32(0); index < uint32(dacl.AceCount); index++ {
+			var ace *windows.ACCESS_ALLOWED_ACE
+			if err := windows.GetAce(dacl, index, &ace); err != nil {
+				continue
+			}
+			if ace.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE {
+				continue
+			}
+			aceSid := (*windows.SID)(unsafe.Pointer(&ace.SidStart))
+			switch aceSid.String() {
+			case sid:
+				allowsUser = true
+			case systemSID:
+				allowsSystem = true
+			case everyoneSID:
+				allowsEveryone = true
+			}
+		}
+	}
 	restricted := dacl != nil &&
 		control&windows.SE_DACL_PROTECTED != 0 &&
-		strings.Contains(sddl, sid) &&
-		strings.Contains(sddl, systemSID) &&
-		!strings.Contains(sddl, everyoneSID)
+		allowsUser &&
+		allowsSystem &&
+		!allowsEveryone
 	emit(report{OK: true, DaclRestricted: restricted})
 	return nil
 }

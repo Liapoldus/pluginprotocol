@@ -23,7 +23,7 @@ function fixtureBuildFlags(): string[] {
 
 export async function buildGoFixture(repositoryRoot: string, packagePath: string): Promise<GoFixtureBinary> {
   const directory = await mkdtemp(join(tmpdir(), "liapoldus-plugin-fixture-"));
-  const executable = join(directory, "fixture");
+  const executable = join(directory, process.platform === "win32" ? "fixture.exe" : "fixture");
   try {
     await execFileAsync("go", ["build", ...fixtureBuildFlags(), "-o", executable, packagePath], { cwd: repositoryRoot });
   } catch (error) {

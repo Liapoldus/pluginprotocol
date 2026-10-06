@@ -163,7 +163,7 @@ describe.runIf(process.platform === "win32")("Windows named-pipe carrier", () =>
     const malformed: Array<{ description: string; addr: string; message: string }> = [
       {
         description: "a nested path separator",
-        addr: "\\\\.\\pipe\\liapoldus-peer-nested",
+        addr: `\\\\.\\pipe\\liapoldus-peer-nested-${process.pid}${randomUUID()}\\child`,
         message: "pipe: endpoint must identify one named pipe",
       },
       {
