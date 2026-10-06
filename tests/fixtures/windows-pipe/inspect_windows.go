@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/Microsoft/go-winio"
 	"golang.org/x/sys/windows"
 )
 
@@ -17,11 +18,12 @@ const (
 	systemSID   = "S-1-5-18"
 )
 
-// inspect creates a named pipe with the same protected DACL the pipe carrier
-// installs (explicit access for the current user and SYSTEM only, DACL
-// inheritance disabled) and reads the operating system security descriptor
-// back off the live handle. It reports whether the DACL really restricts the
-// pipe to those two identities.
+// inspect creates a named pipe through the same carrier creation path the
+// library uses (winio.ListenPipe with a protected DACL for the current user
+// and SYSTEM only, inheritance disabled), opens a second instance of that
+// pipe, then reads the operating system security descriptor back off the live
+// handle. It reports whether the DACL really restricts the pipe to those two
+// identities.
 func inspect(args []string) error {
 	flags := flag.NewFlagSet("inspect", flag.ContinueOnError)
 	endpoint := flags.String("addr", "", "Windows named-pipe endpoint")
@@ -38,62 +40,37 @@ func inspect(args []string) error {
 		return errors.New("pipe: cannot resolve process identity for pipe ACL")
 	}
 	sid := user.User.Sid.String()
-	system, err := windows.StringToSid(systemSID)
-	if err != nil {
-		return errors.New("pipe: cannot resolve SYSTEM identity for pipe ACL")
-	}
-	accessEntries := []windows.EXPLICIT_ACCESS{
-		{
-			AccessPermissions: windows.GENERIC_ALL,
-			AccessMode:        windows.GRANT_ACCESS,
-			Trustee: windows.TRUSTEE{
-				TrusteeForm:  windows.TRUSTEE_IS_SID,
-				TrusteeType:  windows.TRUSTEE_IS_USER,
-				TrusteeValue: windows.TrusteeValueFromSID(user.User.Sid),
-			},
-		},
-		{
-			AccessPermissions: windows.GENERIC_ALL,
-			AccessMode:        windows.GRANT_ACCESS,
-			Trustee: windows.TRUSTEE{
-				TrusteeForm:  windows.TRUSTEE_IS_SID,
-				TrusteeType:  windows.TRUSTEE_IS_USER,
-				TrusteeValue: windows.TrusteeValueFromSID(system),
-			},
-		},
-	}
-	owner := windows.TRUSTEE{
-		TrusteeForm:  windows.TRUSTEE_IS_SID,
-		TrusteeType:  windows.TRUSTEE_IS_USER,
-		TrusteeValue: windows.TrusteeValueFromSID(user.User.Sid),
-	}
-	descriptor, err := windows.BuildSecurityDescriptor(&owner, nil, accessEntries, nil, nil)
-	if err != nil {
-		return fmt.Errorf("pipe: cannot build pipe ACL: %w", err)
-	}
-	if err := descriptor.SetControl(windows.SE_DACL_PROTECTED, windows.SE_DACL_PROTECTED); err != nil {
-		return fmt.Errorf("pipe: cannot protect pipe DACL from inheritance: %w", err)
-	}
 	name, err := windows.UTF16PtrFromString(path)
 	if err != nil {
 		return err
 	}
-	attributes := &windows.SecurityAttributes{
-		Length:             uint32(unsafe.Sizeof(windows.SecurityAttributes{})),
-		SecurityDescriptor: descriptor,
+	// Mirror the pipe carrier exactly: the same wire endpoint and the same
+	// protected DACL string the production listener installs, via winio.
+	sddl := "D:P(A;;GA;;;" + sid + ")(A;;GA;;;SY)"
+	listener, err := winio.ListenPipe(path, &winio.PipeConfig{
+		SecurityDescriptor: sddl,
+		InputBufferSize:    64 * 1024,
+		OutputBufferSize:   64 * 1024,
+	})
+	if err != nil {
+		return fmt.Errorf("pipe: cannot create named pipe for ACL inspection: %w", err)
 	}
+	defer listener.Close()
+	// Open a second instance of the existing pipe to obtain a live handle we
+	// can query; the pipe object's security descriptor applies to every
+	// instance, so this handle reflects the installed DACL.
 	handle, err := windows.CreateNamedPipe(
 		name,
-		windows.PIPE_ACCESS_DUPLEX|windows.FILE_FLAG_FIRST_PIPE_INSTANCE,
+		windows.PIPE_ACCESS_DUPLEX,
 		windows.PIPE_TYPE_BYTE|windows.PIPE_READMODE_BYTE|windows.PIPE_WAIT,
 		1,
 		64*1024,
 		64*1024,
 		0,
-		attributes,
+		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("pipe: cannot create named pipe for ACL inspection: %w", err)
+		return fmt.Errorf("pipe: cannot open pipe instance for ACL inspection: %w", err)
 	}
 	defer windows.CloseHandle(handle)
 	readBack, err := windows.GetSecurityInfo(handle, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION)
