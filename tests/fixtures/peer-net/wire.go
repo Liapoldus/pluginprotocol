@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"math/rand"
 	"net"
 	"time"
@@ -69,7 +71,7 @@ func wireProbe(args []string) error {
 // over the codec's rejection path, and the endpoint is proven still serving
 // afterwards by the caller.
 func wireFuzzFraming(address string, iterations int) error {
-	random := rand.New(rand.NewSource(1))
+	random := rand.New(rand.NewSource(1)) //nolint:gosec // G404: fixed-seed hostile framing corpus is reproducible test data, never key or nonce material.
 	terminated := 0
 	for index := 0; index < iterations; index++ {
 		dropped, err := probeRawFrame(address, randomHostileFrame(random))
@@ -95,18 +97,22 @@ func wireFuzzFraming(address string, iterations int) error {
 // (1..9). The body length is occasionally absurd so the codec's length guard is
 // exercised alongside the type guard.
 func randomHostileFrame(random *rand.Rand) []byte {
-	frameType := byte(10 + random.Intn(246))
+	typeValue := 10 + random.Intn(246)
+	if typeValue < 0 || typeValue > 255 {
+		panic("invalid fixture frame type")
+	}
+	frameType := byte(typeValue)
 	var streamID uint64
 	if random.Intn(2) == 0 {
-		streamID = uint64(random.Int63())
+		streamID = random.Uint64() & (1<<63 - 1)
 	}
-	bodyLength := uint32(random.Intn(1 << 16))
+	bodyLength := uint32(random.Uint64() & (1<<16 - 1))
 	if random.Intn(8) == 0 {
-		bodyLength = (1 << 31) + uint32(random.Intn(1<<20))
+		bodyLength = (1 << 31) + uint32(random.Uint64()&(1<<20-1))
 	}
 	body := make([]byte, random.Intn(16))
 	for index := range body {
-		body[index] = byte(random.Intn(256))
+		body[index] = byte(random.Uint64() & 255)
 	}
 	return append(hostileHeader(frameType, streamID, bodyLength), body...)
 }
@@ -114,16 +120,20 @@ func randomHostileFrame(random *rand.Rand) []byte {
 // probeRawFrame writes one frame and reports whether the endpoint dropped the
 // connection rather than leaving it open until the deadline.
 func probeRawFrame(address string, frame []byte) (bool, error) {
-	connection, err := net.Dial("tcp", address)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	connection, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
 	if err != nil {
 		return false, fmt.Errorf("dial: %w", err)
 	}
-	defer connection.Close()
+	defer fixture.Close(connection)
 
 	if _, err := connection.Write(frame); err != nil {
 		return false, fmt.Errorf("write: %w", err)
 	}
-	_ = connection.SetReadDeadline(time.Now().Add(3 * time.Second))
+	if err := connection.SetReadDeadline(time.Now().Add(3 * time.Second)); err != nil {
+		return false, err
+	}
 
 	buffer := make([]byte, 512)
 	for {
@@ -138,13 +148,8 @@ func probeRawFrame(address string, frame []byte) (bool, error) {
 func hostileHeader(frameType byte, streamID uint64, bodyLength uint32) []byte {
 	header := make([]byte, 13)
 	header[0] = frameType
-	for index := 0; index < 8; index++ {
-		header[1+index] = byte(streamID >> (8 * (7 - index)))
-	}
-	header[9] = byte(bodyLength >> 24)
-	header[10] = byte(bodyLength >> 16)
-	header[11] = byte(bodyLength >> 8)
-	header[12] = byte(bodyLength)
+	binary.BigEndian.PutUint64(header[1:9], streamID)
+	binary.BigEndian.PutUint32(header[9:13], bodyLength)
 	return header
 }
 
@@ -157,11 +162,13 @@ func hostileHeader(frameType byte, streamID uint64, bodyLength uint32) []byte {
 // pings are drained and counted, because a ping arriving before the close must not
 // be mistaken for the endpoint accepting the frame.
 func wireRawFrame(address, caseName string, halfClose bool, payload func() []byte) error {
-	connection, err := net.Dial("tcp", address)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	connection, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("dial: %w", err)
 	}
-	defer connection.Close()
+	defer fixture.Close(connection)
 
 	if _, err := connection.Write(payload()); err != nil {
 		return fmt.Errorf("write: %w", err)
@@ -169,12 +176,18 @@ func wireRawFrame(address, caseName string, halfClose bool, payload func() []byt
 	if halfClose {
 		// Signal that no further bytes are coming, which is what a peer that died
 		// mid-frame looks like to the endpoint.
-		if err := connection.(*net.TCPConn).CloseWrite(); err != nil {
+		tcp, ok := connection.(*net.TCPConn)
+		if !ok {
+			return errors.New("half close requires a TCP connection")
+		}
+		if err := tcp.CloseWrite(); err != nil {
 			return fmt.Errorf("half close: %w", err)
 		}
 	}
 
-	_ = connection.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if err := connection.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return err
+	}
 
 	started := time.Now()
 	buffer := make([]byte, 512)
@@ -203,7 +216,7 @@ func wireRawFrame(address, caseName string, halfClose bool, payload func() []byt
 		"elapsedMs":     elapsed.Milliseconds(),
 	})
 	if !terminated {
-		return fmt.Errorf("%s: endpoint kept the connection open instead of dropping it (%v)", caseName, readErr)
+		return fmt.Errorf("%s: endpoint kept the connection open instead of dropping it (%w)", caseName, readErr)
 	}
 	return nil
 }

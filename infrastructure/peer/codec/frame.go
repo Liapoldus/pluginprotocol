@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"sync"
 
 	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
@@ -210,7 +211,11 @@ func NewWriter(target io.Writer, maxBodySize int) *Writer {
 // WriteFrame encodes one frame. The write is atomic with respect to other frames,
 // so a frame is never interleaved with another frame on the same connection.
 func (writer *Writer) WriteFrame(frame Frame) error {
+	bodyLength := uint64(len(frame.Payload))
 	if int64(len(frame.Payload)) > int64(writer.maxBodySize) {
+		return peer.ErrMessageTooLarge
+	}
+	if bodyLength > math.MaxUint32 {
 		return peer.ErrMessageTooLarge
 	}
 	if err := frame.validate(); err != nil {
@@ -220,7 +225,7 @@ func (writer *Writer) WriteFrame(frame Frame) error {
 	var header [HeaderSize]byte
 	header[0] = byte(frame.Type)
 	binary.BigEndian.PutUint64(header[1:9], frame.StreamID)
-	binary.BigEndian.PutUint32(header[9:13], uint32(len(frame.Payload)))
+	binary.BigEndian.PutUint32(header[9:13], uint32(bodyLength))
 
 	writer.mutex.Lock()
 	defer writer.mutex.Unlock()

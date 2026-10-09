@@ -182,6 +182,20 @@ claimed as supported until that suite passes for it.
 
 ## 7. Security profiles
 
+TLS/mTLS — инфраструктура `pluginprotocol`, а не код отдельного plugin. Plugin
+выбирает объявленный профиль и передаёт credentials библиотеке; он не создаёт
+собственный `tls.Config`, TLS listener или handshake. Для production и любого
+remote peer требуется mTLS независимо от того, выбран TCP или QUIC. Plaintext
+допускается только как явный development-профиль поверх TCP loopback. Этот
+профиль не шифрует и не удостоверяет peer, поэтому не должен использоваться
+для production, удалённого адреса или доверия к локальному socket/pipe. Ошибка
+mTLS не является поводом автоматически повторить соединение без TLS.
+Payload протокола opaque: библиотека не знает, содержит ли он секреты или иные
+чувствительные данные, и не может фильтровать их по содержимому. Поэтому
+вызывающий plugin обязан ограничить plaintext-профиль только несекретным
+локальным development-трафиком; прикладные credentials и чувствительные
+payloads разрешены только через аутентифицированное соединение с mTLS.
+
 | Deployment | `SecurityConfig` | Result |
 | --- | --- | --- |
 | Remote peer | `Identity` + `Certificate` + `Roots` | mutual TLS, both peers authenticated |
@@ -228,7 +242,8 @@ peer-directory; библиотека не читает Core policy и не вы�
 локальной target replica завершается bounded unavailable, а не TCP fallback.
 
 Все v2 carriers, включая локальные IPC, используют mTLS и проверяют peer
-identity; права Unix socket и Windows pipe ACL — дополнительная защита. Реестр
+identity; права Unix socket и Windows pipe ACL — дополнительная защита. Для
+них plaintext-профиля нет. Реестр
 методов, unary/stream semantics, deadlines, cancellation и backpressure не
 меняются при смене carrier. Generic signed-CRL revocation теперь задаётся через
 `publicpeer.NewRevocationManager(rootDER, checkpoint)`. Core и продуктовые

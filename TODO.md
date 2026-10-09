@@ -1,5 +1,53 @@
 # TODO — pluginprotocol
 
+## Подготовительная чистка и quality gate — 2026-10-09
+
+- [x] Корневой `.golangci.yml`: pinned golangci-lint v2.12.2, весь Go tree,
+  включая fixtures/tests; error/context/resource/security/unused проверки.
+  Baseline и глобальные подавления отсутствуют. `make check` и verify workflow
+  блокируются при lint failure; Windows workflow также запускает lint.
+- [x] Исправлены реальные нарушения, в том числе ошибки close/rollback,
+  context propagation и rooted fixture file access; suppression требует
+  конкретного правила и объяснения. Wire source остаётся Protobuf, не новая
+  ручная модель. Generated descriptor unsafe views заменяются на owned copies
+  детерминированным postprocessor с drift tests; correctness/security проверки
+  распространяются и на generated Go.
+- [x] Независимый `GOWORK=off GOTOOLCHAIN=go1.26.0 GOFLAGS=-p=1 make check`
+  прошёл: воспроизводимая генерация, 0 lint issues, native Go tests,
+  16 TS suites / 196 passed / 9 skipped, vet и build.
+- [x] После освобождения build cache повторный `make check-race` также прошёл:
+  native race и те же 196 TS tests с race-enabled Go fixtures; 9 platform
+  scenarios остаются skipped на macOS.
+- [ ] Hosted Linux/macOS/Windows gates ещё не запускались для этих изменений;
+  skipped Windows/native placement scenarios не объявляются PASS на macOS.
+  Общий Core↔SDK dependency gate находится у владельцев Core/SDK и этой
+  самостоятельной сборкой не закрывается. Коммиты/публикация не выполнялись.
+
+## Текущий carrier/security статус — 2026-10-08
+
+Базовые carrier/security gates TCP, QUIC, Unix socket и Windows named pipe
+подтверждены: macOS и host-level OrbStack Ubuntu 24.04 прошли `make check` и
+`make check-race`; hosted Windows run `37532286030` прошёл named-pipe suite,
+включая CRL и DACL проверки. Это не закрывает добавленный позднее
+`tests/integration/local-ipc-placement.test.ts`: Unix-вариант прошёл локально на
+macOS/Linux, но сам test и его Windows job ещё находятся в незакоммиченном WIP,
+поэтому run `37532286030` не подтверждает named-pipe mixed-placement. Windows
+container/Pod profile не объявляется поддержанным. Публиковать или коммитить
+изменения без отдельного запроса нельзя.
+
+### Подтверждение external platform gates — 2026-10-07 (после полного прогона)
+
+Native Linux: полный `make check` и `make check-race` прошли на host-level
+OrbStack Ubuntu 24.04 (arm64: Go 1.26.0, Node 24, protoc 34.1, protoc-gen-go
+1.36.12) на HEAD + локальные изменения: 16 файлов, 196 passed / 9 skipped,
+включая новый mixed-placement suite (unix-вариант). Native Windows named-pipe:
+hosted `windows-latest` CI run 37532286030 прошёл целиком — `windows-pipe` job
+(128 passed / 1 skipped, windows-pipe-carrier 9/9, DACL read-back), плюс verify
+на ubuntu-latest/macos-latest (включая race). Linux контейнерная запись
+2026-10-06 остаётся отдельным evidence; native/hosted результаты теперь
+закрыты. Windows container/Pod profile по-прежнему не объявляется
+поддержанным без отдельного теста.
+
 ## Повторная проверка — 2026-10-05
 
 После изменения Go module path на `github.com/Liapoldus/pluginprotocol/v2`
@@ -158,11 +206,11 @@ Server/forms-db TypeScript suites и DB contract tests прошли. Этот р
 - `git diff --check` ранее прошёл. Полный `make check`/`make check-race` внутри
   Linux-контейнера и полный Linux runtime matrix не запускались.
 
-## Открытая работа
+## Внешние consumers и необязательный hardening
 
-В текущем Go-only v1 production scope новой локальной работы нет. Пункты ниже
-внешние либо не проверены и не считаются PASS; отдельный целевой backlog v3
-для C ABI находится ниже.
+Внутренние consumer migrations перечислены для истории и не являются активными
+задачами. Protocol-v2 acceptance определяется carrier/security gate ниже;
+пункты hardening не должны блокировать его без отдельного решения владельца.
 
 - [x] Core переведён на Plugin SDK REST и не зависит от этого модуля.
 - [x] Активные v1 consumers `plugins/{server,forms-db}` переведены с удалённых
@@ -173,12 +221,10 @@ Server/forms-db TypeScript suites и DB contract tests прошли. Этот р
   и release/version compatibility остаются внешними workspace gates.
 - [x] `plugins/{captcha,identity}` исключены из v1 и заморожены; их migration
   не является текущей задачей и не даёт основания возвращать legacy API.
-- [ ] Third-party consumers вне workspace должны мигрировать самостоятельно;
-  compatibility/aliases в этом модуле не добавляются.
-- [ ] Независимый third-party wire interop пока не доказан. Будущий Python FFI
-  использует тот же Go engine через C ABI и подтверждает binding/ABI conformance,
-  но не является независимой реализацией протокола; заявлять независимый
-  interop без отдельной реализации нельзя.
+- Внешние потребители вне workspace мигрируют самостоятельно; compatibility
+  aliases в модуль не добавляются. Модуль не обещает независимую реализацию
+  wire protocol другим языком; Python FFI в v3 будет использовать тот же Go
+  engine и проверять binding ABI, а не независимую interoperable реализацию.
 - [x] Полный `make check` runtime conformance прошёл в Linux/arm64 контейнере
   2026-10-04: 8 файлов / 137 тестов, все carrier/security scenarios, включая
   QUIC/mTLS, half-close, close-race, cancellation и bounded session lifecycle;
@@ -187,10 +233,10 @@ Server/forms-db TypeScript suites и DB contract tests прошли. Этот р
   Linux guest runtime gate дополнительно прошёл в OrbStack 2026-10-04.
   Hosted CI для revision до module-major migration проходил; повторный hosted
   CI для текущего изменения import path нужно дождаться после push.
-- [ ] Fuzzing engine (go-fuzz/libFuzzer). Есть детерминированный corpus
-  враждебного framing; полноценный fuzz-гейт не внедрён.
-- [ ] Benchmarks: целевого нагрузочного измерения throughput/latency нет,
-  soak ограничен проверкой утечек goroutine.
+- Optional hardening backlog: добавить fuzzing engine поверх существующего
+  deterministic malformed-input corpus и согласовать workload benchmarks/
+  soak thresholds. Пока числовой SLO и владелец нагрузочного профиля не заданы,
+  эти задачи не входят в текущий v2 acceptance.
 
 ## Критерий завершения
 
@@ -201,26 +247,39 @@ conformance проверены; Core, Plugin SDK и продуктовые ко�
 
 ### Milestone 2 — смешанные физические carriers
 
-- [ ] Завершить смешанные физические carriers. Unix domain socket реализация
+- [x] Завершить смешанные физические carriers. Unix domain socket реализация
   добавлена как незавершённый v2-срез: `unix:///absolute/path`, обязательный
   mTLS с явным TLS `ServerName`, ограниченные права сокета и безопасный отказ
   от замены активного/non-socket пути. Начальные child-process проверки покрывают
-  unary, bidi stream, downgrade refusal и path permissions. Ещё не пройдены общий
-  conformance corpus и Linux CI. Windows named pipes реализованы как отдельный
-  standalone-host carrier с mandatory mTLS, explicit `ServerName`, DACL текущего
-  process account + SYSTEM, запретом замены существующего pipe и без fallback.
-  Общий `peer-net-conformance` corpus теперь включает pipe в Windows runner;
-  дополнительный child-process suite проверяет Windows listener. Эти тесты и
-  native `windows-latest` CI добавлены, но фактический native Windows результат
-  ещё не получен. Не обещать Windows container/Pod profile. Не менять method
-  registry, unary/stream wire semantics и `liapoldus.peer.v1`. Gate: единый
-  corpus для TCP/QUIC/UDS/pipe на поддерживаемых native платформах, включая
-  cancellation, deadlines, backpressure, close races, identity/revocation и
-  no-fallback.
-- [ ] Для всех локальных IPC завершить проверки обязательного mTLS и peer
-  identity, прав socket/pipe ACL и отсутствия скрытого TCP/QUIC fallback. Gate:
+  unary, bidi stream, downgrade refusal и path permissions; общий conformance
+  corpus и native Linux CI пройдены (2026-10-07). Windows named pipes реализованы
+  как отдельный standalone-host carrier с mandatory mTLS, explicit `ServerName`,
+  DACL текущего process account + SYSTEM, запретом замены существующего pipe и
+  без fallback. Общий `peer-net-conformance` corpus теперь включает pipe в Windows
+  runner; дополнительный child-process suite проверяет Windows listener. Эти тесты
+  и native `windows-latest` CI добавлены; фактический native Windows результат
+  получен: hosted CI run 37532286030 зелёный (windows-pipe 128 passed /
+  1 skipped, windows-pipe-carrier 9/9, DACL/`probe`). Не обещать Windows
+  container/Pod profile. Не менять method registry, unary/stream wire semantics
+  и `liapoldus.peer.v1`. Gate: единый corpus для TCP/QUIC/UDS/pipe на
+  поддерживаемых native платформах, включая cancellation, deadlines,
+  backpressure, close races, identity/revocation и no-fallback.
+- [ ] Закрыть полную conformance всех локальных IPC: обязательный mTLS и peer
+  identity, права socket/pipe ACL, отсутствие скрытого TCP/QUIC fallback,
   invalid/revoked cert, cancellation, deadlines, backpressure, close races и
   mixed-placement child-process tests.
+  Mixed-placement child-process tests добавлены 2026-10-07
+  (`tests/integration/local-ipc-placement.test.ts`): mTLS process hub одновременно
+  удерживает исходящие bidi-streams и принимает входящие вызовы; проверяются
+  authenticated caller identity и исчерпание stream budget у peer. Локально на
+  macOS: `vitest run tests/integration/local-ipc-placement.test.ts
+  tests/integration/unix-carrier-guards.test.ts` — 2 файла, 14 passed / 1
+  skipped; race-вариант `local-ipc-placement.test.ts` — 1 passed / 1 skipped;
+  fixture также прошёл `GOOS=windows GOARCH=amd64 go build`. Windows named-pipe
+  тест пропущен на macOS, а cross-build не является runtime evidence. Уже
+  существующий hosted run `37532286030` не доказывает исполнение этого файла;
+  пункт остаётся открытым до native/hosted Windows результата с
+  `local-ipc-placement.test.ts`.
 - [x] Generic signed-CRL revocation surface: `presentation/peer` exposes a
   manager configured from the exact root-DER set. It verifies issuer chains,
   CRL signatures/numbers/freshness/extensions, requires a CRL for each trust root,
@@ -251,14 +310,13 @@ conformance проверены; Core, Plugin SDK и продуктовые ко�
   with x/sys GetSecurityInfo DACL read-back), and `git diff --check` passed.
   The main CI matrix runs QUIC/Unix conformance on Ubuntu and macOS; the
   dedicated native Windows job includes named-pipe CRL conformance and the
-  DACL/`probe` tests, but no Windows runner result has been observed here.
-  Native Linux CI and Windows named-pipe runtime results remain external
-  gates. The consumer atomically persists/restores the
-  checkpoint; Core lifecycle and product revocation endpoints are not added.
-- [ ] Windows container/Pod named-pipe profile объявлять поддерживаемым только
-  после отдельного native conformance; не считать standalone Windows host
-  доказательством контейнерной совместимости.
-
+  DACL/`probe` tests. Both external gates are now closed (2026-10-07): native
+  Linux ran the full `make check` + `make check-race` on a host-level OrbStack
+  Ubuntu 24.04 VM, and the native Windows result is the green hosted CI run
+  37532286030 (windows-pipe 128 passed / 1 skipped, incl. named-pipe CRL and
+  DACL read-back; ubuntu/macos verify incl. race also green). The consumer
+  atomically persists/restores the checkpoint; Core lifecycle and product
+  revocation endpoints are not added.
 ## План v3: native C ABI и языковые bindings
 
 - [ ] Спроектировать и реализовать versioned C ABI, которая вызывает текущий

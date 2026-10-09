@@ -37,10 +37,16 @@ the workspace Core roadmap.
   may select the carrier and security profile through generic configuration
   without changing registered method names, payload contracts, or plugin call
   sites.
-- The v1 loopback/development profile may explicitly disable encryption;
-  production v2 carriers, including Unix sockets and Windows named pipes,
-  require authenticated mTLS. No fallback or downgrade from a failed secure
-  profile is allowed.
+- The library owns TLS/mTLS, certificate verification, peer identity and
+  revocation for peer connections. Plugin consumers select a supported profile
+  and provide credentials through this library; they must not build a parallel
+  TLS stack or perform TLS handshakes themselves. Remote connections and all
+  production profiles require authenticated mTLS. An explicitly selected
+  plaintext profile is permitted only for TCP loopback development; it provides
+  neither encryption nor peer authentication. QUIC is always encrypted and
+  still requires mutual peer authentication. The v2 Unix-socket and Windows
+  named-pipe profiles require mTLS. A failed secure connection never falls
+  back to plaintext.
 - Transport, connection management, listener/client setup, streams, and their
   security adapters belong in `infrastructure/`. The generic API must not
   contain product-specific methods or assume a particular plugin topology.
@@ -80,9 +86,11 @@ consume the ABI and do not reimplement wire/session/security behavior.
 
 - Preserve existing user changes. Before editing, inspect `git status --short`
   and the relevant diff; do not overwrite unrelated dirty or untracked files.
-- All automated tests belong under `tests/` and use TypeScript/Vitest + `tsx`.
-  Do not add Go `*_test.go` files or test helpers to production packages.
-- For behavior changes, add a focused failing TypeScript test before
+- Native Go unit tests belong beside the Go implementation; use them for
+  deterministic codec, resource, context and security regression coverage.
+  TypeScript/Vitest + `tsx` tests under `tests/` exercise real child-process
+  transport and carrier E2E conformance. There is no broad Go test ban.
+- For behavior changes, add a focused failing Go or TypeScript test before
   implementation. Keep red state local; commit test and implementation together
   only when the slice is green.
 - Test generic registration, malformed and oversized messages, deadlines,
@@ -93,6 +101,12 @@ consume the ABI and do not reimplement wire/session/security behavior.
   run `make check`, `go vet ./...`, `go build ./...`, generated-source checks,
   and applicable macOS/Linux builds. Do not claim readiness while supported
   carriers or plugin consumers lack conformance.
+- `make lint` installs pinned golangci-lint v2.12.2 with Go 1.26.0 into ignored
+  test tooling and checks the entire module, including tests and generated wire
+  code. `.golangci.yml` is the blocking quality gate; no baseline/new-code-only
+  mode or broad exclusions. Generated wire code has only staticcheck stylistic
+  exclusions. Fix findings rather than disable enabled rules. Any local
+  suppression must name its linter and explain the concrete invariant.
 - Do not publish, tag, push, or rewrite history without explicit authorization.
 
 ## Migration rule

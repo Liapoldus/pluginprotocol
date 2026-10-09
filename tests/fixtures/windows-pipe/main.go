@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"io"
 	"os"
 	"os/signal"
@@ -101,7 +102,7 @@ func serve(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer server.Close()
+	defer fixture.Close(server)
 	emit(report{OK: true, Addr: server.Addr(), Carrier: server.Carrier(), Encrypted: server.Encrypted(), Authenticated: server.Authenticated()})
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -139,7 +140,7 @@ func call(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer fixture.Close(client)
 	if *scenario == "unary" {
 		result, err := client.Call(ctx, "fixture.echo", []byte("pipe"))
 		if err != nil {
@@ -200,7 +201,7 @@ func bind(args []string) error {
 		Handler:  handler,
 	})
 	if err == nil {
-		server.Close()
+		fixture.Close(server)
 		return errors.New("second pipe listener unexpectedly replaced active endpoint")
 	}
 	return err
@@ -233,7 +234,7 @@ func listenOnly(args []string) error {
 		return err
 	}
 	started := report{OK: true, Addr: server.Addr(), Carrier: server.Carrier(), Encrypted: server.Encrypted(), Authenticated: server.Authenticated()}
-	server.Close()
+	fixture.Close(server)
 	emit(started)
 	return nil
 }
@@ -250,7 +251,7 @@ func credentials(directory string, client, wrongIdentity bool) (publicpeer.Secur
 	if err != nil {
 		return publicpeer.SecurityConfig{}, errors.New("cannot load fixture identity")
 	}
-	rootPEM, err := os.ReadFile(filepath.Join(directory, "ca.pem"))
+	rootPEM, err := fixture.ReadFile(filepath.Join(directory, "ca.pem"))
 	if err != nil {
 		return publicpeer.SecurityConfig{}, errors.New("cannot load fixture trust root")
 	}
@@ -274,11 +275,14 @@ func registry() (publicpeer.Handler, error) {
 			recordDispatch("stream", "fixture.stream")
 			for {
 				message, err := stream.Recv()
-				if err != nil {
+				if errors.Is(err, io.EOF) {
 					return nil
 				}
+				if err != nil {
+					return err
+				}
 				if err := stream.Send(message); err != nil {
-					return nil
+					return err
 				}
 			}
 		}).Build()
@@ -288,12 +292,7 @@ func recordDispatch(kind, method string) {
 	if dispatchLogPath == "" {
 		return
 	}
-	file, err := os.OpenFile(dispatchLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	_, _ = fmt.Fprintf(file, "%s %s\n", kind, method)
+	fixture.RecordDispatch(dispatchLogPath, kind, string(method))
 }
 
 func emit(value report) {

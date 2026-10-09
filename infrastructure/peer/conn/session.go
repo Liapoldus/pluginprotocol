@@ -208,7 +208,7 @@ func (session *Session) Close() error {
 	session.closeOnce.Do(func() {
 		// A best-effort notice lets the peer stop its handlers promptly; the
 		// transport is closed immediately afterwards regardless.
-		_ = session.writeFrame(codec.Frame{Type: codec.FrameClose})
+		session.sendFrame(codec.Frame{Type: codec.FrameClose})
 		session.end(nil)
 	})
 	return nil
@@ -218,7 +218,7 @@ func (session *Session) Close() error {
 // first call wins, so the original cause is what every waiter observes.
 func (session *Session) end(cause error) {
 	session.cancel()
-	_ = session.transport.Close()
+	_ = session.transport.Close() //nolint:errcheck // Preserve the first terminal cause; transport teardown cannot be retried or reported to a departed peer.
 
 	session.mutex.Lock()
 	if !session.ended {
@@ -393,13 +393,21 @@ func (session *Session) writeFrame(frame codec.Frame) error {
 	return nil
 }
 
+// sendFrame handles asynchronous replies. writeFrame already terminates the
+// session and wakes every waiter on failure; synchronous paths return its error.
+func (session *Session) sendFrame(frame codec.Frame) {
+	if err := session.writeFrame(frame); err != nil {
+		return
+	}
+}
+
 // notifyCancelled tells the peer that the caller abandoned an invocation.
 func (session *Session) notifyCancelled(streamID uint64, cause error) {
 	code := peer.StatusOf(cause)
 	if errors.Is(cause, context.Canceled) {
 		code = peer.StatusCanceled
 	}
-	_ = session.writeFrame(endFrame(streamID, code))
+	session.sendFrame(endFrame(streamID, code))
 }
 
 // terminalOf normalises a termination cause so every waiter observes a generic

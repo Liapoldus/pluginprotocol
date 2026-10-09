@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"time"
 
 	winio "github.com/Microsoft/go-winio"
@@ -26,7 +27,7 @@ func probe(args []string) error {
 		defer cancel()
 		connection, err := winio.DialPipeContext(ctx, *endpoint)
 		if err == nil {
-			_ = connection.Close()
+			fixture.Close(connection)
 			result.Exists = true
 		}
 	}

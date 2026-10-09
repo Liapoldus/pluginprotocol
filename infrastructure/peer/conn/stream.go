@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"errors"
 	"io"
 	"sync"
 
@@ -201,7 +202,7 @@ func (s *stream) CloseSend() error {
 // local pump is still being scheduled. In that case CloseSend is complete even
 // though the stream context has already been canceled.
 func (s *stream) closeSendAfterTerminal() error {
-	if s.terminal() == peer.ErrStreamClosed {
+	if errors.Is(s.terminal(), peer.ErrStreamClosed) {
 		return nil
 	}
 	return s.ctx.Err()

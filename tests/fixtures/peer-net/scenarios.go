@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"io"
 	"os"
 	"os/signal"
@@ -75,8 +76,11 @@ func newRegistry() (*peer.Registry, error) {
 	if err := streamed("example.stream.echo", func(stream domainpeer.Stream) error {
 		for {
 			message, err := stream.Recv()
-			if err != nil {
+			if errors.Is(err, io.EOF) {
 				return nil
+			}
+			if err != nil {
+				return err
 			}
 			if err := stream.Send(domainpeer.Message{Payload: message.Payload}); err != nil {
 				return err
@@ -162,12 +166,7 @@ func recordDispatch(kind string, method domainpeer.Method) {
 	if dispatchLogPath == "" {
 		return
 	}
-	file, err := os.OpenFile(dispatchLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	_, _ = fmt.Fprintf(file, "%s %s\n", kind, method)
+	fixture.RecordDispatch(dispatchLogPath, kind, string(method))
 }
 
 func runScenario(name, address, profileName, directory, carrierName string) (map[string]any, error) {
@@ -218,19 +217,19 @@ func unaryScenario(address, profileName, directory, carrierName string) (map[str
 		}
 		_, err = session.Call(callCtx, "example.missing", nil)
 		if !errors.Is(err, domainpeer.ErrMethodNotFound) {
-			return nil, fmt.Errorf("unknown method: got %v", err)
+			return nil, fmt.Errorf("unknown method: got %w", err)
 		}
 		_, err = session.Call(callCtx, "example.boom", nil)
 		if !errors.Is(err, domainpeer.ErrInternal) {
-			return nil, fmt.Errorf("handler failure: got %v", err)
+			return nil, fmt.Errorf("handler failure: got %w", err)
 		}
 		if strings.Contains(err.Error(), secret) {
-			return nil, fmt.Errorf("handler failure leaked detail: %q", err)
+			return nil, fmt.Errorf("handler failure leaked detail: %w", err)
 		}
 		// A response beyond the bound must be refused rather than truncated.
 		_, err = session.Call(callCtx, "example.oversize", nil)
 		if !errors.Is(err, domainpeer.ErrMessageTooLarge) {
-			return nil, fmt.Errorf("oversized response: got %v", err)
+			return nil, fmt.Errorf("oversized response: got %w", err)
 		}
 		oversized := make([]byte, 4096)
 		_, err = session.Call(callCtx, "example.echo", oversized)
@@ -241,10 +240,10 @@ func unaryScenario(address, profileName, directory, carrierName string) (map[str
 		// dropped connection, and the following call still succeeds.
 		_, err = session.Call(callCtx, "example.panic", nil)
 		if !errors.Is(err, domainpeer.ErrInternal) {
-			return nil, fmt.Errorf("handler panic: got %v", err)
+			return nil, fmt.Errorf("handler panic: got %w", err)
 		}
 		if strings.Contains(err.Error(), secret) {
-			return nil, fmt.Errorf("handler panic leaked detail: %q", err)
+			return nil, fmt.Errorf("handler panic leaked detail: %w", err)
 		}
 		afterPanic, err := session.Call(callCtx, "example.echo", []byte("alive"))
 		if err != nil {
@@ -298,13 +297,13 @@ func streamScenario(address, profileName, directory, carrierName string) (map[st
 		}
 		_, err = stream.Recv()
 		if !errors.Is(err, io.EOF) {
-			return nil, fmt.Errorf("clean end: got %v", err)
+			return nil, fmt.Errorf("clean end: got %w", err)
 		}
 
 		// A refused stream is reported while it is opened, not on a later read.
 		_, err = session.OpenStream(openCtx, "example.stream.missing")
 		if !errors.Is(err, domainpeer.ErrMethodNotFound) {
-			return nil, fmt.Errorf("unknown stream method: got %v", err)
+			return nil, fmt.Errorf("unknown stream method: got %w", err)
 		}
 
 		fault, err := session.OpenStream(openCtx, "example.stream.fault")
@@ -313,10 +312,10 @@ func streamScenario(address, profileName, directory, carrierName string) (map[st
 		}
 		_, err = fault.Recv()
 		if !errors.Is(err, domainpeer.ErrInternal) {
-			return nil, fmt.Errorf("stream failure: got %v", err)
+			return nil, fmt.Errorf("stream failure: got %w", err)
 		}
 		if strings.Contains(err.Error(), secret) {
-			return nil, fmt.Errorf("stream failure leaked detail: %q", err)
+			return nil, fmt.Errorf("stream failure leaked detail: %w", err)
 		}
 		panicked, err := session.OpenStream(openCtx, "example.stream.panic")
 		if err != nil {
@@ -324,10 +323,10 @@ func streamScenario(address, profileName, directory, carrierName string) (map[st
 		}
 		_, err = panicked.Recv()
 		if !errors.Is(err, domainpeer.ErrInternal) {
-			return nil, fmt.Errorf("stream panic: got %v", err)
+			return nil, fmt.Errorf("stream panic: got %w", err)
 		}
 		if strings.Contains(err.Error(), secret) {
-			return nil, fmt.Errorf("stream panic leaked detail: %q", err)
+			return nil, fmt.Errorf("stream panic leaked detail: %w", err)
 		}
 		return map[string]any{"received": received, "stream_panic": true}, nil
 	})
@@ -369,7 +368,7 @@ func cancelCallScenario(address, profileName, directory, carrierName string) (ma
 		}()
 		_, err := session.Call(callCtx, "example.slow", nil)
 		if !errors.Is(err, context.Canceled) {
-			return nil, fmt.Errorf("cancel: got %v", err)
+			return nil, fmt.Errorf("cancel: got %w", err)
 		}
 		return map[string]any{"canceled": true}, nil
 	})
@@ -388,7 +387,7 @@ func cancelStreamScenario(address, profileName, directory, carrierName string) (
 		cancel()
 		_, err = stream.Recv()
 		if !errors.Is(err, context.Canceled) {
-			return nil, fmt.Errorf("stream cancel: got %v", err)
+			return nil, fmt.Errorf("stream cancel: got %w", err)
 		}
 		return map[string]any{"canceled": true}, nil
 	})
@@ -505,15 +504,6 @@ func defaultLimitsScenario(address, profileName, directory, carrierName string) 
 		})
 }
 
-// errString renders an error for a report, keeping a nil error readable instead of
-// panicking on Error().
-func errString(err error) string {
-	if err == nil {
-		return ""
-	}
-	return err.Error()
-}
-
 // overloadedScenario proves the bounded concurrency budget is reported to the
 // peer instead of being waited on.
 func overloadedScenario(address, profileName, directory, carrierName string) (map[string]any, error) {
@@ -533,7 +523,7 @@ func overloadedScenario(address, profileName, directory, carrierName string) (ma
 		_ = second
 		_, err = session.OpenStream(openCtx, "example.stream.block")
 		if !errors.Is(err, domainpeer.ErrOverloaded) {
-			return nil, fmt.Errorf("overload: got %v", err)
+			return nil, fmt.Errorf("overload: got %w", err)
 		}
 		return map[string]any{"overloaded": true}, nil
 	})
@@ -547,7 +537,7 @@ func deadlineScenario(address, profileName, directory, carrierName string) (map[
 		defer cancel()
 		_, err := session.Call(callCtx, "example.slow", nil)
 		if !errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("deadline: got %v", err)
+			return nil, fmt.Errorf("deadline: got %w", err)
 		}
 		return map[string]any{"deadline": true}, nil
 	})
@@ -591,11 +581,11 @@ func authorizationScenario(address, profileName, directory, carrierName string) 
 		}
 		_, err = session.Call(callCtx, "example.denied", nil)
 		if !errors.Is(err, domainpeer.ErrUnauthorized) {
-			return nil, fmt.Errorf("denied call: got %v", err)
+			return nil, fmt.Errorf("denied call: got %w", err)
 		}
 		_, err = session.OpenStream(callCtx, "example.stream.denied")
 		if !errors.Is(err, domainpeer.ErrUnauthorized) {
-			return nil, fmt.Errorf("denied stream: got %v", err)
+			return nil, fmt.Errorf("denied stream: got %w", err)
 		}
 		return map[string]any{
 			"echo":         string(echoed.Payload),

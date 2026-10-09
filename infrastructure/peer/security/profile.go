@@ -10,6 +10,7 @@
 package security
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"time"
 )
 
 // Profile names of the supported security profiles. They are stable identifiers
@@ -118,13 +120,19 @@ func (profile *Profile) ClientConfig() *tls.Config {
 // A remote endpoint always requires encryption, which is what makes a failed
 // secure profile an error instead of a downgrade.
 func (profile *Profile) RequireEncryptedEndpoint(endpoint string) error {
+	return profile.RequireEncryptedEndpointContext(context.Background(), endpoint)
+}
+
+// RequireEncryptedEndpointContext validates endpoint with caller cancellation
+// and a bounded DNS lookup. Listen has no caller context and uses the method above.
+func (profile *Profile) RequireEncryptedEndpointContext(ctx context.Context, endpoint string) error {
 	if profile == nil {
 		return errors.New("security: no profile")
 	}
 	if profile.encrypted {
 		return nil
 	}
-	return requireLoopback(endpoint)
+	return requireLoopback(ctx, endpoint)
 }
 
 // MTLS resolves the required mutual-TLS profile.
@@ -222,7 +230,7 @@ func LoopbackPlaintext() *Profile {
 // requireLoopback refuses an endpoint that is not a loopback address. A hostname
 // is accepted only when every address it resolves to is loopback, so a name that
 // could point off-host cannot slip through the development profile.
-func requireLoopback(endpoint string) error {
+func requireLoopback(parent context.Context, endpoint string) error {
 	host, _, err := net.SplitHostPort(endpoint)
 	if err != nil {
 		host = endpoint
@@ -236,7 +244,9 @@ func requireLoopback(endpoint string) error {
 		}
 		return nil
 	}
-	addresses, err := net.LookupIP(host)
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
+	defer cancel()
+	addresses, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
 		return fmt.Errorf("%w: %q cannot be resolved", ErrPlaintextNotLoopback, endpoint)
 	}
@@ -244,7 +254,7 @@ func requireLoopback(endpoint string) error {
 		return fmt.Errorf("%w: %q resolved to no address", ErrPlaintextNotLoopback, endpoint)
 	}
 	for _, address := range addresses {
-		if !address.IsLoopback() {
+		if !address.IP.IsLoopback() {
 			return fmt.Errorf("%w: %q resolves off-loopback", ErrPlaintextNotLoopback, endpoint)
 		}
 	}

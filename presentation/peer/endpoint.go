@@ -105,7 +105,7 @@ func Dial(ctx context.Context, config ClientConfig) (Client, error) {
 	if config.Network.Endpoint == "" {
 		return nil, errors.New("peer: a client requires an endpoint")
 	}
-	carrier, err := buildCarrier(config.Network, config.Security, config.Limits)
+	carrier, err := buildCarrier(ctx, config.Network, config.Security, config.Limits)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func Listen(config ServerConfig) (*Server, error) {
 	if config.Network.Endpoint == "" {
 		return nil, errors.New("peer: a server requires an endpoint")
 	}
-	carrier, err := buildCarrier(config.Network, config.Security, config.Limits)
+	carrier, err := buildCarrier(context.Background(), config.Network, config.Security, config.Limits)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func serve(_ context.Context, session peer.Session) {
 		engine.Wait()
 		return
 	}
-	_ = session.Close()
+	_ = session.Close() //nolint:errcheck // No active caller or Wait hook remains; transport shutdown has no error recipient.
 }
 
 // Close stops accepting. It is safe to call more than once.
@@ -187,12 +187,12 @@ func (server *Server) Close() error { return server.listener.Close() }
 // The profile is resolved first, because a configuration that cannot authenticate
 // a peer must be refused before a socket exists rather than after the first
 // connection.
-func buildCarrier(network NetworkConfig, configuration SecurityConfig, limits Limits) (peer.Carrier, error) {
+func buildCarrier(ctx context.Context, network NetworkConfig, configuration SecurityConfig, limits Limits) (peer.Carrier, error) {
 	profile, err := resolveProfile(configuration)
 	if err != nil {
 		return nil, err
 	}
-	if err := profile.RequireEncryptedEndpoint(network.Endpoint); err != nil {
+	if err := profile.RequireEncryptedEndpointContext(ctx, network.Endpoint); err != nil {
 		return nil, err
 	}
 

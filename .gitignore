@@ -1,5 +1,6 @@
 tests/node_modules/
 node_modules/
 tests/.vite/
+tests/.tools/
 .DS_Store
 /peer-net

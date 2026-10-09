@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"io"
 	"os"
 	"path/filepath"
@@ -43,7 +44,7 @@ func facadeProbe(args []string) error {
 		if err != nil {
 			return fmt.Errorf("create Unix socket directory: %w", err)
 		}
-		defer os.RemoveAll(directory)
+		defer fixture.RemoveAll(directory)
 		*endpoint = "unix://" + filepath.Join(directory, "peer.sock")
 	}
 	if *carrierName == "pipe" && *endpoint == "127.0.0.1:0" {
@@ -76,7 +77,7 @@ func facadeProbe(args []string) error {
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
 	}
-	defer server.Close()
+	defer fixture.Close(server)
 
 	serving := make(chan error, 1)
 	go func() { serving <- server.Sessions(ctx) }()
@@ -99,7 +100,7 @@ func facadeProbe(args []string) error {
 	if err != nil {
 		return fmt.Errorf("dial: %w", err)
 	}
-	defer client.Close()
+	defer fixture.Close(client)
 
 	callCtx, cancelCall := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelCall()
@@ -130,17 +131,17 @@ func facadeProbe(args []string) error {
 		return fmt.Errorf("close send: %w", err)
 	}
 	if _, err := stream.Recv(); !errors.Is(err, io.EOF) {
-		return fmt.Errorf("stream end: got %v", err)
+		return fmt.Errorf("stream end: got %w", err)
 	}
 
 	// The same consumer-supplied authorizer is enforced through the public facade:
 	// a denied call and a denied stream are refused, so a consumer cannot register
 	// a method and have it exempt from the policy.
 	if _, err := client.Call(callCtx, "example.denied", nil); !errors.Is(err, domainpeer.ErrUnauthorized) {
-		return fmt.Errorf("denied call through the facade: got %v", err)
+		return fmt.Errorf("denied call through the facade: got %w", err)
 	}
 	if _, err := client.OpenStream(callCtx, "example.stream.denied"); !errors.Is(err, domainpeer.ErrUnauthorized) {
-		return fmt.Errorf("denied stream through the facade: got %v", err)
+		return fmt.Errorf("denied stream through the facade: got %w", err)
 	}
 
 	emit(map[string]any{
@@ -157,7 +158,7 @@ func facadeProbe(args []string) error {
 		"callDenied":      true,
 		"streamDenied":    true,
 	})
-	_ = client.Close()
+	fixture.Close(client)
 	select {
 	case err := <-serving:
 		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
@@ -190,11 +191,14 @@ func facadeRegistry() (publicpeer.Handler, error) {
 		RegisterStream("example.stream", func(stream publicpeer.Stream) error {
 			for {
 				message, err := stream.Recv()
-				if err != nil {
+				if errors.Is(err, io.EOF) {
 					return nil
 				}
+				if err != nil {
+					return err
+				}
 				if err := stream.Send(message); err != nil {
-					return nil
+					return err
 				}
 			}
 		}).

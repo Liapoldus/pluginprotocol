@@ -20,6 +20,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -50,6 +51,7 @@ var commands = []struct {
 	help string
 }{
 	{"server", "listen on an address and serve registered methods"},
+	{"hub", "listen on one address while dialing another, so one process plays both roles"},
 	{"client", "dial an address and run the client scenarios"},
 	{"facade", "exercise the public presentation/peer surface end to end"},
 	{"wire", "send a scripted sequence of raw frames"},
@@ -75,6 +77,8 @@ func run(args []string) error {
 		return soakProbe(args[1:])
 	case "server":
 		return serve(args[1:])
+	case "hub":
+		return hub(args[1:])
 	case "client":
 		return call(args[1:])
 	default:
@@ -93,10 +97,13 @@ func usage() string {
 func emit(value map[string]any) {
 	encoded, err := json.Marshal(value)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "peer-net: cannot encode report: %v\n", err)
+		if _, writeErr := fmt.Fprintf(os.Stderr, "peer-net: cannot encode report: %v\n", err); writeErr != nil {
+			os.Exit(2)
+		}
 		return
 	}
-	fmt.Println(string(encoded))
+	_, err = fmt.Println(string(encoded))
+	fixture.Check(err)
 }
 
 // fixtureLimits keeps the bounds deliberately small so the conformance suite can
@@ -158,7 +165,7 @@ func serve(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
+	defer fixture.Close(listener)
 
 	emit(map[string]any{
 		"ok": true, "role": "server", "addr": listener.Addr(),
@@ -170,7 +177,7 @@ func serve(args []string) error {
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-signals
-		_ = listener.Close()
+		fixture.Close(listener)
 	}()
 
 	ctx := context.Background()
@@ -194,7 +201,7 @@ func call(args []string) error {
 	address := flags.String("addr", "", "server address")
 	scenario := flags.String("scenario", "", "scenario to run")
 	profileName := flags.String("security", "loopback", "security profile: loopback or mtls")
-	carrierName := flags.String("carrier", "tcp", "carrier: tcp or quic")
+	carrierName := flags.String("carrier", "tcp", "carrier: tcp, quic, unix, or pipe")
 	directory := flags.String("dir", "", "directory holding the generated certificates")
 	streams := flags.Int("streams", 2, "number of streams to hold open, used by the hold-streams probe")
 	serverName := flags.String("server-name", clientServerName, "TLS name the unix carrier verifies the server certificate against")
@@ -248,7 +255,7 @@ func withSessionLimits(
 		return nil, err
 	}
 	defer func() {
-		_ = session.Close()
+		fixture.Close(session)
 		wait(session)
 	}()
 

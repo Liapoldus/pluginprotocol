@@ -23,10 +23,13 @@ profile. Поддерживаемые v1 carrier — TCP и QUIC; оба про�
 набор conformance, поэтому смена carrier не ослабляет peer authentication,
 encryption, authorization, cancellation, deadlines, flow control или stream
 семантику. Единый wire contract — `liapoldus.peer.v1`; он переносит только opaque
-method name и opaque payload. Remote-соединение использует аутентификацию и
-шифрование без plaintext downgrade; небезопасный профиль может быть разрешён
-только для loopback/dev, а
-QUIC, будучи всегда зашифрованным, такого профиля не предлагает вовсе.
+method name и opaque payload. `pluginprotocol` владеет TLS/mTLS handshake,
+проверкой peer identity и revocation; plugins только выбирают профиль и
+передают credentials через API библиотеки, не реализуя TLS самостоятельно.
+Remote- и production-соединения требуют mTLS. Явный plaintext разрешён только
+для TCP loopback в development и не удостоверяет peer. QUIC всегда шифрует
+трафик и требует взаимную аутентификацию. Ошибка secure-соединения никогда не
+вызывает автоматический plaintext fallback.
 
 ## Использование
 
@@ -49,6 +52,21 @@ schemas, ошибки и conformance vectors принадлежат репози
 Потребитель, который использовал удалённые lifecycle, grant или gRPC API,
 начинает миграцию с [docs/migration.md](docs/migration.md): там перечислены
 удалённые package paths и exported API по capability и владельцу замены.
+
+## Проверки качества
+
+`make check` проверяет generated wire source, запускает полный blocking lint,
+native Go tests, TypeScript child-process E2E, vet и build. `make check-race`
+запускает Go tests и реальные transport fixtures под race detector.
+`make lint` устанавливает pinned golangci-lint v2.12.2 с Go 1.26.0 в ignored
+`tests/.tools/`; root `.golangci.yml` проверяет весь module без baseline/new-only
+исключений. CI использует Go 1.26.0 на Linux, macOS и Windows.
+
+Generated `.pb.go` проходит security/resource/correctness checks; только
+стилистические ST checks исключены для generated wire types. `make generate-go`
+и `make check-generated` применяют одинаковую проверенную замену двух unsafe
+descriptor views на owned byte copies. Wire namespace, descriptors и payloads
+сохраняются; unexpected generator output отклоняется.
 
 ## Другие языки — план v3
 

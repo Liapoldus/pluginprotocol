@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"io"
 	"os"
 	"strconv"
@@ -131,12 +132,15 @@ func decode(value string) []byte {
 
 func decodeOptions(payload []byte) callOptions {
 	var options callOptions
-	_ = json.Unmarshal(payload, &options)
+	if err := json.Unmarshal(payload, &options); err != nil {
+		return options
+	}
 	return options
 }
 
 func encodeOptions(options callOptions) []byte {
-	encoded, _ := json.Marshal(options)
+	encoded, err := json.Marshal(options)
+	fixture.Check(err)
 	return encoded
 }
 
@@ -185,11 +189,11 @@ func (s *memoryStream) CloseSend() error {
 func buildRegistry() *peer.Registry {
 	registry := peer.NewRegistry()
 
-	_ = registry.RegisterCall(methodEcho, func(_ context.Context, call domainpeer.Call) (domainpeer.Result, error) {
+	fixture.Check(registry.RegisterCall(methodEcho, func(_ context.Context, call domainpeer.Call) (domainpeer.Result, error) {
 		return domainpeer.Result{Payload: append([]byte(nil), call.Payload...)}, nil
-	})
+	}))
 
-	_ = registry.RegisterCall(methodUpper, func(_ context.Context, call domainpeer.Call) (domainpeer.Result, error) {
+	fixture.Check(registry.RegisterCall(methodUpper, func(_ context.Context, call domainpeer.Call) (domainpeer.Result, error) {
 		upper := make([]byte, len(call.Payload))
 		for index, symbol := range call.Payload {
 			if symbol >= 'a' && symbol <= 'z' {
@@ -199,9 +203,9 @@ func buildRegistry() *peer.Registry {
 			upper[index] = symbol
 		}
 		return domainpeer.Result{Payload: upper}, nil
-	})
+	}))
 
-	_ = registry.RegisterCall(methodSlow, func(ctx context.Context, call domainpeer.Call) (domainpeer.Result, error) {
+	fixture.Check(registry.RegisterCall(methodSlow, func(ctx context.Context, call domainpeer.Call) (domainpeer.Result, error) {
 		options := decodeOptions(call.Payload)
 		select {
 		case <-ctx.Done():
@@ -209,14 +213,14 @@ func buildRegistry() *peer.Registry {
 		case <-time.After(time.Duration(options.HoldMS) * time.Millisecond):
 			return domainpeer.Result{Payload: call.Payload}, nil
 		}
-	})
+	}))
 
-	_ = registry.RegisterCall(methodOversize, func(_ context.Context, call domainpeer.Call) (domainpeer.Result, error) {
+	fixture.Check(registry.RegisterCall(methodOversize, func(_ context.Context, call domainpeer.Call) (domainpeer.Result, error) {
 		options := decodeOptions(call.Payload)
 		return domainpeer.Result{Payload: make([]byte, options.Size)}, nil
-	})
+	}))
 
-	_ = registry.RegisterCall(methodBlock, func(ctx context.Context, call domainpeer.Call) (domainpeer.Result, error) {
+	fixture.Check(registry.RegisterCall(methodBlock, func(ctx context.Context, call domainpeer.Call) (domainpeer.Result, error) {
 		options := decodeOptions(call.Payload)
 		select {
 		case <-ctx.Done():
@@ -224,21 +228,21 @@ func buildRegistry() *peer.Registry {
 		case <-time.After(time.Duration(options.HoldMS) * time.Millisecond):
 			return domainpeer.Result{}, nil
 		}
-	})
+	}))
 
-	_ = registry.RegisterCall(methodPanic, func(context.Context, domainpeer.Call) (domainpeer.Result, error) {
+	fixture.Check(registry.RegisterCall(methodPanic, func(context.Context, domainpeer.Call) (domainpeer.Result, error) {
 		panic("router panic detail")
-	})
+	}))
 
-	_ = registry.RegisterCall(methodWhoami, func(_ context.Context, call domainpeer.Call) (domainpeer.Result, error) {
+	fixture.Check(registry.RegisterCall(methodWhoami, func(_ context.Context, call domainpeer.Call) (domainpeer.Result, error) {
 		return domainpeer.Result{Payload: []byte(call.From.URI)}, nil
-	})
+	}))
 
-	_ = registry.RegisterStream(methodStreamPanic, func(domainpeer.Stream) error {
+	fixture.Check(registry.RegisterStream(methodStreamPanic, func(domainpeer.Stream) error {
 		panic("router stream panic detail")
-	})
+	}))
 
-	_ = registry.RegisterStream(methodStreamEcho, func(stream domainpeer.Stream) error {
+	fixture.Check(registry.RegisterStream(methodStreamEcho, func(stream domainpeer.Stream) error {
 		for {
 			message, err := stream.Recv()
 			if errors.Is(err, io.EOF) {
@@ -251,9 +255,9 @@ func buildRegistry() *peer.Registry {
 				return err
 			}
 		}
-	})
+	}))
 
-	_ = registry.RegisterStream(methodStreamFlood, func(stream domainpeer.Stream) error {
+	fixture.Check(registry.RegisterStream(methodStreamFlood, func(stream domainpeer.Stream) error {
 		first, err := stream.Recv()
 		if err != nil {
 			return err
@@ -268,9 +272,9 @@ func buildRegistry() *peer.Registry {
 			}
 		}
 		return stream.CloseSend()
-	})
+	}))
 
-	_ = registry.RegisterStream(methodStreamBlocker, func(stream domainpeer.Stream) error {
+	fixture.Check(registry.RegisterStream(methodStreamBlocker, func(stream domainpeer.Stream) error {
 		first, err := stream.Recv()
 		if err != nil {
 			return err
@@ -285,7 +289,7 @@ func buildRegistry() *peer.Registry {
 		case <-time.After(time.Duration(options.HoldMS) * time.Millisecond):
 			return nil
 		}
-	})
+	}))
 
 	return registry
 }
@@ -491,19 +495,21 @@ func run() error {
 		}
 		var req request
 		if err := json.Unmarshal(line, &req); err != nil {
-			_ = encoder.Encode(response{OK: false, Error: "malformed request: " + err.Error()})
-			_ = writer.Flush()
+			fixture.Check(encoder.Encode(response{OK: false, Error: "malformed request: " + err.Error()}))
+			fixture.Check(writer.Flush())
 			continue
 		}
-		_ = encoder.Encode(dispatch(router, registry, authorizer, req))
-		_ = writer.Flush()
+		fixture.Check(encoder.Encode(dispatch(router, registry, authorizer, req)))
+		fixture.Check(writer.Flush())
 	}
 	return scanner.Err()
 }
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if _, writeErr := fmt.Fprintln(os.Stderr, err); writeErr != nil {
+			os.Exit(2)
+		}
 		os.Exit(1)
 	}
 }

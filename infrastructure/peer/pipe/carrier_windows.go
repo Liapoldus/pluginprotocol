@@ -78,10 +78,9 @@ func (carrier *Carrier) Dial(ctx context.Context, endpoint string, handler peer.
 	}
 	transport, remote, err := carrier.authenticate(ctx, raw, false)
 	if err != nil {
-		raw.Close()
-		return nil, err
+		return nil, errors.Join(err, raw.Close())
 	}
-	return carrier.session(transport, remote, conn.RoleClient, handler), nil
+	return carrier.session(transport, remote, conn.RoleClient, handler), nil //nolint:contextcheck // Establishment context ends at return; the authenticated session owns an independent lifetime.
 }
 
 func (carrier *Carrier) Listen(endpoint string, handler peer.Handler) (peer.Listener, error) {
@@ -218,7 +217,10 @@ func (server *pipeListener) acceptRequest(request acceptRequest) {
 		transport, remote, authErr := server.carrier.authenticate(ctx, raw, true)
 		cancel()
 		if authErr != nil {
-			raw.Close()
+			if closeErr := raw.Close(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+				server.respond(request, acceptResult{err: closeErr})
+				return
+			}
 			if request.ctx.Err() != nil {
 				server.respond(request, acceptResult{err: request.ctx.Err()})
 				return
@@ -236,11 +238,11 @@ func (server *pipeListener) respond(request acceptRequest, result acceptResult) 
 	case request.result <- result:
 	case <-request.ctx.Done():
 		if result.session != nil {
-			result.session.Close()
+			_ = result.session.Close() //nolint:errcheck // Request was canceled; no receiver owns this newly accepted session, so it must be torn down.
 		}
 	case <-server.closed:
 		if result.session != nil {
-			result.session.Close()
+			_ = result.session.Close() //nolint:errcheck // Listener is closed; no receiver owns this newly accepted session, so it must be torn down.
 		}
 	}
 }

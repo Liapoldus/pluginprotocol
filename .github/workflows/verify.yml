@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: 1.26.0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -57,13 +57,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: 1.26.0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: tests/package-lock.json
       - run: npm ci --prefix tests
+      - run: make lint
+      - run: go test ./...
       - run: go build ./...
       - run: go vet ./...
-      - run: npm exec --prefix tests -- vitest run tests/integration/peer-net-conformance.test.ts tests/integration/windows-pipe-carrier.test.ts tests/integration/revocation-carriers.test.ts
+      - run: npm exec --prefix tests -- vitest run tests/integration/peer-net-conformance.test.ts tests/integration/windows-pipe-carrier.test.ts tests/integration/revocation-carriers.test.ts tests/integration/local-ipc-placement.test.ts

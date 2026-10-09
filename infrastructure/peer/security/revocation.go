@@ -533,13 +533,13 @@ func cloneCheckpoint(value CRLCheckpoint) CRLCheckpoint {
 func (m *RevocationManager) fenceLocked(closedSet map[*trackedConnection]struct{}) {
 	for connection := range closedSet {
 		if deadlineSetter, ok := connection.ReadWriteCloser.(interface{ SetWriteDeadline(time.Time) error }); ok {
-			_ = deadlineSetter.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			_ = deadlineSetter.SetWriteDeadline(time.Now().Add(2 * time.Second)) //nolint:errcheck // Close still runs under the outer timeout when this already broken transport cannot accept a deadline.
 		}
 	}
 	done := make(chan struct{})
 	go func() {
 		for connection := range closedSet {
-			_ = connection.Close()
+			_ = connection.Close() //nolint:errcheck // Checkpoint already fences admission; finish closing every transport even when one reports a teardown error.
 		}
 		close(done)
 	}()
@@ -555,19 +555,20 @@ func (m *RevocationManager) fenceLocked(closedSet map[*trackedConnection]struct{
 func checkpointBundleHash(checkpoint CRLCheckpoint) string {
 	issuers := append([]IssuerCheckpoint(nil), checkpoint.Issuers...)
 	sort.Slice(issuers, func(i, j int) bool { return issuers[i].IssuerSHA256 < issuers[j].IssuerSHA256 })
-	h := sha256.New()
+	var canonical []byte
 	for _, issuer := range issuers {
-		_, _ = h.Write([]byte(issuer.IssuerSHA256))
-		_, _ = h.Write([]byte(issuer.CRLSHA256))
+		canonical = append(canonical, issuer.IssuerSHA256...)
+		canonical = append(canonical, issuer.CRLSHA256...)
 		revoked := append([]string(nil), issuer.Revoked...)
 		sort.Strings(revoked)
 		for _, serial := range revoked {
-			_, _ = h.Write([]byte(serial))
-			_, _ = h.Write([]byte{0})
+			canonical = append(canonical, serial...)
+			canonical = append(canonical, 0)
 		}
-		_, _ = h.Write([]byte{0xff})
+		canonical = append(canonical, 0xff)
 	}
-	return hex.EncodeToString(h.Sum(nil))
+	sum := sha256.Sum256(canonical)
+	return hex.EncodeToString(sum[:])
 }
 
 // CanonicalTrustRootsDigest computes the digest used by checkpoints from an
@@ -581,12 +582,13 @@ func CanonicalTrustRootsDigest(rootDER [][]byte) (string, error) {
 		copyDER[i] = append([]byte(nil), der...)
 	}
 	sort.Slice(copyDER, func(i, j int) bool { return string(copyDER[i]) < string(copyDER[j]) })
-	h := sha256.New()
+	var canonical []byte
 	for i, der := range copyDER {
 		if i > 0 && string(der) == string(copyDER[i-1]) {
 			return "", errors.New("security: duplicate trust root")
 		}
-		_, _ = h.Write(der)
+		canonical = append(canonical, der...)
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	sum := sha256.Sum256(canonical)
+	return hex.EncodeToString(sum[:]), nil
 }

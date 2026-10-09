@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"math/big"
 	"net"
 	"net/url"
@@ -171,7 +172,7 @@ func serial() *big.Int {
 
 // loadCertificate reads a certificate and its key from one PEM file.
 func loadCertificate(path string) (tls.Certificate, error) {
-	content, err := os.ReadFile(path)
+	content, err := fixture.ReadFile(path)
 	if err != nil {
 		return tls.Certificate{}, err
 	}
@@ -187,7 +188,7 @@ func loadCertificate(path string) (tls.Certificate, error) {
 
 // loadRoots reads a trust anchor file into a pool.
 func loadRoots(path string) (*x509.CertPool, error) {
-	content, err := os.ReadFile(path)
+	content, err := fixture.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

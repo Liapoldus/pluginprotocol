@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"time"
 
 	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
@@ -214,7 +215,7 @@ func (session *Session) serveFrame(live *stream, frame codec.Frame) error {
 		if err := live.deliver(message.GetPayload()); err != nil {
 			if errors.Is(err, peer.ErrMessageTooLarge) {
 				live.finishStream(err)
-				_ = session.writeFrame(endFrame(live.id, peer.StatusMessageTooLarge))
+				session.sendFrame(endFrame(live.id, peer.StatusMessageTooLarge))
 				return nil
 			}
 			return err
@@ -270,15 +271,15 @@ func (session *Session) answerPing(frame codec.Frame) error {
 func (session *Session) openCall(streamID uint64, body []byte) {
 	request := &wire.CallRequest{}
 	if err := codec.Unmarshal(body, request); err != nil {
-		_ = session.writeFrame(endFrame(streamID, peer.StatusInvalidRequest))
+		session.sendFrame(endFrame(streamID, peer.StatusInvalidRequest))
 		return
 	}
 	if request.GetMethod() == "" {
-		_ = session.writeFrame(endFrame(streamID, peer.StatusMethodNotFound))
+		session.sendFrame(endFrame(streamID, peer.StatusMethodNotFound))
 		return
 	}
 	if !session.acquire(session.callGate) {
-		_ = session.writeFrame(endFrame(streamID, peer.StatusOverloaded))
+		session.sendFrame(endFrame(streamID, peer.StatusOverloaded))
 		return
 	}
 
@@ -294,7 +295,7 @@ func (session *Session) openCall(streamID uint64, body []byte) {
 	if err != nil {
 		cancelCall()
 		session.release(session.callGate)
-		_ = session.writeFrame(endFrame(streamID, peer.StatusOf(err)))
+		session.sendFrame(endFrame(streamID, peer.StatusOf(err)))
 		return
 	}
 	session.trackInflight(streamID, cancelCall)
@@ -311,15 +312,15 @@ func (session *Session) openCall(streamID uint64, body []byte) {
 			peer.Call{Method: peer.Method(request.GetMethod()), Payload: request.GetPayload()},
 		)
 		if err != nil {
-			_ = session.writeFrame(endFrame(streamID, peer.StatusOf(err)))
+			session.sendFrame(endFrame(streamID, peer.StatusOf(err)))
 			return
 		}
 		payload, err := encodeResult(result.Payload)
 		if err != nil {
-			_ = session.writeFrame(endFrame(streamID, peer.StatusInternal))
+			session.sendFrame(endFrame(streamID, peer.StatusInternal))
 			return
 		}
-		_ = session.writeFrame(codec.Frame{Type: codec.FrameCallResult, StreamID: streamID, Payload: payload})
+		session.sendFrame(codec.Frame{Type: codec.FrameCallResult, StreamID: streamID, Payload: payload})
 	}()
 }
 
@@ -330,15 +331,15 @@ func (session *Session) openCall(streamID uint64, body []byte) {
 func (session *Session) openStream(streamID uint64, body []byte) {
 	request := &wire.OpenStream{}
 	if err := codec.Unmarshal(body, request); err != nil {
-		_ = session.writeFrame(endFrame(streamID, peer.StatusInvalidRequest))
+		session.sendFrame(endFrame(streamID, peer.StatusInvalidRequest))
 		return
 	}
 	if request.GetMethod() == "" {
-		_ = session.writeFrame(endFrame(streamID, peer.StatusMethodNotFound))
+		session.sendFrame(endFrame(streamID, peer.StatusMethodNotFound))
 		return
 	}
 	if !session.acquire(session.streamGate) {
-		_ = session.writeFrame(endFrame(streamID, peer.StatusOverloaded))
+		session.sendFrame(endFrame(streamID, peer.StatusOverloaded))
 		return
 	}
 
@@ -347,7 +348,7 @@ func (session *Session) openStream(streamID uint64, body []byte) {
 	if err != nil {
 		session.release(session.streamGate)
 		live.finishStream(err)
-		_ = session.writeFrame(endFrame(streamID, peer.StatusOf(err)))
+		session.sendFrame(endFrame(streamID, peer.StatusOf(err)))
 		return
 	}
 	session.registerStream(streamID, live)
@@ -361,7 +362,7 @@ func (session *Session) openStream(streamID uint64, body []byte) {
 		session.release(session.streamGate)
 		session.discardStream(streamID)
 		live.finishStream(err)
-		_ = session.writeFrame(endFrame(streamID, peer.StatusInternal))
+		session.sendFrame(endFrame(streamID, peer.StatusInternal))
 		return
 	}
 	if err := session.writeFrame(codec.Frame{Type: codec.FrameStreamOpenAck, StreamID: streamID, Payload: ack}); err != nil {
@@ -398,16 +399,16 @@ func (session *Session) openStream(streamID uint64, body []byte) {
 		session.discardStream(streamID)
 		if err == nil || errors.Is(err, peer.ErrStreamClosed) {
 			live.finishStream(nil)
-			_ = session.writeFrame(endFrame(streamID, peer.StatusOK))
+			session.sendFrame(endFrame(streamID, peer.StatusOK))
 			return
 		}
 		if err != nil {
 			live.finishStream(err)
-			_ = session.writeFrame(endFrame(streamID, peer.StatusOf(err)))
+			session.sendFrame(endFrame(streamID, peer.StatusOf(err)))
 			return
 		}
 		live.finishStream(nil)
-		_ = session.writeFrame(endFrame(streamID, peer.StatusOK))
+		session.sendFrame(endFrame(streamID, peer.StatusOK))
 	}()
 }
 
@@ -467,5 +468,9 @@ func decodeFailure(body []byte) (error, error) {
 	if status == nil {
 		return nil, peer.ErrProtocolViolation
 	}
-	return peer.StatusCode(status.GetCode()).Err(), nil
+	code := status.GetCode()
+	if code > math.MaxUint8 {
+		return nil, peer.ErrProtocolViolation
+	}
+	return peer.StatusCode(code).Err(), nil
 }

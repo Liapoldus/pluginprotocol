@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"net"
 	"net/url"
 	"os"
@@ -48,7 +49,7 @@ func probeCertificate(args []string) error {
 	if err != nil {
 		return fmt.Errorf("dial: %w", err)
 	}
-	defer raw.Close()
+	defer fixture.Close(raw)
 
 	roots, err := loadRoots(filepath.Join(*directory, caFile))
 	if err != nil {

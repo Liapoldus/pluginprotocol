@@ -89,10 +89,9 @@ func (carrier *Carrier) Dial(ctx context.Context, endpoint string, handler peer.
 	}
 	transport, remote, err := carrier.authenticate(ctx, raw, false)
 	if err != nil {
-		_ = raw.Close()
-		return nil, err
+		return nil, errors.Join(err, raw.Close())
 	}
-	return carrier.session(transport, remote, conn.RoleClient, handler), nil
+	return carrier.session(transport, remote, conn.RoleClient, handler), nil //nolint:contextcheck // Establishment context ends at return; the authenticated session owns an independent lifetime.
 }
 
 // Listen binds an authenticated Unix stream endpoint. The parent directory must
@@ -120,8 +119,7 @@ func (carrier *Carrier) Listen(endpoint string, handler peer.Handler) (peer.List
 	}
 	socket.SetUnlinkOnClose(true)
 	if err := os.Chmod(path, socketMode); err != nil {
-		_ = socket.Close()
-		return nil, errors.New("unix: cannot restrict socket permissions")
+		return nil, errors.Join(errors.New("unix: cannot restrict socket permissions"), socket.Close())
 	}
 	return &listener{carrier: carrier, socket: socket, handler: handler, endpoint: endpoint}, nil
 }
@@ -159,10 +157,9 @@ func removeStaleSocket(path string) error {
 	if before.Mode()&os.ModeSocket == 0 {
 		return errors.New("unix: refusing to replace a non-socket path")
 	}
-	probe, err := net.DialTimeout("unix", path, 200*time.Millisecond)
+	probe, err := (&net.Dialer{Timeout: 200 * time.Millisecond}).DialContext(context.Background(), "unix", path)
 	if err == nil {
-		_ = probe.Close()
-		return errors.New("unix: socket path is already serving")
+		return errors.Join(errors.New("unix: socket path is already serving"), probe.Close())
 	}
 	if !errors.Is(err, syscall.ECONNREFUSED) {
 		return errors.New("unix: existing socket path is not safely removable")
@@ -244,10 +241,12 @@ func (server *listener) Accept(ctx context.Context) (peer.Session, error) {
 		}
 		transport, remote, err := server.carrier.authenticate(ctx, raw, true)
 		if err != nil {
-			_ = raw.Close()
+			if closeErr := raw.Close(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+				return nil, fmt.Errorf("rejected connection cleanup: %w", closeErr)
+			}
 			continue
 		}
-		return server.carrier.session(transport, remote, conn.RoleServer, server.handler), nil
+		return server.carrier.session(transport, remote, conn.RoleServer, server.handler), nil //nolint:contextcheck // Establishment context ends at return; the authenticated session owns an independent lifetime.
 	}
 }
 

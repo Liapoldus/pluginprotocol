@@ -1,0 +1,55 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - contextcheck
+    - copyloopvar
+    - durationcheck
+    - errcheck
+    - errorlint
+    - gosec
+    - govet
+    - ineffassign
+    - nilerr
+    - noctx
+    - nolintlint
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - unused
+    - usetesting
+  settings:
+    errcheck:
+      check-blank: true
+      check-type-assertions: true
+      disable-default-exclusions: true
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+    staticcheck:
+      checks: [all]
+  exclusions:
+    # Generated code still receives correctness, resource and security checks.
+    generated: disable
+    presets: []
+    rules:
+      - path: '^infrastructure/peer/wire/.*\.pb\.go$'
+        linters: [staticcheck]
+        text: '^ST[0-9]+'
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false

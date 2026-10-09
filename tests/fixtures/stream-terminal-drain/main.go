@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"io"
 	"os"
 	"strconv"
@@ -31,8 +33,8 @@ func main() {
 		Handler:  registry,
 	})
 	check(err)
-	go func() { _ = server.Sessions(context.Background()) }()
-	defer server.Close()
+	go fixture.Serve(context.Background(), server.Sessions)
+	defer fixture.Close(server)
 
 	clientHandler, err := peer.NewRegistry().Build()
 	check(err)
@@ -42,7 +44,7 @@ func main() {
 		Handler:  clientHandler,
 	})
 	check(err)
-	defer client.Close()
+	defer fixture.Close(client)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -55,7 +57,7 @@ func main() {
 	received := make([]string, 0, messageCount)
 	for {
 		message, receiveErr := stream.Recv()
-		if receiveErr == io.EOF {
+		if errors.Is(receiveErr, io.EOF) {
 			break
 		}
 		check(receiveErr)

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"io"
 	"math/big"
 	"net"
@@ -53,10 +54,10 @@ type carrierReport struct {
 }
 
 type restoreGuardReport struct {
-	StrippedCheckpointRejected    bool `json:"strippedCheckpointRejected"`
-	MissingRootIssuerRejected     bool `json:"missingRootIssuerRejected"`
-	NegativeSerialApplyRejected   bool `json:"negativeSerialApplyRejected"`
-	ManagerUsableAfterRejection   bool `json:"managerUsableAfterRejection"`
+	StrippedCheckpointRejected  bool `json:"strippedCheckpointRejected"`
+	MissingRootIssuerRejected   bool `json:"missingRootIssuerRejected"`
+	NegativeSerialApplyRejected bool `json:"negativeSerialApplyRejected"`
+	ManagerUsableAfterRejection bool `json:"managerUsableAfterRejection"`
 }
 
 func main() {
@@ -77,10 +78,12 @@ func main() {
 		result, err = run()
 	}
 	if err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
+		if _, writeErr := fmt.Fprintln(os.Stderr, err); writeErr != nil {
+			os.Exit(2)
+		}
 		os.Exit(1)
 	}
-	_ = json.NewEncoder(os.Stdout).Encode(result)
+	fixture.Check(json.NewEncoder(os.Stdout).Encode(result))
 }
 
 func runCarrier(carrierName string) (carrierReport, error) {
@@ -111,7 +114,7 @@ func runCarrier(carrierName string) (carrierReport, error) {
 	if err != nil {
 		return result, err
 	}
-	defer manager.Close()
+	defer fixture.Close(manager)
 	digest := manager.TrustRootsDigest()
 	if _, err = manager.Apply(makeBundle(root, rootKey, rootDER, digest, 1, nil, time.Now().Add(time.Hour))); err != nil {
 		return result, err
@@ -119,14 +122,15 @@ func runCarrier(carrierName string) (carrierReport, error) {
 
 	endpoint := "127.0.0.1:0"
 	var socketDirectory string
-	if carrier == publicpeer.CarrierUnix {
+	switch carrier {
+	case publicpeer.CarrierUnix:
 		socketDirectory, err = os.MkdirTemp("", "liapoldus-revocation-unix-")
 		if err != nil {
 			return result, err
 		}
-		defer os.RemoveAll(socketDirectory)
+		defer fixture.RemoveAll(socketDirectory)
 		endpoint = "unix://" + filepath.Join(socketDirectory, "peer.sock")
-	} else if carrier == publicpeer.CarrierPipe {
+	case publicpeer.CarrierPipe:
 		endpoint = fmt.Sprintf(`\\.\pipe\liapoldus-crl-%d-%d`, os.Getpid(), time.Now().UnixNano())
 	}
 
@@ -146,10 +150,10 @@ func runCarrier(carrierName string) (carrierReport, error) {
 	if err != nil {
 		return result, err
 	}
-	defer server.Close()
+	defer fixture.Close(server)
 	serveCtx, stopServe := context.WithCancel(context.Background())
 	defer stopServe()
-	go func() { _ = server.Sessions(serveCtx) }()
+	go fixture.Serve(serveCtx, server.Sessions)
 
 	clientHandler, err := publicpeer.NewRegistry().Build()
 	if err != nil {
@@ -168,20 +172,20 @@ func runCarrier(carrierName string) (carrierReport, error) {
 	cancelInitialCall()
 	result.InitialCallSucceeded = err == nil && handledCalls.Load() == 1
 	if !result.InitialCallSucceeded {
-		_ = client.Close()
+		fixture.Close(client)
 		return result, errors.New("initial carrier call failed")
 	}
 	if _, err = manager.Apply(makeBundle(root, rootKey, rootDER, digest, 2, []*big.Int{clientSerial}, time.Now().Add(time.Hour))); err != nil {
-		_ = client.Close()
+		fixture.Close(client)
 		return result, err
 	}
 	if err := manager.VerifyChain([][]*x509.Certificate{{clientCert.Leaf, root}}); err == nil {
-		_ = client.Close()
+		fixture.Close(client)
 		return result, errors.New("revocation manager accepted a revoked carrier client")
 	}
 	_, err = client.Call(context.Background(), "test.echo", []byte("after"))
 	result.PriorSessionFenced = err != nil
-	_ = client.Close()
+	fixture.Close(client)
 
 	revokedClient, err := publicpeer.Dial(context.Background(), publicpeer.ClientConfig{
 		Network:  publicpeer.NetworkConfig{Carrier: carrier, Endpoint: server.Addr(), ServerName: "localhost"},
@@ -195,7 +199,7 @@ func runCarrier(carrierName string) (carrierReport, error) {
 		_, rejectedCall := revokedClient.Call(revokedCallCtx, "test.echo", []byte("revoked"))
 		cancelRevokedCall()
 		result.RevokedPeerRejectedPreDispatch = rejectedCall != nil
-		_ = revokedClient.Close()
+		fixture.Close(revokedClient)
 	}
 	if !result.PriorSessionFenced || !result.RevokedPeerRejectedPreDispatch || handledCalls.Load() != 1 {
 		return result, fmt.Errorf("carrier revocation conformance assertion failed: %+v handled=%d", result, handledCalls.Load())
@@ -243,10 +247,10 @@ func run() (report, error) {
 	if err != nil {
 		return result, err
 	}
-	defer server.Close()
+	defer fixture.Close(server)
 	serveCtx, stopServe := context.WithCancel(context.Background())
 	defer stopServe()
-	go func() { _ = server.Sessions(serveCtx) }()
+	go fixture.Serve(serveCtx, server.Sessions)
 	clientHandler, err := publicpeer.NewRegistry().Build()
 	if err != nil {
 		return result, err
@@ -256,7 +260,7 @@ func run() (report, error) {
 		return result, err
 	}
 	if _, err := client.Call(context.Background(), "test.echo", []byte("before")); err != nil {
-		_ = client.Close()
+		fixture.Close(client)
 		return result, err
 	}
 	result.InitialHandshake = true
@@ -264,14 +268,14 @@ func run() (report, error) {
 	updated := makeBundle(root, rootKey, rootDER, digest, 2, []*big.Int{clientSerial}, time.Now().Add(time.Hour))
 	updatedCheckpoint, err := manager.Apply(updated)
 	if err != nil {
-		_ = client.Close()
+		fixture.Close(client)
 		return result, err
 	}
 	repeatedCheckpoint, err := manager.Apply(updated)
 	result.ExactRepeatAccepted = err == nil && repeatedCheckpoint.BundleSHA256 == updatedCheckpoint.BundleSHA256
 	_, callErr := client.Call(context.Background(), "test.echo", []byte("after"))
 	result.ClosedOnUpdate = callErr != nil
-	_ = client.Close()
+	fixture.Close(client)
 
 	newClient, err := dial(server.Addr(), clientCert, manager, clientHandler)
 	result.RevokedHandshakeRejected = err != nil
@@ -279,7 +283,7 @@ func run() (report, error) {
 		_, callErr := newClient.Call(context.Background(), "test.echo", []byte("revoked"))
 		result.RevokedHandshakeRejected = callErr != nil
 		result.RevokedCallNotDispatched = callErr != nil && handledCalls.Load() == 1
-		_ = newClient.Close()
+		fixture.Close(newClient)
 	}
 
 	badSignature := makeBundle(root, rootKey, rootDER, digest, 3, nil, time.Now().Add(time.Hour))
@@ -325,7 +329,7 @@ func run() (report, error) {
 		return result, err
 	}
 	result.CheckpointRestored = restored.VerifyChain([][]*x509.Certificate{{serverCert.Leaf, root}}) == nil && restored.VerifyChain([][]*x509.Certificate{{clientCert.Leaf, root}}) != nil
-	_ = restored.Close()
+	fixture.Close(restored)
 	result.IntermediateIssuerAccepted, err = intermediateIssuerAccepted(rootDER, root, rootKey)
 	if err != nil {
 		return result, err
@@ -370,7 +374,7 @@ func intermediateIssuerAccepted(rootDER []byte, root *x509.Certificate, rootKey 
 	if err != nil {
 		return false, err
 	}
-	defer manager.Close()
+	defer fixture.Close(manager)
 	digest := manager.TrustRootsDigest()
 	rootBundle := makeBundle(root, rootKey, rootDER, digest, 1, nil, time.Now().Add(time.Hour))
 	intermediateBundle := makeBundle(intermediate, intermediateKey, intermediateDER, digest, 1, nil, time.Now().Add(time.Hour))
@@ -400,19 +404,19 @@ func expiryClosesSession(rootDER []byte, root *x509.Certificate, key *ecdsa.Priv
 	if err != nil {
 		return false, err
 	}
-	defer manager.Close()
+	defer fixture.Close(manager)
 	digest := manager.TrustRootsDigest()
 	if _, err := manager.Apply(makeBundle(root, key, rootDER, digest, 4, nil, time.Now().Add(2*time.Second))); err != nil {
 		return false, err
 	}
 	local, remote := net.Pipe()
-	defer remote.Close()
+	defer fixture.Close(remote)
 	tracked, err := manager.TrackConnection(local, tls.ConnectionState{VerifiedChains: [][]*x509.Certificate{{peerCertificate.Leaf, root}}})
 	if err != nil {
-		_ = local.Close()
+		fixture.Close(local)
 		return false, err
 	}
-	defer tracked.Close()
+	defer fixture.Close(tracked)
 	read := make(chan error, 1)
 	go func() { buffer := make([]byte, 1); _, readErr := remote.Read(buffer); read <- readErr }()
 	select {
@@ -437,7 +441,7 @@ func restoreGuards() (restoreGuardReport, error) {
 	if err != nil {
 		return result, err
 	}
-	defer manager.Close()
+	defer fixture.Close(manager)
 	digest := manager.TrustRootsDigest()
 	if _, err := manager.Apply(makeBundle(root, rootKey, rootDER, digest, 1, []*big.Int{clientSerial}, time.Now().Add(time.Hour))); err != nil {
 		return result, err
@@ -465,7 +469,7 @@ func restoreGuards() (restoreGuardReport, error) {
 	if err != nil {
 		return result, err
 	}
-	defer guard.Close()
+	defer fixture.Close(guard)
 	_, err = guard.Apply(makeBundle(root, rootKey, rootDER, digest, 7, []*big.Int{big.NewInt(-5)}, time.Now().Add(time.Hour)))
 	result.NegativeSerialApplyRejected = err != nil
 	if _, err := guard.Apply(makeBundle(root, rootKey, rootDER, digest, 8, []*big.Int{clientSerial}, time.Now().Add(time.Hour))); err != nil {
@@ -541,6 +545,7 @@ func makeBundle(root *x509.Certificate, key *ecdsa.PrivateKey, rootDER []byte, d
 		entries = append(entries, x509.RevocationListEntry{SerialNumber: serial, RevocationTime: now})
 	}
 	template := &x509.RevocationList{Number: new(big.Int).SetUint64(sequence), ThisUpdate: thisUpdate, NextUpdate: expires, RevokedCertificateEntries: entries}
-	der, _ := x509.CreateRevocationList(rand.Reader, template, root, key)
+	der, err := x509.CreateRevocationList(rand.Reader, template, root, key)
+	fixture.Check(err)
 	return publicpeer.RevocationBundle{TrustRootsDigest: digest, Records: []publicpeer.SignedCRL{{IssuerDER: rootDER, CRLDER: der}}}
 }

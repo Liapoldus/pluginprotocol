@@ -22,7 +22,7 @@ import (
 func soakProbe(args []string) error {
 	flags := flag.NewFlagSet("soak", flag.ContinueOnError)
 	address := flags.String("addr", "", "server address")
-	carrierName := flags.String("carrier", "tcp", "carrier: tcp or quic")
+	carrierName := flags.String("carrier", "tcp", "carrier: tcp, quic, unix, or pipe")
 	profileName := flags.String("security", "loopback", "security profile: loopback or mtls")
 	directory := flags.String("dir", "", "directory holding the generated certificates")
 	sessions := flags.Int("sessions", 40, "number of sequential sessions to cycle")

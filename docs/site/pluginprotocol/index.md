@@ -18,10 +18,16 @@ profile. Поддерживаемые v1 carrier — TCP и QUIC; оба про�
 набор conformance, поэтому смена carrier не ослабляет peer authentication,
 encryption, authorization, cancellation, deadlines, flow control или stream
 семантику. Единый wire contract — `liapoldus.peer.v1`; он переносит только opaque
-method name и opaque payload. Remote-соединение использует аутентификацию и
-шифрование без plaintext downgrade; небезопасный профиль может быть разрешён
-только для loopback/dev, а
-QUIC, будучи всегда зашифрованным, такого профиля не предлагает вовсе.
+method name и opaque payload. `pluginprotocol` владеет TLS/mTLS handshake,
+проверкой peer identity и revocation; plugins выбирают профиль и передают
+credentials через API библиотеки, не реализуя TLS самостоятельно. Remote- и
+production-соединения требуют mTLS. Явный plaintext разрешён только для TCP
+loopback в development и не удостоверяет peer. QUIC всегда шифрует трафик и
+требует взаимную аутентификацию. Ошибка secure-соединения никогда не вызывает
+автоматический plaintext fallback. Так как payload opaque и библиотека не
+может определить наличие в нём секретов, вызывающий plugin обязан использовать
+plaintext только для несекретного локального development-трафика; sensitive
+payloads передаются исключительно по соединению с mTLS.
 
 ## Использование
 

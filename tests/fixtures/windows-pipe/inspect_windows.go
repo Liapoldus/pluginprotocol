@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"strings"
 	"unsafe"
 
@@ -55,7 +56,7 @@ func inspect(args []string) error {
 	if err != nil {
 		return fmt.Errorf("pipe: cannot create named pipe for ACL inspection: %w", err)
 	}
-	defer listener.Close()
+	defer fixture.Close(listener)
 	// Open a second instance of the existing pipe to obtain a live handle we
 	// can query; the pipe object's security descriptor applies to every
 	// instance, so this handle reflects the installed DACL.
@@ -72,7 +73,7 @@ func inspect(args []string) error {
 	if err != nil {
 		return fmt.Errorf("pipe: cannot open pipe instance for ACL inspection: %w", err)
 	}
-	defer windows.CloseHandle(handle)
+	defer func() { fixture.Check(windows.CloseHandle(handle)) }()
 	readBack, err := windows.GetSecurityInfo(handle, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION)
 	if err != nil {
 		return fmt.Errorf("pipe: cannot read pipe ACL back: %w", err)
@@ -95,7 +96,7 @@ func inspect(args []string) error {
 			if ace.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE {
 				continue
 			}
-			aceSid := (*windows.SID)(unsafe.Pointer(&ace.SidStart))
+			aceSid := (*windows.SID)(unsafe.Pointer(&ace.SidStart)) //nolint:gosec // G103: GetAce returns a validated native ACE inside the live GetSecurityInfo buffer; SidStart is its inline SID.
 			switch aceSid.String() {
 			case sid:
 				allowsUser = true

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
 	"io"
 	"os"
 	"time"
@@ -17,7 +19,7 @@ func main() {
 	var serverSendError string
 	registry, err := peer.NewRegistry().RegisterStream("fixture.half-close", func(stream peer.Stream) error {
 		_, err := stream.Recv()
-		remoteReadEOF = err == io.EOF
+		remoteReadEOF = errors.Is(err, io.EOF)
 		if !remoteReadEOF {
 			return peer.ErrProtocolViolation
 		}
@@ -35,8 +37,8 @@ func main() {
 		Handler:  registry,
 	})
 	check(err)
-	go func() { _ = server.Sessions(serverContext) }()
-	defer func() { _ = server.Close() }()
+	go fixture.Serve(serverContext, server.Sessions)
+	defer fixture.Close(server)
 	clientHandler, err := peer.NewRegistry().Build()
 	check(err)
 	client, err := peer.Dial(context.Background(), peer.ClientConfig{
@@ -45,7 +47,7 @@ func main() {
 		Handler:  clientHandler,
 	})
 	check(err)
-	defer func() { _ = client.Close() }()
+	defer fixture.Close(client)
 	streamContext, cancelStream := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancelStream()
 	stream, err := client.OpenStream(streamContext, "fixture.half-close")

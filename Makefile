@@ -4,10 +4,13 @@ MODULE := github.com/Liapoldus/pluginprotocol/v2
 # child processes instead of speaking the wire directly.
 PEER_PROTOS := liapoldus/peer/v1/peer.proto
 PEER_WIRE_DIR := infrastructure/peer/wire
+GOLANGCI_LINT_VERSION := v2.12.2
+GOLANGCI_LINT := tests/.tools/$(GOLANGCI_LINT_VERSION)/golangci-lint$(shell go env GOEXE)
 
-.PHONY: check check-race generate generate-go check-generated
+.PHONY: check check-race lint lint-install generate generate-go check-generated
 
-check: check-generated
+check: check-generated lint
+	go test ./...
 	npm test --prefix tests
 	go vet ./...
 	go build -o /dev/null ./...
@@ -16,7 +19,17 @@ check: check-generated
 # same scenarios run, so a data race in the transport or connection engine fails a
 # behavioural assertion instead of passing silently under the default build.
 check-race: check-generated
+	go test -race ./...
 	LIAPOLDUS_PEER_FIXTURE_GOFLAGS=-race npm test --prefix tests
+
+lint-install: $(GOLANGCI_LINT)
+
+$(GOLANGCI_LINT):
+	GOBIN="$(CURDIR)/tests/.tools/$(GOLANGCI_LINT_VERSION)" GOTOOLCHAIN=go1.26.0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+
+lint: lint-install
+	$(GOLANGCI_LINT) config verify --config .golangci.yml
+	$(GOLANGCI_LINT) run --config .golangci.yml ./...
 
 generate: generate-go
 
@@ -24,6 +37,7 @@ generate-go:
 	protoc -I proto \
 		--go_out=. --go_opt=module=$(MODULE) \
 		$(PEER_PROTOS)
+	go run ./tests/tools/safe-protobuf $(PEER_WIRE_DIR)/peer.pb.go
 
 check-generated:
 	@set -eu; \
@@ -32,8 +46,8 @@ check-generated:
 		mkdir -p "$$tmp_dir/go"; \
 		compare_generated_tree() { \
 			source_dir="$$1"; generated_dir="$$2"; file_list="$$3"; \
-			(cd "$$source_dir" && find . -type f -print | LC_ALL=C sort) > "$$file_list.source"; \
-			(cd "$$generated_dir" && find . -type f -print | LC_ALL=C sort) > "$$file_list.generated"; \
+			(cd "$$source_dir" && find . -type f -name '*.pb.go' -print | LC_ALL=C sort) > "$$file_list.source"; \
+			(cd "$$generated_dir" && find . -type f -name '*.pb.go' -print | LC_ALL=C sort) > "$$file_list.generated"; \
 			diff -u "$$file_list.source" "$$file_list.generated"; \
 			while IFS= read -r relative_file; do \
 				cmp "$$source_dir/$$relative_file" "$$generated_dir/$$relative_file"; \
@@ -42,4 +56,5 @@ check-generated:
 		protoc -I proto \
 			--go_out="$$tmp_dir/go" --go_opt=module=$(MODULE) \
 			$(PEER_PROTOS); \
+		go run ./tests/tools/safe-protobuf "$$tmp_dir/go/$(PEER_WIRE_DIR)/peer.pb.go"; \
 		compare_generated_tree $(PEER_WIRE_DIR) "$$tmp_dir/go/$(PEER_WIRE_DIR)" "$$tmp_dir/peer-wire-files"

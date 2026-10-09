@@ -107,7 +107,7 @@ func (carrier *Carrier) Dial(ctx context.Context, endpoint string, handler peer.
 	if handler == nil {
 		return nil, errors.New("tcp: a handler is required")
 	}
-	if err := carrier.cfg.Profile.RequireEncryptedEndpoint(endpoint); err != nil {
+	if err := carrier.cfg.Profile.RequireEncryptedEndpointContext(ctx, endpoint); err != nil {
 		return nil, err
 	}
 	dialer := net.Dialer{}
@@ -117,10 +117,9 @@ func (carrier *Carrier) Dial(ctx context.Context, endpoint string, handler peer.
 	}
 	transport, remote, err := carrier.authenticate(ctx, raw, endpoint, false)
 	if err != nil {
-		_ = raw.Close()
-		return nil, err
+		return nil, errors.Join(err, raw.Close())
 	}
-	return carrier.session(transport, remote, conn.RoleClient, handler), nil
+	return carrier.session(transport, remote, conn.RoleClient, handler), nil //nolint:contextcheck // Establishment context ends at return; the authenticated session owns an independent lifetime.
 }
 
 // Listen accepts sessions on endpoint. The endpoint is checked against the
@@ -132,7 +131,7 @@ func (carrier *Carrier) Listen(endpoint string, handler peer.Handler) (peer.List
 	if err := carrier.cfg.Profile.RequireEncryptedEndpoint(endpoint); err != nil {
 		return nil, err
 	}
-	socket, err := net.Listen("tcp", endpoint)
+	socket, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("tcp: listen %s: %w", endpoint, err)
 	}
@@ -246,10 +245,12 @@ func (l *listener) Accept(ctx context.Context) (peer.Session, error) {
 		}
 		transport, remote, err := l.carrier.authenticate(ctx, raw, "", true)
 		if err != nil {
-			_ = raw.Close()
+			if closeErr := raw.Close(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+				return nil, fmt.Errorf("rejected connection cleanup: %w", closeErr)
+			}
 			continue
 		}
-		return l.carrier.session(transport, remote, conn.RoleServer, l.handler), nil
+		return l.carrier.session(transport, remote, conn.RoleServer, l.handler), nil //nolint:contextcheck // Establishment context ends at return; the authenticated session owns an independent lifetime.
 	}
 }
 

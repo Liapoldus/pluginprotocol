@@ -112,7 +112,7 @@ func (carrier *Carrier) Dial(ctx context.Context, endpoint string, handler peer.
 	if handler == nil {
 		return nil, errors.New("quic: a handler is required")
 	}
-	if err := carrier.cfg.Profile.RequireEncryptedEndpoint(endpoint); err != nil {
+	if err := carrier.cfg.Profile.RequireEncryptedEndpointContext(ctx, endpoint); err != nil {
 		return nil, err
 	}
 	client := carrier.cfg.Profile.ClientConfig()
@@ -125,20 +125,17 @@ func (carrier *Carrier) Dial(ctx context.Context, endpoint string, handler peer.
 	}
 	remote, err := carrier.cfg.Profile.VerifyPeer(connection.ConnectionState().TLS)
 	if err != nil {
-		_ = connection.CloseWithError(0, "peer identity rejected")
-		return nil, err
+		return nil, errors.Join(err, connection.CloseWithError(0, "peer identity rejected"))
 	}
 	// One connection carries one session, so the session gets the connection's own
 	// bidirectional stream.
 	stream, err := connection.OpenStreamSync(ctx)
 	if err != nil {
-		_ = connection.CloseWithError(0, "session stream unavailable")
-		return nil, fmt.Errorf("quic: open session stream: %w", err)
+		return nil, errors.Join(fmt.Errorf("quic: open session stream: %w", err), connection.CloseWithError(0, "session stream unavailable"))
 	}
-	session, err := carrier.session(newTransport(connection, stream), connection.ConnectionState().TLS, remote, conn.RoleClient, handler)
+	session, err := carrier.session(newTransport(connection, stream), connection.ConnectionState().TLS, remote, conn.RoleClient, handler) //nolint:contextcheck // Establishment context ends at return; the authenticated session owns an independent lifetime.
 	if err != nil {
-		_ = connection.CloseWithError(0, "revocation state changed")
-		return nil, err
+		return nil, errors.Join(err, connection.CloseWithError(0, "revocation state changed"))
 	}
 	return session, nil
 }
@@ -188,8 +185,7 @@ func (carrier *Carrier) serverName(endpoint string) string {
 func (carrier *Carrier) session(transport io.ReadWriteCloser, state tls.ConnectionState, remote peer.PeerIdentity, role conn.Role, handler peer.Handler) (peer.Session, error) {
 	tracked, err := carrier.cfg.Profile.TrackConnection(transport, state)
 	if err != nil {
-		_ = transport.Close()
-		return nil, err
+		return nil, errors.Join(err, transport.Close())
 	}
 	return conn.New(conn.Config{
 		Local:     carrier.cfg.Local,
@@ -229,17 +225,23 @@ func (l *listener) Accept(ctx context.Context) (peer.Session, error) {
 		}
 		stream, err := connection.AcceptStream(ctx)
 		if err != nil {
-			_ = connection.CloseWithError(0, "no session stream")
+			if closeErr := connection.CloseWithError(0, "no session stream"); closeErr != nil {
+				return nil, closeErr
+			}
 			continue
 		}
 		remote, err := l.carrier.cfg.Profile.VerifyPeer(connection.ConnectionState().TLS)
 		if err != nil {
-			_ = connection.CloseWithError(0, "peer identity rejected")
+			if closeErr := connection.CloseWithError(0, "peer identity rejected"); closeErr != nil {
+				return nil, closeErr
+			}
 			continue
 		}
-		session, err := l.carrier.session(newTransport(connection, stream), connection.ConnectionState().TLS, remote, conn.RoleServer, l.handler)
+		session, err := l.carrier.session(newTransport(connection, stream), connection.ConnectionState().TLS, remote, conn.RoleServer, l.handler) //nolint:contextcheck // Establishment context ends at return; the authenticated session owns an independent lifetime.
 		if err != nil {
-			_ = connection.CloseWithError(0, "revocation state changed")
+			if closeErr := connection.CloseWithError(0, "revocation state changed"); closeErr != nil {
+				return nil, closeErr
+			}
 			continue
 		}
 		return session, nil
@@ -294,8 +296,7 @@ func (t *transport) SetDeadline(deadline time.Time) error {
 // Close ends the session and the connection that carried it.
 func (t *transport) Close() error {
 	t.once.Do(func() {
-		_ = t.stream.Close()
-		t.err = t.connection.CloseWithError(0, "session closed")
+		t.err = errors.Join(t.stream.Close(), t.connection.CloseWithError(0, "session closed"))
 	})
 	return t.err
 }
