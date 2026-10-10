@@ -5,8 +5,8 @@ import (
 	"io"
 	"testing"
 
-	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
-	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/codec"
+	"github.com/Liapoldus/pluginprotocol/v3/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/codec"
 )
 
 var errTestWrite = errors.New("test transport write failed")

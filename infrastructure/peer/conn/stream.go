@@ -6,8 +6,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
-	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/codec"
+	"github.com/Liapoldus/pluginprotocol/v3/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/codec"
 )
 
 // outboundItem is one queued outbound frame. The stream has a single bounded

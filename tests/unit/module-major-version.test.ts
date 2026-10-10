@@ -11,11 +11,11 @@ describe("Go module major version", () => {
     const proto = await readFile(`${root}/proto/liapoldus/peer/v1/peer.proto`, "utf8");
     const readme = await readFile(`${root}/README.md`, "utf8");
 
-    expect(goMod).toMatch(/^module github\.com\/Liapoldus\/pluginprotocol\/v2$/m);
-    expect(makefile).toContain("MODULE := github.com/Liapoldus/pluginprotocol/v2");
-    expect(proto).toContain("github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/wire;wire");
+    expect(goMod).toMatch(/^module github\.com\/Liapoldus\/pluginprotocol\/v3$/m);
+    expect(makefile).toContain("MODULE := github.com/Liapoldus/pluginprotocol/v3");
+    expect(proto).toContain("github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/wire;wire");
     expect(proto).toContain("package liapoldus.peer.v1;");
-    expect(readme).toContain("module major `v2`");
+    expect(readme).toContain("module major `v3`");
     expect(readme).toContain("liapoldus.peer.v1");
   });
 });

@@ -20,7 +20,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
+	"github.com/Liapoldus/pluginprotocol/v3/tests/support/fixture"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -28,13 +28,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/v2/application/peer"
-	domainpeer "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
-	pipecarrier "github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/pipe"
-	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/quic"
-	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/security"
-	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/tcp"
-	unixcarrier "github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/unix"
+	"github.com/Liapoldus/pluginprotocol/v3/application/peer"
+	domainpeer "github.com/Liapoldus/pluginprotocol/v3/domain/peer"
+	pipecarrier "github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/pipe"
+	"github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/quic"
+	"github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/security"
+	"github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/tcp"
+	unixcarrier "github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/unix"
 )
 
 func main() {

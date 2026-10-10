@@ -7,7 +7,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/domain/peer"
 )
 
 func TestFramingRoundTripAndLimit(t *testing.T) {

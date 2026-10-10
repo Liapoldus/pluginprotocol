@@ -10,7 +10,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/domain/peer"
 )
 
 // Registry maps consumer-defined methods to the handlers that serve them.

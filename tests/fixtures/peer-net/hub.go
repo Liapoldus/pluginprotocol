@@ -5,14 +5,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
+	"github.com/Liapoldus/pluginprotocol/v3/tests/support/fixture"
 	"io"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/Liapoldus/pluginprotocol/v2/application/peer"
-	domainpeer "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/application/peer"
+	domainpeer "github.com/Liapoldus/pluginprotocol/v3/domain/peer"
 )
 
 // hub is the mixed-placement probe: one operating-system process that listens on
@@ -156,7 +157,7 @@ func hubDialog(ctx context.Context, peerAddress, profileName, directory, carrier
 	// Keep these streams, their client session, and this process's inbound listener
 	// alive together until shutdown so mixed-placement tests can observe both roles.
 	for i := 0; i < limits.MaxConcurrentStreams; i++ {
-		if _, err := session.OpenStream(ctx, "example.stream.block"); err != nil {
+		if err := openHeldStream(ctx, session); err != nil {
 			return fmt.Errorf("open held stream %d: %w", i+1, err)
 		}
 	}
@@ -171,4 +172,24 @@ func hubDialog(ctx context.Context, peerAddress, profileName, directory, carrier
 	})
 	<-ctx.Done()
 	return nil
+}
+
+// openHeldStream tolerates only the bounded handoff between the just-finished
+// probe stream and the session's stream gate. A real refusal, cancellation or
+// deadline remains visible to the fixture.
+func openHeldStream(ctx context.Context, session domainpeer.Session) error {
+	for {
+		if _, err := session.OpenStream(ctx, "example.stream.block"); err == nil {
+			return nil
+		} else if !errors.Is(err, domainpeer.ErrOverloaded) {
+			return err
+		}
+		timer := time.NewTimer(5 * time.Millisecond)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		}
+	}
 }

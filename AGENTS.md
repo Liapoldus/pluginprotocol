@@ -33,7 +33,8 @@ the workspace Core roadmap.
 ## Transport and security boundary
 
 - Keep application registration and endpoint semantics independent from the
-  physical carrier. Supported v1 carrier choices are TCP and QUIC; a deployment
+  physical carrier. The supported production matrix is TCP/QUIC for remote
+  connections, Unix sockets on Linux/macOS and named pipes on Windows; a deployment
   may select the carrier and security profile through generic configuration
   without changing registered method names, payload contracts, or plugin call
   sites.
@@ -76,11 +77,10 @@ dependencies, or split files/packages only for symmetry. Generated wire types
 must remain at the relevant infrastructure adapter boundary rather than
 leaking into domain/application APIs.
 
-The v3 C ABI is a build adapter over the public `presentation/peer` facade, not
-a fifth layer or a second implementation. Keep its C-compatible API outside the
-four-layer dependency graph; it must expose only generic peer calls/listeners/
-streams and must never add Core lifecycle or product contracts. Non-Go bindings
-consume the ABI and do not reimplement wire/session/security behavior.
+Foreign bindings are outside v3. There is no C ABI, Python binding, or second
+wire/session implementation in this release. Non-Go consumers require a future
+separately versioned contract and must not be smuggled into the Go module as an
+unversioned compatibility surface.
 
 ## Implementation and tests
 
@@ -119,7 +119,7 @@ network library (`domain/peer`, `application/peer`, `infrastructure/peer`,
 ownership lives in the independent Plugin SDK; product contracts live in their
 plugin.
 
-The current Go import path uses module major `github.com/Liapoldus/pluginprotocol/v2`
+The current Go import path uses module major `github.com/Liapoldus/pluginprotocol/v3`
 because the legacy Go API was removed. This Go module version is independent of
 the network contract version: peers continue to speak `liapoldus.peer.v1`.
 Never rename the wire namespace just to match the Go module major.

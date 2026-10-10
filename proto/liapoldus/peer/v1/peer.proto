@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package liapoldus.peer.v1;
 
-option go_package = "github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/wire;wire";
+option go_package = "github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/wire;wire";
 
 // This is the generic plugin-to-plugin wire contract. It carries only an opaque
 // method name and an opaque payload: it defines no plugin lifecycle, no

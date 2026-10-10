@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
-	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/conn"
-	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/security"
+	"github.com/Liapoldus/pluginprotocol/v3/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/conn"
+	"github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/security"
 	winio "github.com/Microsoft/go-winio"
 	"golang.org/x/sys/windows"
 )

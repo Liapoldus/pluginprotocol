@@ -1,9 +1,9 @@
 # Liapoldus Plugin Protocol
 
-Текущая Go-библиотека выпускается как module major `v2` по правилам Go
+Текущая Go-библиотека выпускается как module major `v3` по правилам Go
 SemVer: её Go API несовместим с legacy module `v1.0.0`. Это версия Go module,
 а не wire-протокола: сетевой контракт остаётся `liapoldus.peer.v1`. Импорты
-текущей библиотеки используют путь `github.com/Liapoldus/pluginprotocol/v2/...`.
+текущей библиотеки используют путь `github.com/Liapoldus/pluginprotocol/v3/...`.
 
 `pluginprotocol` — независимая Go-библиотека для generic коммуникации между
 плагинами. Потребитель сам регистрирует методы, payloads и их прикладной смысл;
@@ -19,7 +19,8 @@ primitives, транспорт и сетевую защиту.
 - `presentation/` — публичный Go facade библиотеки.
 
 Application API не меняется при выборе физического carrier или security
-profile. Поддерживаемые v1 carrier — TCP и QUIC; оба проходят один и тот же
+profile. Production carrier matrix — TCP/QUIC для remote, Unix sockets для
+Linux/macOS и named pipes для Windows; каждый проходит один и тот же
 набор conformance, поэтому смена carrier не ослабляет peer authentication,
 encryption, authorization, cancellation, deadlines, flow control или stream
 семантику. Единый wire contract — `liapoldus.peer.v1`; он переносит только opaque
@@ -68,13 +69,18 @@ Generated `.pb.go` проходит security/resource/correctness checks; тол
 descriptor views на owned byte copies. Wire namespace, descriptors и payloads
 сохраняются; unexpected generator output отклоняется.
 
-## Другие языки — план v3
+## Foreign bindings вне v3
 
-В v3 Go остаётся единственной реализацией peer wire/session engine. Планируется
-версионированная C ABI над публичным Go facade и Python binding на `cffi`;
-Python не реализует framing, sessions, carriers или TLS независимо. C ABI
-покрывает полный peer API через opaque handles, length-delimited bytes и
-bounded event polling. Core lifecycle в неё не входит: им владеет Plugin SDK.
-Native libraries и Python wheels планируются для Linux amd64/arm64, macOS arm64
-и Windows amd64. До реализации FFI exports, artifacts и bindings не считаются
-существующими или поддержанными.
+Foreign bindings, C ABI и отдельный non-Go wire/session engine в v3 не входят.
+Go facade является единственной поддержанной public surface. Новый язык или
+ABI потребует отдельного решения, versioned contract и собственного
+conformance gate; это не должно добавлять продуктовые или Core lifecycle API.
+
+## Release integrity
+
+Каждый `pluginprotocol-v3.*` release публикуется только release workflow после
+проверки сгенерированного wire-кода, Go/TypeScript conformance и `go vet`.
+Workflow создаёт source artifact, SPDX SBOM, keyless Sigstore bundles для
+artifact и SBOM и GitHub build-provenance attestation. Потребитель обязан
+проверить checksum и подпись до pinning protocol release; wire namespace при
+этом остаётся `liapoldus.peer.v1`.

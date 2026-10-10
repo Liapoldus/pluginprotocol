@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
+	"github.com/Liapoldus/pluginprotocol/v3/tests/support/fixture"
 	"io"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/v2/presentation/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/presentation/peer"
 )
 
 const messageCount = 32

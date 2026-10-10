@@ -9,7 +9,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/domain/peer"
 )
 
 // Session implements the carrier-independent port every carrier hands out. The

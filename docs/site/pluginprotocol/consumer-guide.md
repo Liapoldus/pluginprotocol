@@ -3,7 +3,7 @@
 How a plugin uses `pluginprotocol`. The whole public surface is one package:
 
 ```go
-import publicpeer "github.com/Liapoldus/pluginprotocol/v2/presentation/peer"
+import publicpeer "github.com/Liapoldus/pluginprotocol/v3/presentation/peer"
 ```
 
 Everything below is generic: method names, payloads, authorization policy and
@@ -226,22 +226,21 @@ The Core↔plugin REST boundary and the shared plugin tooling belong to the sepa
 conformance vectors belong to the plugin's own repository. Method names used in
 this guide (`demo.*`) are placeholders for names you own.
 
-## Целевые локальные carriers v2
+## Локальные carriers v3
 
 К TCP и QUIC добавлены Unix domain sockets для Linux/macOS и Windows named pipes
 для plugin-процессов на одном Windows host. Unix endpoint имеет форму
 `unix:///absolute/path`, а `ServerName` явно задаёт DNS SAN сертификата.
 Named pipe выбирается как `CarrierPipe` с endpoint `\\.\pipe\name`;
 его ACL ограничен текущей Windows identity процесса и SYSTEM. Оба локальных
-carrier пока не прошли весь native v2 gate и не входят в подтверждённую
-матрицу поддержки. Carrier выбирается
+carrier входят в production matrix после прохождения native release gates. Carrier выбирается
 явным правилом caller→target, которое plugin получает через Plugin SDK
 peer-directory; библиотека не читает Core policy и не выбирает другой carrier
 при ошибке. Правила `same-placement` и `remote` могут сосуществовать для одной
 пары, но каждое отдельно называет endpoint и carrier. Socket-only вызов без
 локальной target replica завершается bounded unavailable, а не TCP fallback.
 
-Все v2 carriers, включая локальные IPC, используют mTLS и проверяют peer
+Все v3 carriers, включая локальные IPC, используют mTLS и проверяют peer
 identity; права Unix socket и Windows pipe ACL — дополнительная защита. Для
 них plaintext-профиля нет. Реестр
 методов, unary/stream semantics, deadlines, cancellation и backpressure не
@@ -272,12 +271,9 @@ rollout weights или продуктовые контракты: ими вла�
 Unix sockets и Windows named pipes, включая отказ сертификата, revocation,
 no fallback, close races и bounded streams.
 
-## C ABI и Python binding v3 — пока не реализованы
+## Foreign bindings вне v3
 
-Go остаётся единственным wire/session/security engine. V3 добавляет
-versioned C ABI над публичной Go facade и Python binding на `cffi`; Python не
-реализует framing, sessions, TLS или transport semantics самостоятельно. C ABI
-охватывает общий peer API, использует opaque handles и length-delimited buffers,
-а callbacks заменяет bounded poll/event queue. ABI version отдельна от
-`liapoldus.peer.v1`; обязательны native CI, ownership tests и двусторонний
-Go↔Python conformance. Core lifecycle и product methods не входят в FFI.
+Go остаётся единственным wire/session/security engine. C ABI, Python binding и
+другие foreign bindings в v3 не входят. Поддерживается только Go facade;
+расширение этой поверхности требует отдельного versioned contract и native
+conformance. Core lifecycle и product methods не входят в protocol library.

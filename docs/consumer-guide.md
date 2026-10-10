@@ -3,7 +3,7 @@
 How a plugin uses `pluginprotocol`. The whole public surface is one package:
 
 ```go
-import publicpeer "github.com/Liapoldus/pluginprotocol/v2/presentation/peer"
+import publicpeer "github.com/Liapoldus/pluginprotocol/v3/presentation/peer"
 ```
 
 Everything below is generic: method names, payloads, authorization policy and
@@ -181,8 +181,8 @@ uses a `unix:///absolute/path` endpoint and requires mutual TLS;
 `NetworkConfig.ServerName` must explicitly name the DNS SAN in the peer
 certificate because a socket path is not a TLS identity. Its socket directory
 must already exist and must not be group- or world-writable. Unix carrier
-conformance is being added for v2; it is not yet part of the supported-carrier
-matrix until the complete shared suite passes.
+Unix carrier conformance is part of the supported production matrix; the shared
+suite must pass before a release is published.
 
 On a standalone Windows host, `CarrierPipe` uses an explicit Windows endpoint
 such as `\\.\pipe\liapoldus-peer-name`. It always requires mutual TLS and an
@@ -191,8 +191,7 @@ additional OS boundary, not a substitute for peer identity. The listener DACL
 grants access only to the process account and SYSTEM. A pipe-name collision is
 rejected rather than replaced, and a failed pipe connection never falls back to
 TCP or QUIC. Windows container/Pod named-pipe placement is not part of this
-support claim. The carrier remains experimental until native Windows child-
-process conformance passes in CI.
+support claim. Native Windows child-process conformance is a release gate.
 
 ## 7. Security profiles
 
@@ -280,14 +279,9 @@ The Core↔plugin REST boundary and the shared plugin tooling belong to the sepa
 conformance vectors belong to the plugin's own repository. Method names used in
 this guide (`demo.*`) are placeholders for names you own.
 
-## 10. Non-Go bindings planned for v3
+## 10. Foreign bindings outside v3
 
-The v3 plan keeps this Go package as the only peer wire/session implementation
-and exposes its public facade through a versioned native C ABI. The first
-official non-Go binding is Python using `cffi`; it calls the same Go shared
-library and does not implement framing, sessions, carriers, or TLS a second
-time. The C ABI is planned to cover the full peer surface using opaque handles,
-length-delimited bytes, explicit buffer ownership, and a bounded event-polling
-API. Core lifecycle REST is outside this library and remains owned by Plugin
-SDK. These bindings and artifacts are planned only; they are not part of the
-current Go API or current support matrix.
+Foreign bindings, C ABI and a second wire/session implementation are outside v3.
+The supported surface is the Go facade described above. Any future non-Go
+binding requires a separate versioned contract and native conformance gate;
+Core lifecycle REST remains owned by Plugin SDK.

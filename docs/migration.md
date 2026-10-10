@@ -150,14 +150,14 @@ carries opaque payloads and knows nothing about HTTP, cookies, SSE or WebSocket.
 
 ## 4. Consumer status and handoff
 
-The source migration and integrated workspace status as of 2026-10-02 is:
+The source migration and integrated workspace status was reconciled on 2026-10-10:
 
 | Consumer | Status | Required action |
 | --- | --- | --- |
 | `core` | Migrated to Plugin SDK REST; it must not import this module. | No lifecycle migration remains. Use this module only for generic peer calls/streams if needed. |
 | `plugins/server` | Migrated to Plugin SDK REST and `presentation/peer`; full Server suite and Core→SDK→Server child-process artifact publish pass in the current workspace. | Keep future product/lifecycle changes in the Server and SDK owner repositories; do not restore lifecycle APIs here. |
 | `plugins/forms-db` | Migrated to Plugin SDK REST and `presentation/peer`; standalone lifecycle/Admin Surface and SQL repository suites pass, and the combined Core→Server→forms-db smoke passes in the current workspace. | Keep future product/lifecycle changes in the forms-db and SDK owner repositories; no compatibility surface belongs here. |
-| `plugins/captcha`, `plugins/identity` | Frozen and excluded from v1. | No work until explicitly unfrozen for a later version; do not restore compatibility exports for them. |
+| `plugins/captcha`, `plugins/identity` | Frozen and outside the active v3 train. | Do not restore compatibility exports without a new explicit architecture decision. |
 | Third-party consumers | Not inventoried by this workspace. | Owners migrate independently; no deprecation aliases are provided. |
 
 The combined manual-process smoke was repeated on macOS and in a Linux/arm64

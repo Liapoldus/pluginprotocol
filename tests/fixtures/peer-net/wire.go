@@ -6,13 +6,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
+	"github.com/Liapoldus/pluginprotocol/v3/tests/support/fixture"
 	"math/rand"
 	"net"
 	"time"
 
-	applicationpeer "github.com/Liapoldus/pluginprotocol/v2/application/peer"
-	domainpeer "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	applicationpeer "github.com/Liapoldus/pluginprotocol/v3/application/peer"
+	domainpeer "github.com/Liapoldus/pluginprotocol/v3/domain/peer"
 )
 
 // wireProbe sends hostile or abrupt traffic at a real server.

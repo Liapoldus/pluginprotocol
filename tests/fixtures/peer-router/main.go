@@ -12,15 +12,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
+	"github.com/Liapoldus/pluginprotocol/v3/tests/support/fixture"
 	"io"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/v2/application/peer"
-	domainpeer "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/application/peer"
+	domainpeer "github.com/Liapoldus/pluginprotocol/v3/domain/peer"
 )
 
 const (

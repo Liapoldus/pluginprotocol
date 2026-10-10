@@ -1,4 +1,4 @@
-module github.com/Liapoldus/pluginprotocol/v2
+module github.com/Liapoldus/pluginprotocol/v3
 
 go 1.24.1
 

@@ -23,7 +23,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/domain/peer"
 	"google.golang.org/protobuf/proto"
 )
 

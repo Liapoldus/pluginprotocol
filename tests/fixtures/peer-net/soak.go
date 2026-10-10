@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Liapoldus/pluginprotocol/v2/application/peer"
-	domainpeer "github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/application/peer"
+	domainpeer "github.com/Liapoldus/pluginprotocol/v3/domain/peer"
 )
 
 // soakProbe recycles sessions against a running endpoint and reports whether the

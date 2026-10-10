@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/domain/peer"
 )
 
 // ErrNoPeerIdentity reports a peer that presented no usable URI SAN. A peer that

@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
-	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/codec"
-	"github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/wire"
+	"github.com/Liapoldus/pluginprotocol/v3/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/codec"
+	"github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/wire"
 )
 
 func TestFailureStatusCannotWrapIntoSuccess(t *testing.T) {

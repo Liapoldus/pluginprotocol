@@ -12,7 +12,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/Liapoldus/pluginprotocol/v2/tests/support/fixture"
+	"github.com/Liapoldus/pluginprotocol/v3/tests/support/fixture"
 	"io"
 	"math/big"
 	"net"
@@ -24,7 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	publicpeer "github.com/Liapoldus/pluginprotocol/v2/presentation/peer"
+	publicpeer "github.com/Liapoldus/pluginprotocol/v3/presentation/peer"
 )
 
 type report struct {

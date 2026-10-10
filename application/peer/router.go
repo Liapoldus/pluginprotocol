@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Liapoldus/pluginprotocol/v2/domain/peer"
+	"github.com/Liapoldus/pluginprotocol/v3/domain/peer"
 )
 
 // Router dispatches incoming invocations to the handlers of a registry while

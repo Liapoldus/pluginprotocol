@@ -1,6 +1,6 @@
 package peer
 
-import "github.com/Liapoldus/pluginprotocol/v2/infrastructure/peer/security"
+import "github.com/Liapoldus/pluginprotocol/v3/infrastructure/peer/security"
 
 // RevocationBundle is a complete signed-CRL snapshot for one configured trust
 // root set. The wire-independent security contract is implemented by the

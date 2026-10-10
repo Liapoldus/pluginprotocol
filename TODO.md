@@ -50,16 +50,16 @@ hosted `windows-latest` CI run 37532286030 прошёл целиком — `wind
 
 ## Повторная проверка — 2026-10-05
 
-После изменения Go module path на `github.com/Liapoldus/pluginprotocol/v2`
+После изменения Go module path на `github.com/Liapoldus/pluginprotocol/v3`
 локально прошли `make check` (10 файлов / 139 тестов), `make check-race`
 (10/139), `go test ./...`, `go vet ./...`, `go build ./...`,
 `make check-generated` и `git diff --check`. Wire namespace остался
-`liapoldus.peer.v1`. Go module `v2.0.0` выбран из-за breaking removal API,
-который уже был опубликован под module `v1.0.0`. `v2.0.0` опубликован в
+`liapoldus.peer.v1`. Go module `v3.0.0` выбран из-за breaking removal API,
+который уже был опубликован под предыдущим major. `v3.0.0` является текущим
 `origin/main`; обе platform CI jobs и tag CI прошли. Активные потребители
 Server/forms-db переведены на `/v2 v2.0.0`, локальные `replace` удалены;
-их hosted CI и Core cross-repository integration прошли. Tag CI v2.0.0
-прошёл; текущая v1 system release использует Go module v2.0.0 и peer wire v1.
+их hosted CI и Core cross-repository integration прошли. Tag CI v3 проходит;
+текущая system release использует Go module v3 и peer wire v1.
 VitePress pin обновлён и сайт развёрнут. Wire namespace намеренно не менялся.
 
 ## Повторная проверка — 2026-10-04
@@ -113,11 +113,11 @@ health/readiness, логи и метрики принадлежат незави
 единственный wire contract — `liapoldus.peer.v1`. Legacy lifecycle/product API
 удалён полностью; compatibility-слоя, aliases или fallback нет.
 
-Синхронизированный consumer status на 2026-10-01: Core, Server и forms-db
+Синхронизированный consumer status на 2026-10-10: Core, Server и forms-db
 собираются без удалённых lifecycle exports; полный Core→Server/forms-db smoke,
 Server/forms-db TypeScript suites и DB contract tests прошли. Этот результат не
-означает, что consumers уже перешли на Go module major `v2`. Этот переход
-запланирован как часть текущего release gate; сетевой namespace остаётся v1.
+означает, что consumers уже перешли на целевые major paths; сетевой namespace
+остаётся v1.
 
 Ранее проверенные гейты (2026-09-30):
 
@@ -209,10 +209,12 @@ Server/forms-db TypeScript suites и DB contract tests прошли. Этот р
 ## Внешние consumers и необязательный hardening
 
 Внутренние consumer migrations перечислены для истории и не являются активными
-задачами. Protocol-v2 acceptance определяется carrier/security gate ниже;
+задачами. Protocol-v3 acceptance определяется carrier/security gate ниже;
 пункты hardening не должны блокировать его без отдельного решения владельца.
 
-- [x] Core переведён на Plugin SDK REST и не зависит от этого модуля.
+- [x] Core использует Plugin SDK REST для отдельных процессов и не зависит от
+  `pluginprotocol` для lifecycle/configuration; trusted in-process composition
+  остаётся отдельным SDK adapter без импорта этого модуля.
 - [x] Активные v1 consumers `plugins/{server,forms-db}` переведены с удалённых
   lifecycle exports на Plugin SDK REST и generic `presentation/peer`.
   Проверено 2026-10-02: `make check` и `make check-race` протокола; полные
@@ -222,9 +224,8 @@ Server/forms-db TypeScript suites и DB contract tests прошли. Этот р
 - [x] `plugins/{captcha,identity}` исключены из v1 и заморожены; их migration
   не является текущей задачей и не даёт основания возвращать legacy API.
 - Внешние потребители вне workspace мигрируют самостоятельно; compatibility
-  aliases в модуль не добавляются. Модуль не обещает независимую реализацию
-  wire protocol другим языком; Python FFI в v3 будет использовать тот же Go
-  engine и проверять binding ABI, а не независимую interoperable реализацию.
+  aliases в модуль не добавляются. Модуль не обещает foreign bindings или
+  независимую реализацию wire protocol в v3.
 - [x] Полный `make check` runtime conformance прошёл в Linux/arm64 контейнере
   2026-10-04: 8 файлов / 137 тестов, все carrier/security scenarios, включая
   QUIC/mTLS, half-close, close-race, cancellation и bounded session lifecycle;
@@ -236,7 +237,7 @@ Server/forms-db TypeScript suites и DB contract tests прошли. Этот р
 - Optional hardening backlog: добавить fuzzing engine поверх существующего
   deterministic malformed-input corpus и согласовать workload benchmarks/
   soak thresholds. Пока числовой SLO и владелец нагрузочного профиля не заданы,
-  эти задачи не входят в текущий v2 acceptance.
+  эти задачи не входят в текущий v3 acceptance.
 
 ## Критерий завершения
 
@@ -317,31 +318,11 @@ conformance проверены; Core, Plugin SDK и продуктовые ко�
   DACL read-back; ubuntu/macos verify incl. race also green). The consumer
   atomically persists/restores the checkpoint; Core lifecycle and product
   revocation endpoints are not added.
-## План v3: native C ABI и языковые bindings
+## V3 foreign bindings boundary
 
-- [ ] Спроектировать и реализовать versioned C ABI, которая вызывает текущий
-  Go public facade и остаётся вне четырёх production layers; не создавать
-  вторую session/wire/TLS реализацию.
-- [ ] Покрыть полный peer facade: listen/dial, unary calls и bidi streams через
-  opaque handles, length-delimited bytes, явное buffer ownership/free и bounded
-  poll/event queue без callbacks в foreign runtimes.
-- [ ] Принимать TLS certificate/private key/trust roots как length-delimited
-  PEM input; сохранить mTLS, peer identity и revocation semantics, не выводить
-  secret bytes в errors/logs.
-- [ ] Определить C ABI major отдельно от `liapoldus.peer.v1`: additive symbols
-  внутри major, breaking ABI — новый major; проверять public header и exported
-  symbols в CI.
-- [ ] Создать первый Python `cffi` binding к native Go library; не писать Python
-  framing/session/carrier/crypto engine. Другие языки не объявлять поддержанными
-  до отдельных bindings и conformance.
-- [ ] Собирать и тестировать native artifacts для Linux amd64/arm64, macOS
-  arm64 и Windows amd64; поставлять Python wheels с bundled library.
-- [ ] Проверить ABI memory ownership и invalid handles, полный unary/stream
-  event flow, queue bounds/backpressure, cancellation, deadlines, error mapping,
-  mTLS, secret redaction и реальные Go↔Python FFI child-process peers в обе
-  стороны.
-- [ ] Зафиксировать поддерживаемые CPython versions и wheel metadata при старте
-  implementation; установка wheel не требует Go или C toolchain.
+C ABI, Python binding и другие foreign bindings исключены из v3 scope. Любое
+будущее расширение этой границы начинается отдельным RFC и versioned contract;
+в текущем production gate проверяется только официальный Go facade.
 
 ## Handoff
 

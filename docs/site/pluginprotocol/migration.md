@@ -150,14 +150,14 @@ carries opaque payloads and knows nothing about HTTP, cookies, SSE or WebSocket.
 
 ## 4. Consumer status and handoff
 
-The in-workspace status as of 2026-09-30 is:
+The migration record was reconciled on 2026-10-10:
 
 | Consumer | Status | Required action |
 | --- | --- | --- |
 | `core` | Migrated to Plugin SDK REST; it must not import this module. | No lifecycle migration remains. Use this module only for generic peer calls/streams if needed. |
-| `plugins/server` | Active v1 consumer; currently fails to compile against the removed API. | Replace lifecycle/config with Plugin SDK REST and peer communication with `presentation/peer`; adapt its current REST adapter to the actual SDK. |
-| `plugins/forms-db` | Active v1 consumer; currently fails to compile against the removed API. | Replace lifecycle/config with Plugin SDK REST and peer communication with `presentation/peer`. |
-| `plugins/captcha`, `plugins/identity` | Frozen and excluded from v1. | No work until explicitly unfrozen for a later version; do not restore compatibility exports for them. |
+| `plugins/server` | Migrated to Plugin SDK v2 and `presentation/peer`. | Keep lifecycle/config in Plugin SDK and product methods in the plugin owner. |
+| `plugins/forms-db` | Migrated to Plugin SDK v2 and `presentation/peer`. | Keep lifecycle/config in Plugin SDK and product methods in the plugin owner. |
+| `plugins/captcha`, `plugins/identity` | Frozen and outside the active v3 train. | Do not restore compatibility exports without a new explicit architecture decision. |
 | Third-party consumers | Not inventoried by this workspace. | Owners migrate independently; no deprecation aliases are provided. |
 
 Active consumers that use peer communication replace it with

@@ -14,7 +14,8 @@ primitives, транспорт и сетевую защиту.
 - `presentation/` — публичный Go facade библиотеки.
 
 Application API не меняется при выборе физического carrier или security
-profile. Поддерживаемые v1 carrier — TCP и QUIC; оба проходят один и тот же
+profile. Production carrier matrix — TCP/QUIC для remote, Unix sockets для
+Linux/macOS и named pipes для Windows; каждый проходит один и тот же
 набор conformance, поэтому смена carrier не ослабляет peer authentication,
 encryption, authorization, cancellation, deadlines, flow control или stream
 семантику. Единый wire contract — `liapoldus.peer.v1`; он переносит только opaque
