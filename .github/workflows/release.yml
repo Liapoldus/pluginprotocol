@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "pluginprotocol-v3.*"
+      - "v3.*"
 
 permissions:
   contents: write
